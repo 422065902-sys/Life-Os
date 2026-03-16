@@ -2253,77 +2253,74 @@ document.addEventListener('DOMContentLoaded', init);
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  
-  // Creamos un nuevo documento "maestro" para evitar chocar con las pruebas anteriores
   const tableroRef = doc(db, "usuarios", "wences_maestro_total");
 
-  // --- 1. FUNCIÓN PARA GUARDAR ABSOLUTAMENTE TODO ---
+  let guardando = false; // Candado para no saturar a Firebase
+
+  // --- 1. FUNCIÓN DE GUARDADO (Ahora con aviso visual) ---
   window.guardarDatos = async function() {
+    if (guardando) return; 
+    guardando = true;
+    
     try {
-      // Tomamos todo tu cerebro digital (el objeto S) y lo hacemos texto.
-      // Esto es vital porque Firestore no acepta arreglos anidados como los de tu Agencia.
+      // Empaquetamos todo tu Segundo Cerebro
       const estadoCompleto = JSON.stringify({
-        dark: S.dark, accent: S.accent,
-        xp: S.xp, level: S.level, coins: S.coins,
-        tasks: S.tasks, habits: S.habits, routines: S.routines,
-        transactions: S.transactions, debts: S.debts, cards: S.cards,
-        goals: S.goals, calEvents: S.calEvents,
+        dark: S.dark, accent: S.accent, xp: S.xp, level: S.level, coins: S.coins,
+        tasks: S.tasks, habits: S.habits, routines: S.routines, transactions: S.transactions,
+        debts: S.debts, cards: S.cards, goals: S.goals, calEvents: S.calEvents,
         agencyTabs: S.agencyTabs, gymDays: S.gymDays
       });
 
-      await setDoc(tableroRef, {
-        appData: estadoCompleto,
-        personalBal: personalBalance,
-        agencyBal: agencyBalance
-      });
+      await setDoc(tableroRef, { appData: estadoCompleto });
       
-      console.log("☁️ Autoguardado activado: Todo el sistema respaldado");
+      // ¡ESTE ES EL AVISO CLAVE!
+      showToast("☁️ Guardado en la nube");
+      
     } catch (e) {
-      console.error("Error al guardar todo: ", e);
+      console.error("Error al guardar: ", e);
+    } finally {
+      guardando = false;
     }
   };
 
-  // --- 2. FUNCIÓN PARA CARGAR Y PINTAR TODO AL INICIAR ---
+  // --- 2. FUNCIÓN DE CARGA BLINDADA ---
   window.cargarDatos = async function() {
     try {
       const docSnap = await getDoc(tableroRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        
-        // A. Restaurar dinero
-        if (data.personalBal !== undefined) personalBalance = data.personalBal;
-        if (data.agencyBal !== undefined) agencyBalance = data.agencyBal;
 
-        // B. Desempaquetar el cerebro gigante (objeto S)
         if (data.appData) {
-          const guardado = JSON.parse(data.appData);
-          
-          if(guardado.dark !== undefined) S.dark = guardado.dark;
-          if(guardado.accent) S.accent = guardado.accent;
-          if(guardado.xp !== undefined) S.xp = guardado.xp;
-          if(guardado.level !== undefined) S.level = guardado.level;
-          if(guardado.coins !== undefined) S.coins = guardado.coins;
-          if(guardado.tasks) S.tasks = guardado.tasks;
-          if(guardado.habits) S.habits = guardado.habits;
-          if(guardado.routines) S.routines = guardado.routines;
-          if(guardado.transactions) S.transactions = guardado.transactions;
-          if(guardado.debts) S.debts = guardado.debts;
-          if(guardado.cards) S.cards = guardado.cards;
-          if(guardado.goals) S.goals = guardado.goals;
-          if(guardado.calEvents) S.calEvents = guardado.calEvents;
-          if(guardado.agencyTabs) S.agencyTabs = guardado.agencyTabs;
-          if(guardado.gymDays) S.gymDays = guardado.gymDays;
+          const g = JSON.parse(data.appData);
+          if(g.dark !== undefined) S.dark = g.dark;
+          if(g.accent) S.accent = g.accent;
+          if(g.xp !== undefined) S.xp = g.xp;
+          if(g.level !== undefined) S.level = g.level;
+          if(g.coins !== undefined) S.coins = g.coins;
+          if(g.tasks) S.tasks = g.tasks;
+          if(g.habits) S.habits = g.habits;
+          if(g.routines) S.routines = g.routines;
+          if(g.transactions) S.transactions = g.transactions;
+          if(g.debts) S.debts = g.debts;
+          if(g.cards) S.cards = g.cards;
+          if(g.goals) S.goals = g.goals;
+          if(g.calEvents) S.calEvents = g.calEvents;
+          if(g.agencyTabs) S.agencyTabs = g.agencyTabs;
+          if(g.gymDays) S.gymDays = g.gymDays;
         }
 
-        // C. Forzar a la pantalla a reflejar los datos descargados
+        // Truco maestro: Recalculamos tu dinero directamente del historial para no fallar jamás
+        personalBalance = S.transactions.filter(t=>t.scope==='personal').reduce((a,t)=>a+(t.type==='entrada'?t.amount:-t.amount),0);
+        agencyBalance = S.transactions.filter(t=>t.scope==='agencia').reduce((a,t)=>a+(t.type==='entrada'?t.amount:-t.amount),0);
+
+        // Actualizamos todos los gráficos y tablas con los datos descargados
         document.body.classList.toggle('light', !S.dark);
         const themeBtn = document.getElementById('theme-btn');
         if(themeBtn) themeBtn.textContent = S.dark ? '☀️' : '🌙';
         const tog = document.getElementById('theme-toggle');
         if (tog) tog.checked = S.dark;
         
-        // Ejecutamos las funciones de pintado para cada módulo
-        applyAccent(S.accent); 
+        applyAccent(S.accent);
         updateXP();
         if(typeof renderTasks === 'function') renderTasks();
         if(typeof renderHabits === 'function') renderHabits();
@@ -2333,7 +2330,7 @@ document.addEventListener('DOMContentLoaded', init);
         if(typeof renderAgencyTable === 'function') renderAgencyTable();
         if(typeof renderCalendar === 'function') renderCalendar();
         if(typeof buildFreqCalendar === 'function') buildFreqCalendar();
-        
+
         showToast("✅ Life OS 100% Sincronizado");
       }
     } catch (e) {
@@ -2341,34 +2338,30 @@ document.addEventListener('DOMContentLoaded', init);
     }
   };
 
-  // --- 3. EL INTERCEPTOR MÁGICO ---
-  // Esta lista incluye TODAS tus funciones que modifican datos en la app
-  const accionesQueGuardan = [
-    'toggleTheme', 'applyAccent', 'applyCustomAccent', 
-    'addTask', 'toggleTask', 'deleteTask', 'saveTaskEdit',
-    'addHabit', 'toggleHabit', 'deleteHabit', 'saveHabitEdit',
-    'addRoutine', 'addExercise', 'removeExercise', 'toggleRoutineActive', 'deleteRoutine', 'saveRoutineEdit', 'addGymSet',
-    'addTransaction', 'deleteTx', 'saveTxEdit', 'addCard', 'deleteCard', 'addDebt', 'deleteDebt',
-    'addGoal', 'addObjective', 'toggleObj', 'deleteObj', 'deleteGoal', 'saveGoalEdit',
-    'submitAgencyRow', 'deleteAgencyRow', 'saveAgencyEdit',
-    'addCalEvent', 'deleteCalEvent', 'handleReset'
-  ];
-
-  // Primero descargamos tus datos...
+  // --- 3. INICIO Y AUTOGUARDADO ---
+  // Primero descargamos los datos al entrar...
   await cargarDatos();
 
-  // Y luego inyectamos el autoguardado a todos tus botones
-  accionesQueGuardan.forEach(fnName => {
-    if (typeof window[fnName] === 'function') {
-      const funcionOriginal = window[fnName]; // Guardamos lo que hace el botón normalmente
-      window[fnName] = function(...args) {
-        const resultado = funcionOriginal.apply(this, args); // 1. Ejecuta tu código original
-        window.guardarDatos(); // 2. ¡Guarda el resultado en Firebase en silencio!
-        return resultado;
+  // Y luego le ponemos vigilancia a todos tus botones
+  const acciones = [
+    'toggleTheme', 'applyAccent', 'applyCustomAccent', 'addTask', 'toggleTask', 'deleteTask',
+    'saveTaskEdit', 'addHabit', 'toggleHabit', 'deleteHabit', 'saveHabitEdit', 'addRoutine',
+    'addExercise', 'removeExercise', 'toggleRoutineActive', 'deleteRoutine', 'saveRoutineEdit',
+    'addGymSet', 'addTransaction', 'deleteTx', 'saveTxEdit', 'addCard', 'deleteCard', 'addDebt',
+    'deleteDebt', 'addGoal', 'addObjective', 'toggleObj', 'deleteObj', 'deleteGoal', 'saveGoalEdit',
+    'submitAgencyRow', 'deleteAgencyRow', 'saveAgencyEdit', 'addCalEvent', 'deleteCalEvent', 'handleReset'
+  ];
+
+  acciones.forEach(fn => {
+    if (typeof window[fn] === 'function') {
+      const original = window[fn];
+      window[fn] = function(...args) {
+        const res = original.apply(this, args);
+        window.guardarDatos(); // Guardado automático y silencioso
+        return res;
       };
     }
   });
-
 </script>
 </body>
 </html>
