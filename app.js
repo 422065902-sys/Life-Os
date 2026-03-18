@@ -1,3 +1,4 @@
+console.log("🚀 app.js empezó a leerse");
 /* ═══════════════════════════════════════════════════════════════
    Life OS — app.js
    Archivo principal de lógica y configuración Firebase.
@@ -5729,3 +5730,4 @@ window.worldNavToActive = worldNavToActive;
 window.worldTeleport = worldTeleport;
 window.worldTrackNavigation = worldTrackNavigation;
 window.worldZoneClick = worldZoneClick;
+console.log("✅ app.js llegó hasta el final");
