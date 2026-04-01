@@ -4964,18 +4964,6 @@ function openApartment()  { aptShowConfirm(); }
 function closeApartment() { exitApartment(); }
 function aptOverlayClick(e) {}
 
-function aptZoneClick(id) {
-  const zone = APT_ZONES[id];
-  if (!zone) return;
-  _aptCurrentZone = id;
-
-  // Move apt bubble
-  _moveAptBubbleTo(id);
-
-  // Update status
-  showToast(`${zone.emoji} ${zone.label}`);
-}
-
 /* ── Apply equipped room on apartment open ── */
 function applyEquippedRoom() {
   initRoomShopState();
