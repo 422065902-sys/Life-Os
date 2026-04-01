@@ -47,7 +47,7 @@ if (CLOUD_ENABLED) {
     _db        = firebase.firestore();
     _functions = firebase.functions();
     // Habilitar persistencia offline de Firestore
-    _db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    try { _db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
     console.info('[Life OS] ☁️ Firebase inicializado correctamente.');
   } catch(e) {
     console.error('[Life OS] Firebase init error:', e);
@@ -471,7 +471,8 @@ function getRadarAccentColor(data) {
 function initRadarChart() {
   const canvas = document.getElementById('radarChart');
   if (!canvas) return;
-  if (S.charts.radar) { S.charts.radar.destroy(); }
+  const _existingRadar = Chart.getChart('radarChart'); if (_existingRadar) _existingRadar.destroy();
+  S.charts.radar = null;
   const data = getRadarData(radarMode);
   const colors = getRadarAccentColor(data);
   S.charts.radar = new Chart(canvas, {
@@ -3759,11 +3760,25 @@ function procesarPago() {
   const nombre = document.getElementById('pago-nombre').value.trim();
   const email  = document.getElementById('pago-email').value.trim();
   if(!nombre||!email){ showToast('⚠️ Nombre y correo son obligatorios'); return; }
+
+  if(!CLOUD_ENABLED || !_auth?.currentUser){
+    showToast('⚠️ Debes iniciar sesión para continuar');
+    return;
+  }
+
+  const priceId = selectedPlan === 'estudiante'
+    ? STRIPE_PRICE_ESTUDIANTE
+    : STRIPE_PRICE_GENERAL;
+
   closeModal('modal-pago');
-  setTimeout(()=>{
-    showToast('✅ Pago procesado · ¡Bienvenido a Life OS Pro!');
-    spawnConfetti();
-  }, 400);
+  showToast('⏳ Redirigiendo a pago seguro...');
+
+  _functions.httpsCallable('createStripeCheckoutSession')({ priceId })
+    .then(result => { window.location.href = result.data.url; })
+    .catch(err => {
+      console.error('[Life OS] procesarPago error:', err);
+      showToast('❌ Error al iniciar el pago. Intenta de nuevo.');
+    });
 }
 
 /* ═══════════════════════════════════════════
