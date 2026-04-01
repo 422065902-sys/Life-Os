@@ -43,7 +43,7 @@ if (CLOUD_ENABLED) {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     _auth = firebase.auth();
     _db   = firebase.firestore();
-    _db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    try { _db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
     // Registrar service worker y solicitar permiso de notificaciones
     if ('serviceWorker' in navigator && typeof firebase.messaging === 'function') {
       navigator.serviceWorker.register('/firebase-messaging-sw.js')
@@ -543,6 +543,7 @@ function getRadarAccentColor(data) {
 function initRadarChart() {
   const canvas = document.getElementById('radarChart');
   if (!canvas) return;
+  const _existingRadar = Chart.getChart(canvas); if (_existingRadar) _existingRadar.destroy();
   if (S.charts.radar) { S.charts.radar.destroy(); }
   const data = getRadarData(radarMode);
   const colors = getRadarAccentColor(data);
