@@ -305,16 +305,12 @@ function buildAccentPresets() {
     <div class="acc-dot ${S.accent===p.v?'sel':''}" style="background:${p.v}" title="${p.name}" onclick="applyAccent('${p.v}')"></div>`).join('');
 }
 
-/** Construye el selector de color en el formulario de registro */
+/** Construye el selector de color en el formulario de registro — usa las mismas clases que ajustes */
 function buildRegAccentPicker() {
   const el = document.getElementById('reg-accent-dots'); if (!el) return;
   const cur = document.getElementById('reg-accent')?.value || '#00e5ff';
   el.innerHTML = ACCENT_PRESETS.map(p => `
-    <div onclick="selectRegAccent('${p.v}')"
-      style="width:26px;height:26px;border-radius:50%;background:${p.v};cursor:pointer;
-             transition:transform .15s,box-shadow .15s;flex-shrink:0;
-             ${cur===p.v ? 'transform:scale(1.25);box-shadow:0 0 0 2px #fff,0 0 0 4px '+p.v : 'opacity:.75'}"
-      title="${p.name}"></div>`).join('');
+    <div class="acc-dot ${cur===p.v?'sel':''}" style="background:${p.v}" title="${p.name}" onclick="selectRegAccent('${p.v}')"></div>`).join('');
 }
 
 function selectRegAccent(color) {
