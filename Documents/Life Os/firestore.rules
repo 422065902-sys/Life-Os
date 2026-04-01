@@ -34,6 +34,11 @@ service cloud.firestore {
         allow read, write: if isAuth() && isOwner(uid);
       }
 
+      // ── users/{uid}/connections/{connectionId} — Aliados/conexiones ──
+      match /connections/{connectionId} {
+        allow read, write: if isAuth() && isOwner(uid);
+      }
+
       // ── users/{uid}/user_activity/{activityId} — Historial de actividad ──
       // Escritura permitida desde el cliente (el usuario registra sus propias acciones)
       // Lectura permitida para el propio usuario y para Cloud Functions (Admin SDK bypasea estas reglas)
