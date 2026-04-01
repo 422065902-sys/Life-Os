@@ -243,6 +243,8 @@ function closeDrawer() {
 }
 
 function navigate(id) {
+  // Modo Consulta: bloquear módulos restringidos
+  if (_consultaNavGuard(id)) return;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
   S.currentPage = id;
@@ -4151,22 +4153,24 @@ async function loginSuccess(userObj) {
             dismissTrialBanner();
             dismissPaywallLockdown();
           } else if (access.reason === 'trial_expired') {
-            // Trial expirado confirmado por Firestore — activar paywall
+            // Trial expirado confirmado por Firestore — activar paywall + modo consulta
             S.trialExpired = true;
             showPaywallLockdown();
-            // Mostrar banner de retención con countdown exacto basado en trial_ends_at
-            // Eliminación ocurre 31 días después del fin del trial (= 61 días desde inicio)
+            // Calcular días restantes para eliminación (trial_ends_at + 31 días)
+            let daysLeft = null;
             if (authData.trial_ends_at) {
               const trialEnd     = authData.trial_ends_at.toDate ? authData.trial_ends_at.toDate() : new Date(authData.trial_ends_at);
               const deletionDate = new Date(trialEnd.getTime() + 31 * 24 * 60 * 60 * 1000);
-              const daysLeft     = Math.max(0, Math.ceil((deletionDate - new Date()) / 86400000));
-              const alertEl      = document.getElementById('retention-alert');
-              const daysNumEl    = document.getElementById('retention-days');
+              daysLeft           = Math.max(0, Math.ceil((deletionDate - new Date()) / 86400000));
+              const alertEl   = document.getElementById('retention-alert');
+              const daysNumEl = document.getElementById('retention-days');
               if (alertEl && daysNumEl) {
                 daysNumEl.textContent = daysLeft;
                 setTimeout(function(){ alertEl.classList.add('show'); }, 2500);
               }
             }
+            // Activar modo consulta con el contador
+            setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
           }
           // Re-run admin module injection now that we have the real role from Firestore
           buildAdminModules(authData);
@@ -8207,6 +8211,7 @@ function activarPlanPro() {
   S.plan = 'pro'; S.trialExpired = false; S.planActivedAt = today();
   guardarDatos();
   dismissPaywallLockdown();
+  deactivateConsultaMode();
   document.getElementById('retention-alert') && document.getElementById('retention-alert').classList.remove('show');
   openModal('modal-pago-exitoso');
   spawnConfetti && spawnConfetti();
@@ -8326,6 +8331,8 @@ function checkTrialAndRetention() {
   const alertEl  = document.getElementById('retention-alert');
   const daysNumEl = document.getElementById('retention-days');
   if (alertEl && daysNumEl) { daysNumEl.textContent = daysLeft; setTimeout(function(){ alertEl.classList.add('show'); }, 2000); }
+  // Activar modo consulta
+  setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -9688,6 +9695,14 @@ function showPaywallLockdown() {
         font-size: 11px; color: rgba(212,175,55,0.45);
         display: flex; align-items: center; gap: 4px;
       }
+      .pwl-close {
+        position: absolute; top: 14px; right: 16px;
+        background: none; border: 1px solid rgba(212,175,55,0.2);
+        border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
+        color: rgba(212,175,55,0.5); font-size: 12px; line-height: 1;
+        transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+      }
+      .pwl-close:hover { border-color: rgba(212,175,55,0.6); color: #d4af37; background: rgba(212,175,55,0.08); }
     `;
     document.head.appendChild(style);
   }
@@ -9697,6 +9712,7 @@ function showPaywallLockdown() {
   overlay.innerHTML = `
     <div class="pwl-card">
       <div class="pwl-scan-line"></div>
+      <button class="pwl-close" onclick="dismissPaywallLockdown()" title="Cerrar">✕</button>
       <span class="pwl-glyph">✦</span>
       <div class="pwl-title">Gemelo Potenciado</div>
       <div class="pwl-subtitle">Análisis completo listo</div>
@@ -9733,6 +9749,170 @@ async function paywallTriggerPayment() {
   const el = document.getElementById('paywall-lockdown');
   if (el) el.style.zIndex = '9000'; // bajar para que el modal quede encima
   openModal('modal-pago');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODO CONSULTA — Control de acceso por módulo para trial expirado
+   Módulos PERMITIDOS (solo lectura): dashboard, mente, stats, calendar, aprende, settings
+   Módulos BLOQUEADOS: productividad, cuerpo, financial, world, agencies
+═══════════════════════════════════════════════════════════════ */
+
+const _CONSULTA_ALLOWED  = new Set(['dashboard','mente','stats','calendar','aprende','settings']);
+const _CONSULTA_BLOCKED  = new Set(['productividad','cuerpo','financial','world','agencies']);
+
+/** Devuelve true si el usuario está en modo consulta (trial expirado, no Pro) */
+function _isConsultaMode() {
+  return S.trialExpired === true && S.plan !== 'pro';
+}
+
+/**
+ * Interceptor de navegación — se llama al inicio de navigate().
+ * Retorna true si la navegación debe ser bloqueada.
+ */
+function _consultaNavGuard(id) {
+  if (!_isConsultaMode()) return false;
+  // Normalizar alias a página padre
+  const pageMap = { habits:'productividad', goals:'productividad', physical:'cuerpo',
+                    salud:'cuerpo', brain:'mente', poder:'mente', analisis:'stats', saas:'stats', routines:'cuerpo' };
+  const page = pageMap[id] || id;
+  if (_CONSULTA_BLOCKED.has(page)) {
+    _showModuleBlocked(id);
+    return true;
+  }
+  return false;
+}
+
+/** Muestra el overlay de módulo bloqueado */
+function _showModuleBlocked(moduleId) {
+  if (document.getElementById('module-blocked-overlay')) return;
+  const names = { productividad:'Productividad', cuerpo:'Cuerpo & Salud',
+                  financial:'Finanzas', world:'Life OS World', agencies:'Agencia' };
+  const name = names[moduleId] || 'este módulo';
+
+  if (!document.getElementById('module-blocked-css')) {
+    const st = document.createElement('style');
+    st.id = 'module-blocked-css';
+    st.textContent = `
+      #module-blocked-overlay {
+        position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;
+        background:rgba(4,4,8,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+        animation:mbo-in .3s ease both;
+      }
+      @keyframes mbo-in { from{opacity:0} to{opacity:1} }
+      .mbo-card {
+        background:linear-gradient(160deg,#0c0c14,#100c00);
+        border:1px solid rgba(212,175,55,0.3);border-radius:20px;
+        padding:36px 32px;max-width:420px;width:88vw;text-align:center;
+        box-shadow:0 0 60px rgba(212,175,55,0.08);
+        animation:mbo-rise .35s .05s cubic-bezier(.16,1,.3,1) both;
+      }
+      @keyframes mbo-rise { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
+      .mbo-lock { font-size:40px;margin-bottom:14px;display:block; }
+      .mbo-title { font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;
+        color:#d4af37;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px; }
+      .mbo-msg { font-size:13px;color:rgba(255,255,255,0.65);line-height:1.7;margin-bottom:22px; }
+      .mbo-btn-pro { width:100%;padding:14px;border:none;border-radius:12px;cursor:pointer;
+        background:linear-gradient(135deg,#d4af37,#ffd700);color:#080800;
+        font-family:'Orbitron',sans-serif;font-size:12px;font-weight:900;
+        letter-spacing:1px;margin-bottom:10px;transition:transform .15s,box-shadow .15s; }
+      .mbo-btn-pro:hover { transform:translateY(-2px);box-shadow:0 6px 24px rgba(212,175,55,0.4); }
+      .mbo-btn-cancel { background:none;border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+        padding:10px 20px;color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;
+        font-family:'Syne',sans-serif;transition:border-color .2s,color .2s; }
+      .mbo-btn-cancel:hover { border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.7); }
+    `;
+    document.head.appendChild(st);
+  }
+
+  const el = document.createElement('div');
+  el.id = 'module-blocked-overlay';
+  el.innerHTML = `
+    <div class="mbo-card">
+      <span class="mbo-lock">🔒</span>
+      <div class="mbo-title">${name} bloqueado</div>
+      <div class="mbo-msg">
+        Este módulo está disponible con <strong style="color:#d4af37">Life OS Pro</strong>.<br>
+        Activa tu membresía una sola vez — tu cuenta queda protegida
+        permanentemente y nunca se elimina a menos que tú lo solicites.
+      </div>
+      <button class="mbo-btn-pro" onclick="document.getElementById('module-blocked-overlay').remove();paywallTriggerPayment()">
+        🔓 Activar Life OS Pro — $99 MXN
+      </button>
+      <button class="mbo-btn-cancel" onclick="document.getElementById('module-blocked-overlay').remove()">
+        Volver
+      </button>
+    </div>
+  `;
+  document.body.appendChild(el);
+  // Auto-cerrar al tocar fuera de la card
+  el.addEventListener('click', function(e){ if (e.target === el) el.remove(); });
+}
+
+/**
+ * Muestra el banner persistente "Modo Consulta" con el contador de días.
+ * Se llama una vez cuando se activa el modo consulta.
+ */
+function showConsultaBanner(daysLeft) {
+  if (document.getElementById('consulta-banner') || S.plan === 'pro') return;
+
+  if (!document.getElementById('consulta-banner-css')) {
+    const st = document.createElement('style');
+    st.id = 'consulta-banner-css';
+    st.textContent = `
+      #consulta-banner {
+        position:fixed;bottom:0;left:0;right:0;z-index:3500;
+        background:linear-gradient(90deg,rgba(10,8,0,.97),rgba(20,14,0,.97));
+        border-top:1px solid rgba(212,175,55,0.3);
+        padding:9px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+        animation:cb-in .4s ease both;
+      }
+      @keyframes cb-in { from{transform:translateY(100%)} to{transform:none} }
+      .cb-icon { font-size:16px;flex-shrink:0; }
+      .cb-text { flex:1;font-size:11.5px;color:rgba(255,255,255,0.7);line-height:1.5;min-width:200px; }
+      .cb-text strong { color:#d4af37; }
+      .cb-days { font-family:'JetBrains Mono',monospace;font-size:11px;
+        color:#fb923c;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.25);
+        border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0; }
+      .cb-btn { background:linear-gradient(135deg,#d4af37,#ffd700);border:none;border-radius:8px;
+        padding:6px 14px;color:#080800;font-family:'Orbitron',sans-serif;font-size:10px;
+        font-weight:900;cursor:pointer;white-space:nowrap;flex-shrink:0;
+        transition:transform .15s,box-shadow .15s; }
+      .cb-btn:hover { transform:translateY(-1px);box-shadow:0 4px 14px rgba(212,175,55,0.35); }
+      /* Empuja el FAB y el retention-alert hacia arriba cuando el banner está activo */
+      body.has-consulta-banner #fab-btn { bottom:82px !important; }
+      body.has-consulta-banner #retention-alert { bottom:148px !important; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  const days = daysLeft !== undefined ? daysLeft : '?';
+  const banner = document.createElement('div');
+  banner.id = 'consulta-banner';
+  banner.innerHTML = `
+    <span class="cb-icon">📋</span>
+    <div class="cb-text">
+      <strong>Modo Consulta activo.</strong> Puedes ver tus datos pero no agregar contenido.
+      Activa <strong>Life OS Pro</strong> una vez y tu cuenta queda protegida permanentemente
+      — solo se elimina si tú lo solicitas.
+    </div>
+    <span class="cb-days">⏳ ${days} días para eliminación</span>
+    <button class="cb-btn" onclick="paywallTriggerPayment()">Activar Pro</button>
+  `;
+  document.body.appendChild(banner);
+  document.body.classList.add('has-consulta-banner');
+}
+
+/** Activa el modo consulta: agrega clase CSS al body */
+function activateConsultaMode(daysLeft) {
+  if (S.plan === 'pro') return;
+  document.body.classList.add('consulta-mode');
+  showConsultaBanner(daysLeft);
+}
+
+/** Desactiva modo consulta al pagar */
+function deactivateConsultaMode() {
+  document.body.classList.remove('consulta-mode', 'has-consulta-banner');
+  document.getElementById('consulta-banner')?.remove();
 }
 
 /** Cierra el paywall (solo se llama internamente cuando el plan se actualiza a Pro). */

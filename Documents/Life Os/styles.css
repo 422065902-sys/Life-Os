@@ -1336,6 +1336,41 @@ input:checked+.slider:before{transform:translateX(20px)}
 .ret-alert-msg{font-size:12px;color:rgba(251,146,60,.85);line-height:1.6}
 .ret-alert-actions{display:flex;gap:8px;margin-top:12px}
 
+/* ═══════════════════════════════════════════════════
+   MODO CONSULTA — Oculta acciones de escritura
+   Se activa con body.consulta-mode cuando trial expirado
+═══════════════════════════════════════════════════ */
+/* FAB principal (botón +) */
+body.consulta-mode #fab-btn { display:none !important; }
+/* Botones de agregar, crear, nuevo en módulos permitidos */
+body.consulta-mode [onclick*="addTask"],
+body.consulta-mode [onclick*="addHabit"],
+body.consulta-mode [onclick*="addGoal"],
+body.consulta-mode [onclick*="addTx"],
+body.consulta-mode [onclick*="addDebt"],
+body.consulta-mode [onclick*="addCard"],
+body.consulta-mode [onclick*="addNuevo"],
+body.consulta-mode [onclick*="addEvent"],
+body.consulta-mode [onclick*="addIdea"],
+body.consulta-mode [onclick*="addRoutine"],
+body.consulta-mode [onclick*="addGym"],
+body.consulta-mode [onclick*="saveTask"],
+body.consulta-mode [onclick*="saveHabit"],
+body.consulta-mode [onclick*="openAddTask"],
+body.consulta-mode [onclick*="openAddHabit"],
+body.consulta-mode [onclick*="registrarEntren"],
+body.consulta-mode [onclick*="registrarSueno"],
+body.consulta-mode [onclick*="registrarSalud"],
+body.consulta-mode [onclick*="doCheckIn"],
+body.consulta-mode [onclick*="markHabit"],
+body.consulta-mode [onclick*="toggleTask"] { pointer-events:none !important; opacity:0.3 !important; }
+/* Inputs y forms de escritura */
+body.consulta-mode .page-dashboard input,
+body.consulta-mode .page-mente input,
+body.consulta-mode .page-stats input,
+body.consulta-mode .page-calendar input,
+body.consulta-mode .page-aprende input { pointer-events:none; opacity:0.5; }
+
 /* ══ LIGHT MODE — Accessibility & contrast overrides ══ */
 .light .badge-lvl,.light .badge-coin{color:#fff!important}
 .light .btn-a{color:#fff!important}
