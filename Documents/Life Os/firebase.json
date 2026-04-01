@@ -1,4 +1,13 @@
 {
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**"
+    ]
+  },
   "firestore": {
     "database": "(default)",
     "location": "nam5",

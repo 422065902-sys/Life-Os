@@ -43,8 +43,24 @@ if (CLOUD_ENABLED) {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     _auth = firebase.auth();
     _db   = firebase.firestore();
-    // Habilitar persistencia offline de Firestore
     _db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    // Registrar service worker y solicitar permiso de notificaciones
+    if ('serviceWorker' in navigator && typeof firebase.messaging === 'function') {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(reg => {
+          const messaging = firebase.messaging();
+          messaging.getToken({
+            serviceWorkerRegistration: reg,
+            vapidKey: '', // opcional: agrega tu VAPID key si la tienes
+          }).then(token => {
+            if (token && _auth.currentUser) {
+              _db.collection('users').doc(_auth.currentUser.uid)
+                .update({ fcm_token: token, notifications_enabled: true })
+                .catch(() => {});
+            }
+          }).catch(() => {});
+        }).catch(() => {});
+    }
     console.info('[Life OS] ☁️ Firebase inicializado correctamente.');
   } catch(e) {
     console.error('[Life OS] Firebase init error:', e);
@@ -4332,7 +4348,8 @@ const ANON_NAMES = ['Cyber_Nomad_42','Isom_Arch_99','PixelDrifter_7','NeonWalker
 function initWorldMap() {
   if (W._init) return;
   W._init = true;
-  // Spawn demo friend bubbles after brief delay
+  // Cargar usuarios reales + demo friend bubbles
+  loadWorldRealUsers().then(() => spawnFriendBubbles());
   setTimeout(spawnFriendBubbles, 600);
   // Set initial bubble
   _applyBubble();
@@ -4421,6 +4438,17 @@ function worldZoneClick(id) {
   const zone = WORLD_ZONES[id];
   if (!zone) return;
   W.currentZone = id;
+  // Guardar zona en Firestore para presencia en tiempo real
+  if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+    _db.collection('users').doc(_auth.currentUser.uid).update({
+      world_zone: id,
+      world_last_active: firebase.firestore.FieldValue.serverTimestamp(),
+      world_bubble_color: W.bubble.color,
+      world_bubble_emoji: W.bubble.emoji,
+      world_status: W.status,
+      world_privacy: W.privacy,
+    }).catch(()=>{});
+  }
   // Move bubble to zone
   _moveBubbleTo(id);
   // ── APT: open interior instead of tooltip ──
@@ -4990,28 +5018,65 @@ function _getAliadosSet() {
 }
 
 function _getFriendsAtZone(zoneId) {
-  // Si mi privacidad es 'private', soy invisible → tampoco veo a nadie
   if (W && W.privacy === 'private') return [];
-
   const aliadosSet = _getAliadosSet();
 
-  return MOCK_FRIENDS
+  const mockResult = MOCK_FRIENDS
     .filter(f => f.zone === zoneId)
-    .filter(f => f.privacy !== 'private') // invisibles en privado
+    .filter(f => f.privacy !== 'private')
     .filter(f => {
-      // Si este amigo está en 'friends', solo aparece si es mi aliado
       if (f.privacy === 'friends') {
         return aliadosSet.has(f.id) ||
                aliadosSet.has(f.realName.toLowerCase()) ||
                (f.uid && aliadosSet.has(f.uid));
       }
-      // 'public' → visible para todos
       return true;
     })
-    .map(f => {
-      const displayName = (f.privacy === 'public') ? f.anonName : f.realName;
-      return { ...f, displayName };
-    });
+    .map(f => ({ ...f, displayName: f.privacy === 'public' ? f.anonName : f.realName, isDemo: true }));
+
+  const realResult = _worldRealUsers.filter(u => u.zone === zoneId);
+
+  return [...realResult, ...mockResult];
+}
+
+// Cache de usuarios reales activos en el mapa
+let _worldRealUsers = [];
+
+async function loadWorldRealUsers() {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  try {
+    const since = new Date(Date.now() - 30 * 60 * 1000);
+    const myUid = _auth.currentUser.uid;
+    const snap = await _db.collection('users')
+      .where('world_last_active', '>=', firebase.firestore.Timestamp.fromDate(since))
+      .get();
+    _worldRealUsers = snap.docs
+      .filter(d => d.id !== myUid)
+      .map(d => {
+        const u = d.data();
+        const privacy = u.world_privacy || 'friends';
+        const isAlly = (S.aliadosUids || []).includes(d.id);
+        if (privacy === 'private') return null;
+        if (privacy === 'friends' && !isAlly) return null;
+        const displayName = privacy === 'public'
+          ? (u.world_anon_name || 'Anon_User')
+          : (u.displayName || u.userName || 'Usuario');
+        return {
+          id: d.id,
+          displayName,
+          zone: u.world_zone || null,
+          color: u.world_bubble_color || '#6CC4EE',
+          emoji: u.world_bubble_emoji || '👤',
+          status: u.world_status || 'Online',
+          isDemo: false,
+        };
+      })
+      .filter(Boolean);
+    // Actualizar burbujas en el mapa si ya está abierto
+    spawnFriendBubbles();
+  } catch(e) {
+    console.warn('[Life OS] loadWorldRealUsers error:', e);
+  }
 }
 
 
@@ -5204,13 +5269,23 @@ function spawnFriendBubbles() {
   _friendTimers.forEach(t => clearTimeout(t));
   _friendTimers = [];
 
-  // Si la privacidad del usuario es 'private', no mostrar ninguna burbuja de amigos
   if (W && W.privacy === 'private') return;
 
-  DEMO_FRIENDS.forEach((f, fi) => {
-    // Determine display name based on privacy
-    const myFriendIds = ['f-rodolfo','f-ana','f-isom']; // all are "friends" in demo
-    const displayName = (f.privacy === 'public') ? f.anonName : f.name;
+  // Combinar demo friends con usuarios reales de Firestore
+  const realBubbles = _worldRealUsers.map(u => ({
+    id: 'real-' + u.id,
+    name: u.displayName,
+    anonName: u.displayName,
+    emoji: u.emoji,
+    color: u.color,
+    zones: [u.zone || 'apt'],
+    privacy: 'public',
+    isReal: true,
+  }));
+  const allFriends = [...realBubbles, ...DEMO_FRIENDS];
+
+  allFriends.forEach((f, fi) => {
+    const displayName = (f.privacy === 'public') ? (f.anonName || f.name) : f.name;
 
     // Create bubble element
     const el = document.createElement('div');
