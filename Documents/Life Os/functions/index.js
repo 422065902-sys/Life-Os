@@ -82,8 +82,8 @@ exports.createStripeCheckoutSession = functions.https.onCall(async (data, contex
       mode:       'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       // URL de regreso — ajusta el dominio cuando despliegues
-      success_url: 'https://TU_DOMINIO.COM/?pago=exitoso',
-      cancel_url:  'https://TU_DOMINIO.COM/?pago=cancelado',
+      success_url: 'https://life-os-prod-3a590.web.app/?pago=exitoso',
+      cancel_url:  'https://life-os-prod-3a590.web.app/?pago=cancelado',
       metadata:    { firebaseUID: uid },
     });
 

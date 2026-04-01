@@ -22,12 +22,13 @@
      LOCAL-ONLY (datos solo en este dispositivo, sin sincronización).
 ═══════════════════════════════════════════════════════════════════ */
 const FIREBASE_CONFIG = {
-  apiKey:            "TU_API_KEY",            // ← reemplazar
-  authDomain:        "tu-proyecto.firebaseapp.com",
-  projectId:         "tu-proyecto",
-  storageBucket:     "tu-proyecto.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId:             "TU_APP_ID"
+  apiKey:            "AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ",
+  authDomain:        "life-os-prod-3a590.firebaseapp.com",
+  projectId:         "life-os-prod-3a590",
+  storageBucket:     "life-os-prod-3a590.firebasestorage.app",
+  messagingSenderId: "25285159906",
+  appId:             "1:25285159906:web:8e8d648a7a04097bc8a7bb",
+  measurementId:     "G-DP8YMBQFCK"
 };
 
 // Detecta si la config ya fue reemplazada con valores reales
@@ -178,7 +179,9 @@ function _buildSavePayload() {
     lastCalibDate:S.lastCalibDate,
     poderUsage:S.poderUsage,
     saldos:S.saldos||[],
-    agencyTabs:S.agencyTabs||[[],[],[]],
+    agencyTab0:(S.agencyTabs||[[],[],[]])[0]||[],
+    agencyTab1:(S.agencyTabs||[[],[],[]])[1]||[],
+    agencyTab2:(S.agencyTabs||[[],[],[]])[2]||[],
   };
   if (CLOUD_ENABLED && _db) {
     p._updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -1778,16 +1781,6 @@ function confirmCheckin() {
   syncCalibrationAndCheckin();
 }
 
-function triggerCheckinIfNeeded() {
-  const key = today();
-  renderCheckinDots('dashboard-ci-dots');
-  renderCheckinDots('modal-ci-dots');
-  updateCheckinStreak();
-  if (!S.dailyCheckIn[key]) {
-    setTimeout(() => openModal('modal-checkin'), 800);
-  }
-}
-
 /* ═══════════════════════════════════════════
    BIENESTAR 3.0
 ═══════════════════════════════════════════ */
@@ -2992,11 +2985,23 @@ function procesarPago() {
   const nombre = document.getElementById('pago-nombre').value.trim();
   const email  = document.getElementById('pago-email').value.trim();
   if(!nombre||!email){ showToast('⚠️ Nombre y correo son obligatorios'); return; }
+
+  if(!CLOUD_ENABLED || !_auth?.currentUser){
+    showToast('⚠️ Debes iniciar sesión para continuar');
+    return;
+  }
+
+  const priceId = 'price_1TGtLhFtLUdyKMniu3nC4ws6';
+
   closeModal('modal-pago');
-  setTimeout(()=>{
-    showToast('✅ Pago procesado · ¡Bienvenido a Life OS Pro!');
-    spawnConfetti();
-  }, 400);
+  showToast('⏳ Redirigiendo a pago seguro...');
+
+  firebase.functions().httpsCallable('createStripeCheckoutSession')({ priceId })
+    .then(result => { window.location.href = result.data.url; })
+    .catch(err => {
+      console.error('[Life OS] procesarPago error:', err);
+      showToast('❌ Error al iniciar el pago. Intenta de nuevo.');
+    });
 }
 
 /* ═══════════════════════════════════════════
@@ -3028,12 +3033,22 @@ async function guardarDatosInmediato() {
 // ── cargarDatos: aplica datos a S (desde objeto ya obtenido) ──
 function _applyData(d) {
   if (!d) return;
+  // Reconstruir agencyTabs desde campos planos antes de aplicar al estado
+  // (Firestore no permite nested arrays, se guardan como agencyTab0/1/2)
+  if (d.agencyTab0 !== undefined || d.agencyTab1 !== undefined || d.agencyTab2 !== undefined) {
+    d = Object.assign({}, d, {
+      agencyTabs: [d.agencyTab0||[], d.agencyTab1||[], d.agencyTab2||[]]
+    });
+    delete d.agencyTab0; delete d.agencyTab1; delete d.agencyTab2;
+  }
   Object.assign(S, d);
   if (!S.level || S.level < 1) S.level = 1;
   if (!S.saldos) S.saldos = [];
   if (!S.aliados || !Array.isArray(S.aliados)) S.aliados = [];
   if (!S.aliadosUids || !Array.isArray(S.aliadosUids)) S.aliadosUids = [];
-  if (!S.agencyTabs || !Array.isArray(S.agencyTabs)) S.agencyTabs = [[], [], []];
+  if (!S.agencyTabs || !Array.isArray(S.agencyTabs)) {
+    S.agencyTabs = [[], [], []];
+  }
   S.currentAgencyTab = S.currentAgencyTab || 0;
   // Reconstruir set de UIDs desde datos cargados
   _rebuildAliadosUids();
