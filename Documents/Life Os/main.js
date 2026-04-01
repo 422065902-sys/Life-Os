@@ -305,6 +305,26 @@ function buildAccentPresets() {
     <div class="acc-dot ${S.accent===p.v?'sel':''}" style="background:${p.v}" title="${p.name}" onclick="applyAccent('${p.v}')"></div>`).join('');
 }
 
+/** Construye el selector de color en el formulario de registro */
+function buildRegAccentPicker() {
+  const el = document.getElementById('reg-accent-dots'); if (!el) return;
+  const cur = document.getElementById('reg-accent')?.value || '#00e5ff';
+  el.innerHTML = ACCENT_PRESETS.map(p => `
+    <div onclick="selectRegAccent('${p.v}')"
+      style="width:26px;height:26px;border-radius:50%;background:${p.v};cursor:pointer;
+             transition:transform .15s,box-shadow .15s;flex-shrink:0;
+             ${cur===p.v ? 'transform:scale(1.25);box-shadow:0 0 0 2px #fff,0 0 0 4px '+p.v : 'opacity:.75'}"
+      title="${p.name}"></div>`).join('');
+}
+
+function selectRegAccent(color) {
+  const inp = document.getElementById('reg-accent');
+  if (inp) inp.value = color;
+  // Previsualizar en tiempo real
+  applyAccent(color);
+  buildRegAccentPicker();
+}
+
 function applyAccent(c) {
   S.accent = c;
   const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
@@ -1790,7 +1810,8 @@ function updateSettingsDisplay() {
   // — Nombre / email
   const _sess = JSON.parse(localStorage.getItem('lifeos_session')||'{}');
   const _nomEl = document.getElementById('settings-nombre');
-  if (_nomEl) _nomEl.textContent = S.userName || _sess.nombre || (_auth&&_auth.currentUser&&_auth.currentUser.displayName) || 'Usuario';
+  const _realName = (_auth&&_auth.currentUser&&_auth.currentUser.displayName) || _sess.nombre || (S.userName !== 'Usuario' ? S.userName : '') || 'Usuario';
+  if (_nomEl) _nomEl.textContent = _realName;
   const _emailEl = document.getElementById('settings-email');
   if (_emailEl) _emailEl.textContent = _sess.email || (_auth&&_auth.currentUser&&_auth.currentUser.email) || '—';
   // — User ID
@@ -1813,7 +1834,7 @@ function updateSettingsDisplay() {
   }
   // — Avatar
   const _avatarEl = document.getElementById('settings-avatar');
-  if (_avatarEl) _avatarEl.textContent = (S.userName || _sess.nombre || 'U').charAt(0).toUpperCase();
+  if (_avatarEl) _avatarEl.textContent = _realName.charAt(0).toUpperCase();
 }
 
 let resetConfirm=false;
@@ -3905,8 +3926,11 @@ function switchAuthTab(tab) {
     const w = document.getElementById('pass-warning-reg');
     if (w) w.style.display = 'none';
   }
-  // Resetear scroll del registro al abrirlo
-  if (tab === 'register' && registerEl) registerEl.scrollTop = 0;
+  // Resetear scroll del registro al abrirlo + inicializar color picker
+  if (tab === 'register' && registerEl) {
+    registerEl.scrollTop = 0;
+    setTimeout(buildRegAccentPicker, 50);
+  }
 }
 
 // ── Abre modal legal SIN propagar el evento ni disparar el formulario ──
@@ -4034,6 +4058,9 @@ async function doRegister() {
   const btn = document.getElementById('btn-register');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando cuenta...'; }
 
+  // Leer color elegido en el picker de registro
+  const chosenAccent = document.getElementById('reg-accent')?.value || '#00e5ff';
+
   if (CLOUD_ENABLED && _auth) {
     try {
       await _auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
@@ -4044,6 +4071,7 @@ async function doRegister() {
         plan: 'trial',
         trialStart: Date.now(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        accent: chosenAccent,
       };
       // Género es dato sensible (Art. 9 LFPDPPP) — solo persiste si fue seleccionado
       if (genero) profileData.genero = genero;
@@ -4063,6 +4091,8 @@ async function doRegister() {
         notifications_enabled: false,
       });
       await cred.user.updateProfile({ displayName: nombre });
+      // Aplicar color elegido al estado local
+      applyAccent(chosenAccent);
       // onAuthStateChanged finaliza el login
     } catch(err) {
       if (btn) { btn.disabled = false; btn.textContent = '🚀 Comenzar mis 30 días gratis'; }
@@ -9767,84 +9797,83 @@ function _isConsultaMode() {
 
 /**
  * Interceptor de navegación — se llama al inicio de navigate().
- * Retorna true si la navegación debe ser bloqueada.
+ * Nunca bloquea, pero muestra un recordatorio suave en cada navegación.
+ * Retorna false siempre para permitir acceso a todos los módulos.
  */
 function _consultaNavGuard(id) {
   if (!_isConsultaMode()) return false;
-  // Normalizar alias a página padre
-  const pageMap = { habits:'productividad', goals:'productividad', physical:'cuerpo',
-                    salud:'cuerpo', brain:'mente', poder:'mente', analisis:'stats', saas:'stats', routines:'cuerpo' };
-  const page = pageMap[id] || id;
-  if (_CONSULTA_BLOCKED.has(page)) {
-    _showModuleBlocked(id);
-    return true;
-  }
+  // Mostrar recordatorio suave — no bloquea la navegación
+  _showNavReminder();
   return false;
 }
 
-/** Muestra el overlay de módulo bloqueado */
-function _showModuleBlocked(moduleId) {
-  if (document.getElementById('module-blocked-overlay')) return;
-  const names = { productividad:'Productividad', cuerpo:'Cuerpo & Salud',
-                  financial:'Finanzas', world:'Life OS World', agencies:'Agencia' };
-  const name = names[moduleId] || 'este módulo';
+/** Muestra el recordatorio suave de upgrade en cada navegación cuando el trial expiró */
+function _showNavReminder() {
+  if (document.getElementById('nav-reminder-overlay')) return;
 
-  if (!document.getElementById('module-blocked-css')) {
+  if (!document.getElementById('nav-reminder-css')) {
     const st = document.createElement('style');
-    st.id = 'module-blocked-css';
+    st.id = 'nav-reminder-css';
     st.textContent = `
-      #module-blocked-overlay {
+      #nav-reminder-overlay {
         position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;
         background:rgba(4,4,8,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        animation:mbo-in .3s ease both;
+        animation:nro-in .3s ease both;
       }
-      @keyframes mbo-in { from{opacity:0} to{opacity:1} }
-      .mbo-card {
+      @keyframes nro-in { from{opacity:0} to{opacity:1} }
+      .nro-card {
+        position:relative;
         background:linear-gradient(160deg,#0c0c14,#100c00);
         border:1px solid rgba(212,175,55,0.3);border-radius:20px;
         padding:36px 32px;max-width:420px;width:88vw;text-align:center;
         box-shadow:0 0 60px rgba(212,175,55,0.08);
-        animation:mbo-rise .35s .05s cubic-bezier(.16,1,.3,1) both;
+        animation:nro-rise .35s .05s cubic-bezier(.16,1,.3,1) both;
       }
-      @keyframes mbo-rise { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
-      .mbo-lock { font-size:40px;margin-bottom:14px;display:block; }
-      .mbo-title { font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;
+      @keyframes nro-rise { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
+      .nro-close {
+        position:absolute;top:14px;right:16px;background:none;border:none;
+        color:rgba(255,255,255,0.4);font-size:18px;cursor:pointer;line-height:1;
+        transition:color .2s;
+      }
+      .nro-close:hover { color:rgba(255,255,255,0.8); }
+      .nro-lock { font-size:40px;margin-bottom:14px;display:block; }
+      .nro-title { font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;
         color:#d4af37;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px; }
-      .mbo-msg { font-size:13px;color:rgba(255,255,255,0.65);line-height:1.7;margin-bottom:22px; }
-      .mbo-btn-pro { width:100%;padding:14px;border:none;border-radius:12px;cursor:pointer;
+      .nro-msg { font-size:13px;color:rgba(255,255,255,0.65);line-height:1.7;margin-bottom:22px; }
+      .nro-btn-pro { width:100%;padding:14px;border:none;border-radius:12px;cursor:pointer;
         background:linear-gradient(135deg,#d4af37,#ffd700);color:#080800;
         font-family:'Orbitron',sans-serif;font-size:12px;font-weight:900;
         letter-spacing:1px;margin-bottom:10px;transition:transform .15s,box-shadow .15s; }
-      .mbo-btn-pro:hover { transform:translateY(-2px);box-shadow:0 6px 24px rgba(212,175,55,0.4); }
-      .mbo-btn-cancel { background:none;border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+      .nro-btn-pro:hover { transform:translateY(-2px);box-shadow:0 6px 24px rgba(212,175,55,0.4); }
+      .nro-btn-later { background:none;border:1px solid rgba(255,255,255,0.12);border-radius:10px;
         padding:10px 20px;color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;
         font-family:'Syne',sans-serif;transition:border-color .2s,color .2s; }
-      .mbo-btn-cancel:hover { border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.7); }
+      .nro-btn-later:hover { border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.7); }
     `;
     document.head.appendChild(st);
   }
 
   const el = document.createElement('div');
-  el.id = 'module-blocked-overlay';
+  el.id = 'nav-reminder-overlay';
   el.innerHTML = `
-    <div class="mbo-card">
-      <span class="mbo-lock">🔒</span>
-      <div class="mbo-title">${name} bloqueado</div>
-      <div class="mbo-msg">
-        Este módulo está disponible con <strong style="color:#d4af37">Life OS Pro</strong>.<br>
-        Activa tu membresía una sola vez — tu cuenta queda protegida
-        permanentemente y nunca se elimina a menos que tú lo solicites.
+    <div class="nro-card">
+      <button class="nro-close" onclick="document.getElementById('nav-reminder-overlay').remove()" title="Cerrar">✕</button>
+      <span class="nro-lock">⭐</span>
+      <div class="nro-title">Tu prueba ha expirado</div>
+      <div class="nro-msg">
+        Sigues viendo tu información en modo lectura.<br>
+        Con <strong style="color:#d4af37">Life OS Pro</strong> puedes continuar registrando y tu cuenta
+        queda protegida permanentemente — nunca se elimina a menos que tú lo solicites.
       </div>
-      <button class="mbo-btn-pro" onclick="document.getElementById('module-blocked-overlay').remove();paywallTriggerPayment()">
+      <button class="nro-btn-pro" onclick="document.getElementById('nav-reminder-overlay').remove();paywallTriggerPayment()">
         🔓 Activar Life OS Pro — $99 MXN
       </button>
-      <button class="mbo-btn-cancel" onclick="document.getElementById('module-blocked-overlay').remove()">
-        Volver
+      <button class="nro-btn-later" onclick="document.getElementById('nav-reminder-overlay').remove()">
+        Ahora no
       </button>
     </div>
   `;
   document.body.appendChild(el);
-  // Auto-cerrar al tocar fuera de la card
   el.addEventListener('click', function(e){ if (e.target === el) el.remove(); });
 }
 
