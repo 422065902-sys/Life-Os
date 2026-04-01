@@ -82,6 +82,17 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════
+    //  userDirectory/{uid} — Perfil público para búsqueda de aliados
+    //  Cualquier usuario autenticado puede buscar/leer perfiles.
+    //  Cada usuario solo escribe/actualiza su propio perfil.
+    // ═══════════════════════════════════════════════════════════
+    match /userDirectory/{uid} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && isOwner(uid);
+      allow update: if isAuth() && isOwner(uid);
+    }
+
+    // ═══════════════════════════════════════════════════════════
     //  Bloquear todo lo no definido explícitamente
     // ═══════════════════════════════════════════════════════════
     match /{document=**} {
