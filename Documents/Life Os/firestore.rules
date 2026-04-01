@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers de acceso ──
+    function isAuth()       { return request.auth != null; }
+    function isOwner(uid)   { return request.auth.uid == uid; }
+    function isAdmin()      {
+      return isAuth() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  users/{uid} — Documento raíz de acceso y configuración
+    //  Contiene: is_pro, role, trial_ends_at, stripe_customer_id, fcm_token
+    // ═══════════════════════════════════════════════════════════
+    match /users/{uid} {
+      // El usuario puede leer su propio doc (para checkUserAccess y notificaciones)
+      allow read: if isAuth() && isOwner(uid);
+
+      // El usuario puede crear su doc en el registro
+      allow create: if isAuth() && isOwner(uid);
+
+      // El usuario puede actualizar SOLO los campos permitidos (no puede darse Pro a sí mismo)
+      allow update: if isAuth() && isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['is_pro', 'role', 'stripe_customer_id']);
+
+      // Admins pueden leer/escribir todo
+      allow read, write: if isAdmin();
+
+      // ── users/{uid}/data/{doc} — Datos de productividad de la app ──
+      match /data/{doc} {
+        allow read, write: if isAuth() && isOwner(uid);
+      }
+
+      // ── users/{uid}/user_activity/{activityId} — Historial de actividad ──
+      // Escritura permitida desde el cliente (el usuario registra sus propias acciones)
+      // Lectura permitida para el propio usuario y para Cloud Functions (Admin SDK bypasea estas reglas)
+      match /user_activity/{activityId} {
+        allow read:   if isAuth() && isOwner(uid);
+        allow create: if isAuth() && isOwner(uid)
+          && request.resource.data.keys().hasAll(['type','xp_earned','completed_at','label'])
+          && request.resource.data.type in ['task','habit','workout','finance'];
+        // Sin update ni delete — los registros de actividad son inmutables
+        allow update, delete: if false;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  gemelo_data/{uid} — Análisis del Gemelo Potenciado
+    //  IMPORTANTE: Los clientes NUNCA pueden leer este documento directamente.
+    //  La lectura solo ocurre a través de la Cloud Function getGemelo,
+    //  que valida el acceso antes de exponer analysis_text.
+    //  (Cloud Functions usan Admin SDK que bypasea estas reglas)
+    // ═══════════════════════════════════════════════════════════
+    match /gemelo_data/{uid} {
+      // El cliente puede ESCRIBIR su propio doc (el análisis se genera localmente)
+      allow write: if isAuth() && isOwner(uid);
+      // LECTURA BLOQUEADA desde el cliente — solo se permite via Cloud Function (Admin SDK)
+      allow read: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  noticias/{docId} — Contenido educativo de la sección Aprende
+    //  Solo lectura pública para usuarios autenticados
+    // ═══════════════════════════════════════════════════════════
+    match /noticias/{docId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  leaderboard/{uid} — Ranking público semanal
+    //  Cualquier usuario autenticado puede leer el ranking completo.
+    //  Cada usuario solo puede escribir su propio documento.
+    //  Ni admins ni terceros pueden modificar el doc de otro usuario.
+    // ═══════════════════════════════════════════════════════════
+    match /leaderboard/{uid} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && isOwner(uid);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Bloquear todo lo no definido explícitamente
+    // ═══════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
