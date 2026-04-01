@@ -5226,15 +5226,6 @@ function unlockRoom(roomId, precio) {
   showToast(`🔓 ¡Habitación desbloqueada! −${precio.toLocaleString()} XP`);
 }
 
-/* ── Apply equipped room on apartment open ── */
-function applyEquippedRoom() {
-  initRoomShopState();
-  const img = document.getElementById('apt-bg');
-  if (img && S.equippedRoom && ROOM_IMAGES[S.equippedRoom]) {
-    img.src = ROOM_IMAGES[S.equippedRoom];
-  }
-}
-
 /* ═══════════════════════════════════════════════════
    DEMO FRIEND BUBBLES — example presence on city map
 ═══════════════════════════════════════════════════ */
