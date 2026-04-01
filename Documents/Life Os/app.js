@@ -543,8 +543,8 @@ function getRadarAccentColor(data) {
 function initRadarChart() {
   const canvas = document.getElementById('radarChart');
   if (!canvas) return;
-  const _existingRadar = Chart.getChart(canvas); if (_existingRadar) _existingRadar.destroy();
-  if (S.charts.radar) { S.charts.radar.destroy(); }
+  const _existingRadar = Chart.getChart('radarChart'); if (_existingRadar) _existingRadar.destroy();
+  S.charts.radar = null;
   const data = getRadarData(radarMode);
   const colors = getRadarAccentColor(data);
   S.charts.radar = new Chart(canvas, {
