@@ -2518,10 +2518,10 @@
   <div class="ret-alert-icon">⏳</div>
   <div class="ret-alert-body">
     <div class="ret-alert-title">⚠️ AVISO IMPORTANTE — DATOS EN RIESGO</div>
-    <div class="ret-alert-msg">Tu cuenta y tus datos serán eliminados en <strong id="retention-days" style="color:#fb923c">30</strong> días para optimizar nuestros servidores. Activa tu membresía para conservarlos de forma permanente.</div>
+    <div class="ret-alert-msg">Tu cuenta y todos tus datos serán eliminados automáticamente en <strong id="retention-days" style="color:#fb923c">60</strong> días desde tu registro. <span style="color:rgba(251,146,60,.8)">Al activar Life OS Pro una sola vez, tu cuenta queda protegida de forma permanente — solo se elimina si tú lo solicitas.</span></div>
     <div class="ret-alert-actions">
-      <button class="btn" onclick="openModal('modal-pago');document.getElementById('retention-alert').classList.remove('show')" style="background:rgba(251,146,60,.9);color:#000;font-weight:900;font-size:12px;padding:8px 16px;flex:1">🔐 Activar — $99 MXN</button>
-      <button onclick="sessionStorage.setItem('ret_dismissed','1');document.getElementById('retention-alert').classList.remove('show')" style="background:transparent;border:1px solid rgba(251,146,60,.3);border-radius:10px;color:rgba(251,146,60,.7);cursor:pointer;font-size:12px;padding:8px 12px;font-family:'Syne',sans-serif">Más tarde</button>
+      <button class="btn" onclick="openModal('modal-pago');document.getElementById('retention-alert').classList.remove('show')" style="background:rgba(251,146,60,.9);color:#000;font-weight:900;font-size:12px;padding:8px 16px;flex:1">🔐 Proteger mi cuenta — $99 MXN</button>
+      <button onclick="document.getElementById('retention-alert').classList.remove('show')" style="background:transparent;border:1px solid rgba(251,146,60,.3);border-radius:10px;color:rgba(251,146,60,.7);cursor:pointer;font-size:12px;padding:8px 12px;font-family:'Syne',sans-serif">Más tarde</button>
     </div>
   </div>
 </div>

@@ -4147,8 +4147,26 @@ async function loginSuccess(userObj) {
           const access = checkUserAccess(authData);
           if (access.reason === 'pro') {
             if (S.plan !== 'pro') { S.plan = 'pro'; S.trialExpired = false; guardarDatos(); }
-            // Ocultar banner de trial si quedó visible por carga asíncrona
+            // Ocultar banners de trial y paywall si quedaron visibles
             dismissTrialBanner();
+            dismissPaywallLockdown();
+          } else if (access.reason === 'trial_expired') {
+            // Trial expirado confirmado por Firestore — activar paywall
+            S.trialExpired = true;
+            showPaywallLockdown();
+            // Mostrar banner de retención con countdown exacto basado en trial_ends_at
+            // Eliminación ocurre 31 días después del fin del trial (= 61 días desde inicio)
+            if (authData.trial_ends_at) {
+              const trialEnd     = authData.trial_ends_at.toDate ? authData.trial_ends_at.toDate() : new Date(authData.trial_ends_at);
+              const deletionDate = new Date(trialEnd.getTime() + 31 * 24 * 60 * 60 * 1000);
+              const daysLeft     = Math.max(0, Math.ceil((deletionDate - new Date()) / 86400000));
+              const alertEl      = document.getElementById('retention-alert');
+              const daysNumEl    = document.getElementById('retention-days');
+              if (alertEl && daysNumEl) {
+                daysNumEl.textContent = daysLeft;
+                setTimeout(function(){ alertEl.classList.add('show'); }, 2500);
+              }
+            }
           }
           // Re-run admin module injection now that we have the real role from Firestore
           buildAdminModules(authData);
@@ -8188,6 +8206,7 @@ async function irAPagarStripe() {
 function activarPlanPro() {
   S.plan = 'pro'; S.trialExpired = false; S.planActivedAt = today();
   guardarDatos();
+  dismissPaywallLockdown();
   document.getElementById('retention-alert') && document.getElementById('retention-alert').classList.remove('show');
   openModal('modal-pago-exitoso');
   spawnConfetti && spawnConfetti();
@@ -8285,10 +8304,14 @@ async function _logActivity(type, xpEarned, label) {
 
 function checkTrialAndRetention() {
   if (S.plan === 'pro') return;
+  // Si Firestore ya confirmó que el trial expiró, mostrar paywall directamente
+  if (S.trialExpired) { showPaywallLockdown(); return; }
   if (!S.createdAt) { S.createdAt = today(); guardarDatos(); return; }
   const diffDays = Math.floor((Date.now() - new Date(S.createdAt)) / 86400000);
-  const TRIAL = 7, GRACE = 30;
-  const trialEl = document.getElementById('saas-trial-days');
+  // Ventana total: 60 días desde creación antes de purga automática
+  const TOTAL_DAYS = 60;
+  const TRIAL      = 7;   // Días de prueba antes de marcar expirado
+  const trialEl    = document.getElementById('saas-trial-days');
   if (diffDays < TRIAL) {
     const rem = TRIAL - diffDays;
     if (trialEl) trialEl.textContent = rem + ' día' + (rem!==1?'s':'') + ' restante' + (rem!==1?'s':'');
@@ -8296,9 +8319,11 @@ function checkTrialAndRetention() {
   }
   if (!S.trialExpired) { S.trialExpired = true; guardarDatos(); }
   if (trialEl) { trialEl.textContent = '⚠️ Prueba expirada'; trialEl.style.color = 'var(--red)'; }
-  if (sessionStorage.getItem('ret_dismissed')) return;
-  const daysLeft = Math.max(0, GRACE - (diffDays - TRIAL));
-  const alertEl = document.getElementById('retention-alert');
+  // Mostrar el Paywall Lockdown inmersivo del Gemelo Potenciado
+  setTimeout(showPaywallLockdown, 500);
+  // Días restantes = 60 días desde creación menos los días transcurridos
+  const daysLeft = Math.max(0, TOTAL_DAYS - diffDays);
+  const alertEl  = document.getElementById('retention-alert');
   const daysNumEl = document.getElementById('retention-days');
   if (alertEl && daysNumEl) { daysNumEl.textContent = daysLeft; setTimeout(function(){ alertEl.classList.add('show'); }, 2000); }
 }
@@ -9487,6 +9512,238 @@ function copyPrompt(guideId) {
     if (btn) { btn.textContent = '✓ Copiado'; btn.classList.add('copied'); setTimeout(() => { btn.innerHTML = '📋 Copiar prompt listo para usar'; btn.classList.remove('copied'); }, 2000); }
     showToast('📋 Prompt copiado');
   }).catch(() => showToast('📋 Copia el texto manualmente'));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAYWALL LOCKDOWN — Overlay inmersivo para trial expirado
+   Gemelo Potenciado · Amarillo Neón / Dorado · Fondo negro profundo
+   Vanilla JS + CSS animations (glitch elegante, no framer-motion)
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Genera el texto de gancho dinámico con datos reales del usuario.
+ * Prioriza el insight más relevante según los patrones disponibles.
+ */
+function _buildPaywallHookText() {
+  const sueno    = S.healthStats?.sueno || 7;
+  const streak   = S.checkInStreak || 0;
+  const habits   = S.habits  || [];
+  const tasks    = S.tasks   || [];
+  const xp       = S.xp      || 0;
+  const level    = S.level   || 1;
+  const obsDays  = S.gemelo?.dataPoints || 30;
+
+  const completedTasks = tasks.filter(t => t.done).length;
+  const totalTasks     = tasks.length;
+  const compRate       = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : null;
+  const topHabit       = [...habits].sort((a, b) => (b.streak || 0) - (a.streak || 0))[0];
+
+  if (sueno > 0 && sueno < 6) {
+    return `Tu Gemelo detectó que estás durmiendo menos de ${sueno}h. Hay un patrón silencioso que está erosionando tu ejecución del día siguiente — y encontró exactamente en qué momento lo sientes más.`;
+  }
+  if (streak >= 5) {
+    return `${streak} días consecutivos de racha. Tu Gemelo encontró el patrón detrás de por qué mantienes la disciplina — y cuándo exactamente se rompe. La respuesta no es lo que crees.`;
+  }
+  if (topHabit && (topHabit.streak || 0) >= 7) {
+    return `"${topHabit.name}" con ${topHabit.streak} días consecutivos. Tu Gemelo detectó lo que este hábito revela sobre tu identidad real y la contradicción que bloquea tu siguiente nivel.`;
+  }
+  if (compRate !== null && compRate < 45) {
+    return `Solo el ${compRate}% de tus tareas completadas. Tu Gemelo identificó el patrón inconsciente detrás de lo que bloquea tu ejecución — y no es falta de disciplina.`;
+  }
+  if (compRate !== null && compRate >= 80) {
+    return `${compRate}% de eficiencia en tareas. Tu Gemelo detectó la contradicción entre tu alto rendimiento visible y la barrera invisible que te impide subir al siguiente nivel.`;
+  }
+  if (xp >= 500) {
+    return `${xp.toLocaleString()} XP acumulados — Nivel ${level}. Después de observarte ${obsDays} días, tu Gemelo encontró 2 fortalezas que no usas y 1 patrón que repites sin darte cuenta.`;
+  }
+  return `Tu Gemelo te ha observado en silencio durante ${obsDays} días. Detectó patrones en tus hábitos, finanzas y productividad que tú no ves conscientemente. Las revelaciones están listas.`;
+}
+
+/**
+ * Inyecta el overlay de paywall completo en el DOM.
+ * Idem-potente: no duplica si ya existe.
+ */
+function showPaywallLockdown() {
+  if (document.getElementById('paywall-lockdown') || S.plan === 'pro') return;
+
+  // ── Inyectar CSS una sola vez ──
+  if (!document.getElementById('paywall-lockdown-css')) {
+    const style = document.createElement('style');
+    style.id = 'paywall-lockdown-css';
+    style.textContent = `
+      #paywall-lockdown {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(4, 4, 8, 0.9);
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        animation: pwl-glitch-in 0.65s cubic-bezier(.16,1,.3,1) both;
+      }
+      @keyframes pwl-glitch-in {
+        0%   { opacity: 0; }
+        8%   { opacity: 1; filter: brightness(3) saturate(0) hue-rotate(60deg); transform: skewX(-4deg) scaleY(1.02); }
+        16%  { filter: brightness(1.2) saturate(1); transform: skewX(2deg) translateX(6px); }
+        28%  { transform: skewX(-1deg) translateX(-3px); }
+        44%  { transform: skewX(0.4deg) translateX(1px); }
+        60%  { transform: skewX(-0.1deg); }
+        100% { opacity: 1; transform: none; filter: none; }
+      }
+      .pwl-card {
+        position: relative;
+        background: linear-gradient(160deg, #09090f 0%, #0f0c00 55%, #09090f 100%);
+        border: 1px solid rgba(212,175,55,0.35);
+        border-radius: 24px; padding: 44px 40px;
+        max-width: 520px; width: 90vw; text-align: center;
+        box-shadow: 0 0 80px rgba(212,175,55,0.10), 0 0 160px rgba(212,175,55,0.04),
+                    inset 0 1px 0 rgba(212,175,55,0.12);
+        animation: pwl-card-rise 0.7s 0.12s cubic-bezier(.16,1,.3,1) both;
+      }
+      @keyframes pwl-card-rise {
+        from { opacity: 0; transform: translateY(32px) scale(0.95); }
+        to   { opacity: 1; transform: none; }
+      }
+      .pwl-scan-line {
+        position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(212,175,55,0.7), transparent);
+        border-radius: 24px 24px 0 0;
+        animation: pwl-scan 5s 0.8s ease-in-out infinite;
+      }
+      @keyframes pwl-scan {
+        0%   { opacity: 0; transform: translateY(0); }
+        8%   { opacity: 1; }
+        88%  { opacity: 0.2; }
+        100% { opacity: 0; transform: translateY(420px); }
+      }
+      .pwl-glyph {
+        font-size: 54px; display: block; margin-bottom: 18px;
+        animation: pwl-glyph-pulse 3.5s ease-in-out infinite;
+      }
+      @keyframes pwl-glyph-pulse {
+        0%,100% { text-shadow: 0 0 18px rgba(212,175,55,0.45); transform: scale(1); }
+        50%     { text-shadow: 0 0 36px rgba(255,220,0,0.75), 0 0 72px rgba(212,175,55,0.28); transform: scale(1.06); }
+      }
+      .pwl-title {
+        font-family: 'Orbitron', sans-serif; font-size: 19px; font-weight: 900;
+        letter-spacing: 3px; text-transform: uppercase;
+        background: linear-gradient(135deg, #ffd700 0%, #d4af37 50%, #ffe566 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text; margin-bottom: 6px;
+        animation: pwl-title-glitch 9s 2s infinite;
+      }
+      @keyframes pwl-title-glitch {
+        0%,88%,100% { transform: none; filter: none; }
+        89% { transform: translateX(-4px); filter: hue-rotate(80deg) brightness(1.6); }
+        90% { transform: translateX(4px);  filter: hue-rotate(-80deg); }
+        91% { transform: none; filter: none; }
+        92% { transform: translateX(-1px) skewX(4deg); }
+        93% { transform: none; filter: none; }
+      }
+      .pwl-subtitle {
+        font-size: 11px; color: rgba(212,175,55,0.55); letter-spacing: 2.5px;
+        text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
+        margin-bottom: 24px;
+      }
+      .pwl-divider {
+        width: 56px; height: 1px; margin: 0 auto 24px;
+        background: linear-gradient(90deg, transparent, #d4af37, transparent);
+      }
+      .pwl-hook {
+        font-size: 14.5px; line-height: 1.75; color: rgba(255,255,255,0.8);
+        margin-bottom: 28px; padding: 18px 20px;
+        background: rgba(212,175,55,0.035);
+        border-left: 3px solid rgba(212,175,55,0.5);
+        border-radius: 0 12px 12px 0; text-align: left; font-style: italic;
+      }
+      .pwl-hook::before {
+        content: '"'; color: #d4af37; font-size: 30px; font-family: Georgia,serif;
+        line-height: 0; vertical-align: -10px; margin-right: 4px;
+      }
+      .pwl-cta {
+        width: 100%; padding: 18px 20px; border: none; border-radius: 14px; cursor: pointer;
+        background: linear-gradient(135deg, #d4af37 0%, #ffd700 50%, #d4af37 100%);
+        background-size: 200% 100%;
+        color: #080800; font-family: 'Orbitron', sans-serif; font-size: 12px;
+        font-weight: 900; letter-spacing: 1px; line-height: 1.5;
+        transition: transform 0.18s, box-shadow 0.18s, background-position 0.4s;
+        animation: pwl-cta-shimmer 3.5s 1.8s ease-in-out infinite;
+        margin-bottom: 12px;
+      }
+      .pwl-cta:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 34px rgba(212,175,55,0.55);
+        background-position: right center;
+      }
+      .pwl-cta:active { transform: translateY(-1px); }
+      @keyframes pwl-cta-shimmer {
+        0%,100% { background-position: left center;  box-shadow: 0 4px 22px rgba(212,175,55,0.28); }
+        50%     { background-position: right center; box-shadow: 0 6px 30px rgba(255,215,0,0.48); }
+      }
+      .pwl-price-note {
+        font-size: 11.5px; color: rgba(255,255,255,0.35);
+        margin-bottom: 20px; font-family: 'JetBrains Mono', monospace;
+      }
+      .pwl-footer {
+        display: flex; align-items: center; justify-content: center; gap: 18px;
+      }
+      .pwl-footer-item {
+        font-size: 11px; color: rgba(212,175,55,0.45);
+        display: flex; align-items: center; gap: 4px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'paywall-lockdown';
+  overlay.innerHTML = `
+    <div class="pwl-card">
+      <div class="pwl-scan-line"></div>
+      <span class="pwl-glyph">✦</span>
+      <div class="pwl-title">Gemelo Potenciado</div>
+      <div class="pwl-subtitle">Análisis completo listo</div>
+      <div class="pwl-divider"></div>
+      <div class="pwl-hook">${_buildPaywallHookText()}</div>
+      <button class="pwl-cta" onclick="paywallTriggerPayment()">
+        ¿Quieres revelar lo que tu Gemelo<br>aprendió y detectó de ti?
+      </button>
+      <div class="pwl-price-note">$99 MXN/mes &nbsp;·&nbsp; Cancela cuando quieras &nbsp;·&nbsp; Acceso inmediato</div>
+      <div class="pwl-footer">
+        <span class="pwl-footer-item">🔒 Pago seguro</span>
+        <span class="pwl-footer-item">⚡ Acceso inmediato</span>
+        <span class="pwl-footer-item">✓ Sin contrato</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+/** Dispara el flujo de pago de $99 MXN desde el paywall lockdown. */
+async function paywallTriggerPayment() {
+  const btn = document.querySelector('.pwl-cta');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando acceso seguro...'; }
+
+  if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
+    try {
+      const result = await _functions.httpsCallable('createStripeCheckoutSession')({ priceId: STRIPE_PRICE_GENERAL });
+      if (result.data?.url) { window.open(result.data.url, '_blank'); return; }
+    } catch(e) {
+      console.warn('[Life OS] paywallTriggerPayment error:', e);
+    }
+  }
+  // Fallback: abrir modal de pago existente
+  const el = document.getElementById('paywall-lockdown');
+  if (el) el.style.zIndex = '9000'; // bajar para que el modal quede encima
+  openModal('modal-pago');
+}
+
+/** Cierra el paywall (solo se llama internamente cuando el plan se actualiza a Pro). */
+function dismissPaywallLockdown() {
+  const el = document.getElementById('paywall-lockdown');
+  if (el) {
+    el.style.animation = 'none';
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.4s';
+    setTimeout(() => el.remove(), 400);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════

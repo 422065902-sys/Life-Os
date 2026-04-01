@@ -123,8 +123,9 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
       if (uid) {
         // Usar .update() para NO sobreescribir datos de productividad del usuario
         await db.collection('users').doc(uid).update({
-          is_pro: true,
-          role:   'premium',
+          is_pro:       true,
+          role:         'premium',
+          hasEverPaid:  true,   // Protege al usuario de purgas futuras aunque expire la suscripción
         });
         console.info('[Life OS] Usuario activado como Pro:', uid);
       }
@@ -533,6 +534,76 @@ exports.motivationalPill = functions.pubsub
       const msg = mensajes[Math.floor(Math.random() * mensajes.length)];
       await _sendPush(user.fcm_token, '💡 Life OS', msg, 'motivational-pill', '/');
     }
+    return null;
+  });
+
+/* ═══════════════════════════════════════════════════════════════
+   MÓDULO 5 — PURGA SELECTIVA DE USUARIOS "PESO MUERTO"
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * purgeDeadWeight
+ * Cron cada 24h — elimina usuarios que cumplen TODOS los criterios:
+ *   1. is_pro === false   (no son Pro activos)
+ *   2. hasEverPaid !== true  (nunca han completado un pago — protección crítica)
+ *   3. trial_ends_at expiró hace más de 31 días (= 61+ días desde inicio del trial de 30 días)
+ *
+ * PROTECCIÓN GARANTIZADA:
+ *   — Si un usuario pagó alguna vez, el webhook setea hasEverPaid: true
+ *   — Esos usuarios NO se borran aunque su suscripción haya expirado (is_pro vuelve a false)
+ *   — Solo se elimina a quienes nunca tocaron la pasarela de pago Y llevan 61+ días inactivos
+ *
+ * NOTA: Para usuarios que pagaron ANTES de este deploy (sin campo hasEverPaid),
+ *   correr una migración única: buscar en Stripe todos los clientes con pagos exitosos
+ *   y setear hasEverPaid: true en sus docs de Firestore.
+ */
+exports.purgeDeadWeight = functions.pubsub
+  .schedule('every 24 hours')
+  .onRun(async () => {
+    const now    = new Date();
+    // 31 días después del fin del trial = 61+ días desde el inicio (trial dura 30 días)
+    const cutoff = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
+
+    // Query: no Pro + trial terminado hace > 31 días
+    // Filtro hasEverPaid se aplica en memoria (Firestore no soporta != combinado con <=)
+    const snap = await db.collection('users')
+      .where('is_pro',        '==', false)
+      .where('trial_ends_at', '<=', admin.firestore.Timestamp.fromDate(cutoff))
+      .get();
+
+    let purgedCount = 0;
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const uid  = doc.id;
+
+      // ── PROTECCIÓN ABSOLUTA: si alguna vez pagó, NO borrar ──
+      if (data.hasEverPaid === true) {
+        console.info('[Life OS] purgeDeadWeight: SKIP (pagó alguna vez):', uid);
+        continue;
+      }
+      // Doble protección: roles que indican acceso histórico
+      if (data.role === 'premium' || data.role === 'admin') {
+        console.info('[Life OS] purgeDeadWeight: SKIP (rol protegido):', uid);
+        continue;
+      }
+
+      try {
+        // ── Borrar documento principal + TODAS las subcolecciones (data, connections, user_activity) ──
+        await db.recursiveDelete(db.collection('users').doc(uid));
+        // Limpiar colecciones relacionadas en raíz
+        await db.collection('gemelo_data').doc(uid).delete().catch(() => {});
+        await db.collection('leaderboard').doc(uid).delete().catch(() => {});
+        await db.collection('userDirectory').doc(uid).delete().catch(() => {});
+
+        console.info('[Life OS] purgeDeadWeight: DELETED peso muerto:', uid);
+        purgedCount++;
+      } catch(e) {
+        console.error('[Life OS] purgeDeadWeight error al borrar:', uid, e.message);
+      }
+    }
+
+    console.info(`[Life OS] purgeDeadWeight completado: ${purgedCount} usuarios purgados de ${snap.size} candidatos.`);
     return null;
   });
 
