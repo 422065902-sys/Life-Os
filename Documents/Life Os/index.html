@@ -1654,21 +1654,27 @@
       <!-- Notificaciones Push -->
       <div class="card" id="notifications-setting-row" style="grid-column:1/-1">
         <div class="card-title">🔔 NOTIFICACIONES PUSH</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;color:var(--text);font-weight:600">Recordatorios y Daily Briefing</div>
             <div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.6">
-              Recibe alertas de hábitos, el análisis de tu Gemelo, recordatorios de trial y tu briefing diario a las 8am.
+              Recibe alertas de hábitos, análisis de tu Gemelo y tu briefing diario a las 8am.
             </div>
-            <span id="notification-permission-status" style="font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:5px;display:inline-block"></span>
+            <span id="notification-permission-status" style="font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:6px;display:inline-block"></span>
           </div>
-          <label class="switch" style="flex-shrink:0">
-            <input type="checkbox" id="notifications-toggle"/>
-            <span class="slider"></span>
-          </label>
+          <!-- Botón visible — cambia según el estado del permiso -->
+          <button id="notif-activate-btn" onclick="activarNotificaciones()"
+            style="flex-shrink:0;padding:10px 18px;border-radius:10px;border:none;cursor:pointer;
+                   font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:.04em;
+                   background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#000;
+                   transition:opacity .2s,transform .15s">
+            🔔 Activar
+          </button>
+          <!-- Toggle oculto — se mantiene para la lógica existente -->
+          <input type="checkbox" id="notifications-toggle" style="display:none"/>
         </div>
         <div id="notif-blocked-msg" style="display:none;margin-top:10px;font-size:11px;color:var(--red);padding:8px 12px;background:rgba(239,68,68,.06);border-radius:8px;border:1px solid rgba(239,68,68,.15)">
-          🔕 Las notificaciones están bloqueadas en tu navegador. Para reactivarlas: ve a la configuración de tu navegador → Privacidad y seguridad → Permisos del sitio → Notificaciones → busca este sitio y cambia a "Permitir".
+          🔕 Bloqueadas en tu dispositivo. Ve a Ajustes → Safari/Chrome → Notificaciones → permite este sitio.
         </div>
       </div>
 

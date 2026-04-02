@@ -8207,18 +8207,44 @@ function initNotificationsToggle(uid, userData) {
   });
 }
 
-// ── Helper: actualizar texto de estado en el UI del toggle ──
+/** Llama directamente a registerPushNotifications desde el botón de settings */
+async function activarNotificaciones() {
+  const uid = _auth?.currentUser?.uid;
+  if (!uid) { showToast('⚠️ Inicia sesión primero'); return; }
+  await registerPushNotifications(uid);
+}
+
+// ── Helper: actualizar texto de estado y botón en el UI ──
 function _updateNotifStatusUI(permission) {
   const statusEl = document.getElementById('notification-permission-status');
+  const btn      = document.getElementById('notif-activate-btn');
   if (!statusEl) return;
   const states = {
-    granted: { text: 'Activas', color: 'var(--green)' },
-    denied:  { text: 'Bloqueadas — actívalas en tu navegador', color: 'var(--red)' },
-    default: { text: 'Pendientes', color: 'var(--text3)' },
+    granted: { text: '✓ Notificaciones activas', color: 'var(--green)' },
+    denied:  { text: '🔕 Bloqueadas en el dispositivo', color: 'var(--red)' },
+    default: { text: 'Permiso pendiente', color: 'var(--text3)' },
   };
   const s = states[permission] || states.default;
-  statusEl.textContent  = s.text;
-  statusEl.style.color  = s.color;
+  statusEl.textContent = s.text;
+  statusEl.style.color = s.color;
+  if (btn) {
+    if (permission === 'granted') {
+      btn.textContent  = '✓ Activadas';
+      btn.disabled     = true;
+      btn.style.opacity = '.5';
+      btn.style.cursor  = 'default';
+    } else if (permission === 'denied') {
+      btn.textContent  = '🔕 Bloqueadas';
+      btn.disabled     = true;
+      btn.style.opacity = '.4';
+      btn.style.cursor  = 'default';
+    } else {
+      btn.textContent  = '🔔 Activar';
+      btn.disabled     = false;
+      btn.style.opacity = '1';
+      btn.style.cursor  = 'pointer';
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
