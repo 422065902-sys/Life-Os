@@ -189,6 +189,30 @@ let _bootAnimDone    = false;
 let _bootDataReady   = false;
 let _bootOnComplete  = null;
 let _bootTimeoutId   = null;
+let _toastQueue      = [];      // toasts bloqueados durante la animación
+let _postBootQueue   = [];      // acciones UI (paywall, alerts) diferidas hasta post-boot
+
+/**
+ * Encola una función para ejecutarse justo después de que el boot termine.
+ * Si el boot ya terminó la ejecuta de inmediato.
+ */
+function _schedulePostBoot(fn) {
+  if (_bootAnimDone) { setTimeout(fn, 0); return; }
+  _postBootQueue.push(fn);
+}
+
+function _flushPostBootQueue() {
+  const fns = _postBootQueue.splice(0);
+  fns.forEach(fn => { try { fn(); } catch(e) { console.warn('[Life OS] postBoot error:', e); } });
+}
+
+function _flushToastQueue() {
+  if (_toastQueue.length === 0) return;
+  // Mostrar solo el último toast relevante para no saturar
+  const last = _toastQueue[_toastQueue.length - 1];
+  _toastQueue = [];
+  showToast(last);
+}
 
 function _tryCompleteBoot() {
   if (_bootAnimDone && _bootDataReady && _bootOnComplete) {
@@ -196,6 +220,8 @@ function _tryCompleteBoot() {
     _bootOnComplete = null;
     if (_bootTimeoutId) { clearTimeout(_bootTimeoutId); _bootTimeoutId = null; }
     cb();
+    // Dar 400ms para que la UI se asiente antes de mostrar toasts y acciones diferidas
+    setTimeout(() => { _flushToastQueue(); _flushPostBootQueue(); }, 400);
   }
 }
 
@@ -376,6 +402,8 @@ document.getElementById('custom-color')?.addEventListener('input', e=>{
 ═══════════════════════════════════════════ */
 let toastTimer;
 function showToast(msg) {
+  // Bloquear toasts mientras la animación terminal está activa
+  if (!_bootAnimDone) { _toastQueue.push(msg); return; }
   const t = document.getElementById('toast');
   document.getElementById('toast-text').textContent = msg;
   t.classList.add('show');
@@ -4171,6 +4199,9 @@ async function loginSuccess(userObj) {
   // runBootSequence registra el callback pero no lo dispara hasta que AMBOS
   // flags estén en true: animación terminada Y datos listos (_markBootDataReady).
   runBootSequence(() => {
+    // Renderizar header con el nombre real (ya disponible tras cloud sync)
+    renderDashboardHeader();
+
     const needsCalib   = S.lastCalibDate !== today();
     const needsCheckin = !S.dailyCheckIn[today()];
     if (needsCalib || needsCheckin) {
@@ -4178,6 +4209,7 @@ async function loginSuccess(userObj) {
       openModal('modal-calibration');
     }
     setTimeout(() => {
+      renderDashboardHeader(); // doble llamada para asegurar nombre correcto
       renderCheckinDots('dashboard-ci-dots');
       updateCheckinStreak();
       renderMorningBriefing();
@@ -4196,11 +4228,9 @@ async function loginSuccess(userObj) {
   // ── Sincronizar desde nube (asíncrono — corre en paralelo con el boot) ──
   if (CLOUD_ENABLED && _auth?.currentUser) {
     const myUid    = _auth.currentUser.uid;
-    const syncToast = setTimeout(() => showToast('☁️ Sincronizando con la nube...'), 300);
     try {
       // 1. Datos principales (hábitos, finanzas, XP, etc.)
       await cargarDatosNube(myUid);
-      clearTimeout(syncToast);
 
       // 2. Restaurar color de acento guardado en perfil Firebase
       try {
@@ -4237,24 +4267,26 @@ async function loginSuccess(userObj) {
             dismissTrialBanner();
             dismissPaywallLockdown();
           } else if (access.reason === 'trial_expired') {
-            // Trial expirado confirmado por Firestore — activar paywall + modo consulta
+            // Trial expirado — calcular daysLeft y diferir TODA la UI hasta post-boot
             S.trialExpired = true;
-            showPaywallLockdown();
-            // Calcular días restantes para eliminación (trial_ends_at + 31 días)
             let daysLeft = null;
             if (authData.trial_ends_at) {
               const trialEnd     = authData.trial_ends_at.toDate ? authData.trial_ends_at.toDate() : new Date(authData.trial_ends_at);
               const deletionDate = new Date(trialEnd.getTime() + 31 * 24 * 60 * 60 * 1000);
               daysLeft           = Math.max(0, Math.ceil((deletionDate - new Date()) / 86400000));
-              const alertEl   = document.getElementById('retention-alert');
-              const daysNumEl = document.getElementById('retention-days');
-              if (alertEl && daysNumEl) {
-                daysNumEl.textContent = daysLeft;
-                setTimeout(function(){ alertEl.classList.add('show'); }, 2500);
-              }
             }
-            // Activar modo consulta con el contador
-            setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
+            _schedulePostBoot(() => {
+              showPaywallLockdown();
+              if (daysLeft !== null) {
+                const alertEl   = document.getElementById('retention-alert');
+                const daysNumEl = document.getElementById('retention-days');
+                if (alertEl && daysNumEl) {
+                  daysNumEl.textContent = daysLeft;
+                  setTimeout(function(){ alertEl.classList.add('show'); }, 2500);
+                }
+              }
+              setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
+            });
           }
           // Re-run admin module injection now that we have the real role from Firestore
           buildAdminModules(authData);
@@ -4276,10 +4308,10 @@ async function loginSuccess(userObj) {
       updateXP(); renderHabits(); renderTasks(); renderGoals();
       renderCalendar(); renderExtraSaldos(); renderRutinasFrecuentes();
       updateGlobalCore();
-      showToast('✅ Datos sincronizados desde la nube');
+      // Toast diferido: se mostrará solo después de que la terminal se desmonte
+      _toastQueue.push('✅ Datos sincronizados');
     } catch(e) {
-      clearTimeout(syncToast);
-      showToast('⚠️ Sin conexión — usando datos locales');
+      _toastQueue.push('⚠️ Sin conexión — usando datos locales');
     }
     // Marcar datos listos (con o sin error de red) para desbloquear el boot
     _markBootDataReady();
@@ -8432,8 +8464,8 @@ async function _logActivity(type, xpEarned, label) {
 
 function checkTrialAndRetention() {
   if (S.plan === 'pro') return;
-  // Si Firestore ya confirmó que el trial expiró, mostrar paywall directamente
-  if (S.trialExpired) { showPaywallLockdown(); return; }
+  // Si Firestore ya confirmó que el trial expiró, diferir paywall hasta post-boot
+  if (S.trialExpired) { _schedulePostBoot(showPaywallLockdown); return; }
   if (!S.createdAt) { S.createdAt = today(); guardarDatos(); return; }
   const diffDays = Math.floor((Date.now() - new Date(S.createdAt)) / 86400000);
   // Ventana total: 60 días desde creación antes de purga automática
@@ -8448,15 +8480,15 @@ function checkTrialAndRetention() {
   if (!S.trialExpired) { S.trialExpired = true; guardarDatos(); }
   dismissTrialBanner();
   if (trialEl) { trialEl.textContent = '⚠️ Prueba expirada'; trialEl.style.color = 'var(--red)'; }
-  // Mostrar el Paywall Lockdown inmersivo del Gemelo Potenciado
-  setTimeout(showPaywallLockdown, 500);
-  // Días restantes = 60 días desde creación menos los días transcurridos
   const daysLeft = Math.max(0, TOTAL_DAYS - diffDays);
-  const alertEl  = document.getElementById('retention-alert');
-  const daysNumEl = document.getElementById('retention-days');
-  if (alertEl && daysNumEl) { daysNumEl.textContent = daysLeft; setTimeout(function(){ alertEl.classList.add('show'); }, 2000); }
-  // Activar modo consulta
-  setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
+  // Diferir toda la UI de paywall hasta que la terminal haya terminado
+  _schedulePostBoot(() => {
+    showPaywallLockdown();
+    const alertEl   = document.getElementById('retention-alert');
+    const daysNumEl = document.getElementById('retention-days');
+    if (alertEl && daysNumEl) { daysNumEl.textContent = daysLeft; setTimeout(function(){ alertEl.classList.add('show'); }, 2000); }
+    setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
