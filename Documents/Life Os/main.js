@@ -184,6 +184,27 @@ const S = {
   gemelo: { state:'idle', startDate:null, dataPoints:0, lastAnalysis:null, survivalTasks:{} },
 };
 
+/* ── Boot-sync: sincroniza animación terminal con carga de datos de Firestore ── */
+let _bootAnimDone    = false;
+let _bootDataReady   = false;
+let _bootOnComplete  = null;
+let _bootTimeoutId   = null;
+
+function _tryCompleteBoot() {
+  if (_bootAnimDone && _bootDataReady && _bootOnComplete) {
+    const cb = _bootOnComplete;
+    _bootOnComplete = null;
+    if (_bootTimeoutId) { clearTimeout(_bootTimeoutId); _bootTimeoutId = null; }
+    cb();
+  }
+}
+
+/** Marca los datos de Firestore como listos. Llama al completar el cloud sync. */
+function _markBootDataReady() {
+  _bootDataReady = true;
+  _tryCompleteBoot();
+}
+
 const uid = () => Math.random().toString(36).slice(2,9);
 const fmt = n => new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n||0);
 const today = () => new Date().toISOString().split('T')[0];
@@ -4146,7 +4167,33 @@ async function loginSuccess(userObj) {
   as.classList.add('hidden');
   setTimeout(() => as.style.display = 'none', 420);
 
-  // ── Sincronizar desde nube (asíncrono — refrescar UI cuando llegue) ──
+  // ── Arrancar boot sequence AHORA, en paralelo con la carga de la nube ──
+  // runBootSequence registra el callback pero no lo dispara hasta que AMBOS
+  // flags estén en true: animación terminada Y datos listos (_markBootDataReady).
+  runBootSequence(() => {
+    const needsCalib   = S.lastCalibDate !== today();
+    const needsCheckin = !S.dailyCheckIn[today()];
+    if (needsCalib || needsCheckin) {
+      document.getElementById('modal-calibration')?.setAttribute('data-mandatory', 'true');
+      openModal('modal-calibration');
+    }
+    setTimeout(() => {
+      renderCheckinDots('dashboard-ci-dots');
+      updateCheckinStreak();
+      renderMorningBriefing();
+      updateGlobalCore();
+      checkOnboarding();
+      updateFABVisibility();
+      const noNeedsCalib   = S.lastCalibDate === today();
+      const noNeedsCheckin = !!S.dailyCheckIn[today()];
+      const noNeedsOnboard = S.onboardingDone || S.tasks.length > 0;
+      if (noNeedsCalib && noNeedsCheckin && noNeedsOnboard) {
+        setTimeout(() => { window._suppressNucleoToast = false; updateGlobalCore(); }, 300);
+      }
+    }, 500);
+  });
+
+  // ── Sincronizar desde nube (asíncrono — corre en paralelo con el boot) ──
   if (CLOUD_ENABLED && _auth?.currentUser) {
     const myUid    = _auth.currentUser.uid;
     const syncToast = setTimeout(() => showToast('☁️ Sincronizando con la nube...'), 300);
@@ -4234,41 +4281,13 @@ async function loginSuccess(userObj) {
       clearTimeout(syncToast);
       showToast('⚠️ Sin conexión — usando datos locales');
     }
+    // Marcar datos listos (con o sin error de red) para desbloquear el boot
+    _markBootDataReady();
   } else {
-    // Modo local — reconstruir set de aliados desde caché
+    // Modo local — reconstruir set de aliados desde caché y desbloquear boot inmediato
     _rebuildAliadosUids();
+    _markBootDataReady();
   }
-
-  // Boot sequence → calibración + check-in (una vez al día)
-  runBootSequence(() => {
-    const needsCalib   = S.lastCalibDate !== today();
-    const needsCheckin = !S.dailyCheckIn[today()];
-    if (needsCalib || needsCheckin) {
-      document.getElementById('modal-calibration')?.setAttribute('data-mandatory', 'true');
-      openModal('modal-calibration');
-    }
-    setTimeout(() => {
-      renderCheckinDots('dashboard-ci-dots');
-      updateCheckinStreak();
-      renderMorningBriefing();
-      updateGlobalCore();
-      // Onboarding — solo si es la primera vez
-      checkOnboarding();
-      // FAB: visible solo si check-in + onboarding completados
-      updateFABVisibility();
-      // Si no se abrió ningún modal (ya hizo check-in y ya completó onboarding),
-      // levantar supresión aquí para que el blackout pueda mostrarse si aplica
-      const noNeedsCalib   = S.lastCalibDate === today();
-      const noNeedsCheckin = !!S.dailyCheckIn[today()];
-      const noNeedsOnboard = S.onboardingDone || S.tasks.length > 0;
-      if (noNeedsCalib && noNeedsCheckin && noNeedsOnboard) {
-        setTimeout(() => {
-          window._suppressNucleoToast = false;
-          updateGlobalCore();
-        }, 300);
-      }
-    }, 500);
-  });
 }
 
 /* ─── doLogout ──────────────────────────────────────────────── */
@@ -4601,6 +4620,15 @@ function runBootSequence(onComplete) {
   const lines  = document.getElementById('boot-lines');
   if (!screen) { onComplete(); return; }
 
+  // Registrar callback y resetear flag de animación.
+  // _bootDataReady NO se resetea aquí: puede haberse marcado antes (modo local).
+  _bootOnComplete = onComplete;
+  _bootAnimDone   = false;
+
+  // Timeout de seguridad: si Firestore tarda más de 8s, desbloquear la app igual.
+  if (_bootTimeoutId) clearTimeout(_bootTimeoutId);
+  _bootTimeoutId = setTimeout(() => { _bootDataReady = true; _tryCompleteBoot(); }, 8000);
+
   // ── Apply accent-derived palette to boot screen ──
   const accent = (typeof S !== 'undefined' && S.accent) ? S.accent : '#00e5ff';
   const r = parseInt(accent.slice(1,3),16);
@@ -4653,12 +4681,13 @@ function runBootSequence(onComplete) {
       el.className = 'boot-line' + (idx < sequence.length - 1 ? ' dim' : '');
       lines.appendChild(el);
       typeText(el, text, speed, idx < sequence.length - 1 ? null : () => {
-        // All lines typed — fade out after 600ms
+        // All lines typed — fade out after 600ms; solo completa cuando los datos también estén listos
         setTimeout(() => {
           screen.classList.add('fade-out');
           setTimeout(() => {
             screen.classList.add('gone');
-            onComplete();
+            _bootAnimDone = true;
+            _tryCompleteBoot();
           }, 650);
         }, 600);
       });
@@ -8268,12 +8297,9 @@ function _preparePaymentWindow() {
   const isStandalone = window.navigator.standalone === true ||
                        window.matchMedia('(display-mode: standalone)').matches;
   if (isStandalone) {
-    // PWA: abrir con <a> es la única forma fiable en iOS standalone
-    return function(url) {
-      const a = document.createElement('a');
-      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    };
+    // PWA standalone: window.open() está bloqueado en iOS.
+    // window.location.href es el único método fiable para redirigir en este contexto.
+    return function(url) { window.location.href = url; };
   }
   // Navegador normal: abrir ventana en blanco ahora (contexto síncrono)
   const win = window.open('', '_blank');
@@ -8431,6 +8457,53 @@ function checkTrialAndRetention() {
   if (alertEl && daysNumEl) { daysNumEl.textContent = daysLeft; setTimeout(function(){ alertEl.classList.add('show'); }, 2000); }
   // Activar modo consulta
   setTimeout(function(){ activateConsultaMode(daysLeft); }, 600);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GEMELO — FLUJO DE OBSERVACIÓN DÍA 29 / DÍA 30
+   Día 29 → badge no bloqueante + pre-generación del análisis
+   Día 30 → leer gancho_intriga de Firestore e inyectar en paywall
+═══════════════════════════════════════════════════════════════ */
+async function checkGemeloObservationDay() {
+  if (S.plan === 'pro') return;
+  if (!S.createdAt) return;
+  const diffDays = Math.floor((Date.now() - new Date(S.createdAt)) / 86400000);
+
+  if (diffDays === 29) {
+    // Día 29: badge informativo + pre-generar análisis en la nube (no bloqueante)
+    setTimeout(_showGemeloDay29Badge, 3000);
+    if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
+      _functions.httpsCallable('generateGemeloAnalysis')({}).catch(() => {});
+    }
+  } else if (diffDays >= 30) {
+    // Día 30+: cargar gancho_intriga desde Firestore para el paywall
+    if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
+      try {
+        const res = await _functions.httpsCallable('getGemelo')({});
+        if (res.data?.gancho_intriga) {
+          S.gemelo.ganchoIntriga = res.data.gancho_intriga;
+        }
+      } catch(e) { /* fallback: _buildPaywallHookText usa datos locales */ }
+    }
+  }
+}
+
+function _showGemeloDay29Badge() {
+  if (document.getElementById('gemelo-day29-badge')) return;
+  const badge = document.createElement('div');
+  badge.id = 'gemelo-day29-badge';
+  badge.style.cssText = [
+    'position:fixed;bottom:88px;left:50%;transform:translateX(-50%);',
+    'background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.35);',
+    'border-radius:12px;padding:10px 20px;z-index:1200;',
+    'color:rgba(212,175,55,.9);font-family:\'JetBrains Mono\',monospace;',
+    'font-size:12px;text-align:center;backdrop-filter:blur(8px);',
+    'animation:fadeInUp .5s ease;pointer-events:none;',
+    'max-width:340px;line-height:1.5;',
+  ].join('');
+  badge.textContent = '✦ Tu Gemelo está terminando de procesar tu comportamiento de los últimos 30 días...';
+  document.body.appendChild(badge);
+  setTimeout(() => badge.remove(), 9000);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -8891,6 +8964,22 @@ function _buildAnalysis() {
   };
 }
 
+/** Renderiza el analisis_profundo como párrafos HTML con white-space:pre-wrap */
+function _renderGemeloNarrativo(texto) {
+  const paras = texto.split(/\n\n+/).filter(Boolean);
+  const pHtml = paras.map(p =>
+    `<p style="margin:0 0 26px;line-height:1.85;font-size:14.5px;color:rgba(255,255,255,.85);white-space:pre-wrap">${p}</p>`
+  ).join('');
+  return `
+    <div class="gemelo-header" style="padding-bottom:20px">
+      <div class="gemelo-sigil" style="font-size:36px">✦</div>
+      <div class="gemelo-title" style="font-size:15px">TU ANÁLISIS</div>
+      <div class="gemelo-subtitle" style="font-size:12px">Lo que tu Gemelo vio en estos 30 días</div>
+    </div>
+    <div style="padding:4px 0 8px">${pHtml}</div>
+    <button onclick="resetGemelo()" style="width:100%;margin-top:12px;background:none;border:1px solid rgba(212,175,55,.15);border-radius:10px;color:rgba(212,175,55,.35);font-size:11px;cursor:pointer;padding:10px;font-family:Syne,sans-serif;transition:all .2s" onmouseover="this.style.color='rgba(212,175,55,.7)'" onmouseout="this.style.color='rgba(212,175,55,.35)'">↺ Iniciar nuevo ciclo de observación</button>`;
+}
+
 function _renderStateD() {
   // Usar análisis de IA si está disponible; si no, usar análisis local
   let a = null;
@@ -8898,6 +8987,10 @@ function _renderStateD() {
   if (raw && typeof raw === 'string') {
     try { a = JSON.parse(raw); } catch(e) { /* fallback a análisis local */ }
   }
+
+  // Nuevo formato del Gemelo Potenciado: {gancho_intriga, analisis_profundo}
+  if (a && a.analisis_profundo) return _renderGemeloNarrativo(a.analisis_profundo);
+
   if (!a) a = _buildAnalysis();
   const forts = a.fortalezas.map(f=>`
     <div class="gemelo-insight">
@@ -9090,6 +9183,49 @@ async function activateGemeloFree() {
  * Si status='ok':     renderiza el análisis en el contenedor existente
  * Si status='locked': muestra estado bloqueado y activa el paywall
  */
+/* ── Terminal de transición post-pago (cubre la latencia de Gemini) ── */
+function _showGemeloTerminalTransition(onComplete) {
+  if (document.getElementById('gemelo-terminal')) return;
+  const el = document.createElement('div');
+  el.id = 'gemelo-terminal';
+  el.style.cssText = [
+    'position:fixed;inset:0;z-index:10000;',
+    'background:#030509;display:flex;flex-direction:column;',
+    'align-items:center;justify-content:center;padding:40px;',
+  ].join('');
+  el.innerHTML = `
+    <div style="font-size:40px;margin-bottom:28px;animation:pwl-glyph-pulse 3s infinite">✦</div>
+    <div id="gt-lines" style="font-family:'JetBrains Mono',monospace;font-size:13px;
+      color:#00c17a;text-align:left;max-width:380px;width:100%;line-height:2"></div>`;
+  document.body.appendChild(el);
+
+  const msgs = [
+    '> Sincronizando redes neuronales del Gemelo Potenciado...',
+    '> Decodificando 30 días de patrones de comportamiento...',
+    '> Cruzando variables: hábitos × finanzas × energía...',
+    '> Generando análisis personalizado...',
+    '> Casi listo...',
+  ];
+  const linesEl = el.querySelector('#gt-lines');
+  let idx = 0;
+  function next() {
+    if (idx >= msgs.length) { onComplete && onComplete(); return; }
+    const div = document.createElement('div');
+    div.textContent = msgs[idx++];
+    linesEl.appendChild(div);
+    setTimeout(next, 1100);
+  }
+  next();
+}
+
+function _hideGemeloTerminalTransition(cb) {
+  const el = document.getElementById('gemelo-terminal');
+  if (!el) { cb && cb(); return; }
+  el.style.transition = 'opacity .55s';
+  el.style.opacity = '0';
+  setTimeout(() => { el.remove(); cb && cb(); }, 560);
+}
+
 async function loadGemeloData() {
   const c = document.getElementById('gemelo-container');
   if (!c) return;
@@ -9113,7 +9249,6 @@ async function loadGemeloData() {
     const res         = result.data;
 
     if (res.status === 'locked') {
-      // Mostrar estado bloqueado con mensaje del servidor
       c.innerHTML = `
         <div style="text-align:center;padding:32px 20px">
           <div style="font-size:48px;margin-bottom:14px">🔐</div>
@@ -9125,23 +9260,56 @@ async function loadGemeloData() {
             🔓 Activar Life OS Pro
           </button>
         </div>`;
-      // Abrir paywall automáticamente
       openModal('modal-pago');
       return;
     }
 
-    // Status 'ok' — actualizar estado local con datos del servidor
     if (res.status === 'ok') {
       if (res.analysis_ready && res.data) {
-        S.gemelo.state          = 'activated';
-        S.gemelo.analysisText   = res.data;
+        // Análisis ya generado — mostrar directamente
+        S.gemelo.state        = 'activated';
+        S.gemelo.analysisText = res.data;
+        renderGemelo();
+      } else if (S.plan === 'pro') {
+        // Usuario Pro pero análisis aún no generado → pantalla de transición + generar
+        _showGemeloTerminalTransition(async () => {
+          try {
+            const genFn = _functions.httpsCallable('generateGemeloAnalysis');
+            await genFn({});
+            // Releer resultado recién guardado
+            const r2 = await _functions.httpsCallable('getGemelo')({});
+            if (r2.data?.analysis_ready && r2.data?.data) {
+              S.gemelo.state        = 'activated';
+              S.gemelo.analysisText = r2.data.data;
+            }
+          } catch(genErr) {
+            console.error('[Life OS] generateGemeloAnalysis error:', genErr);
+            // Mostrar error amigable con reintento — usuario ya pagó
+            _hideGemeloTerminalTransition(() => {
+              if (c) c.innerHTML = `
+                <div style="text-align:center;padding:36px 20px">
+                  <div style="font-size:40px;margin-bottom:14px">⚠️</div>
+                  <div style="font-family:'Orbitron',monospace;font-size:13px;color:var(--accent);margin-bottom:10px">
+                    ERROR AL GENERAR EL ANÁLISIS
+                  </div>
+                  <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:20px;max-width:300px;margin:0 auto 20px">
+                    Hubo un problema al conectar con el Gemelo. Tu acceso Pro está activo — puedes reintentar.
+                  </div>
+                  <button class="btn btn-a" onclick="loadGemeloData()" style="padding:12px 24px;font-size:13px">
+                    ↺ Reintentar
+                  </button>
+                </div>`;
+            });
+            return;
+          }
+          _hideGemeloTerminalTransition(() => renderGemelo());
+        });
       } else {
-        S.gemelo.state          = res.observation_days >= 30 ? 'ready' : 'observing';
+        S.gemelo.state           = res.observation_days >= 30 ? 'ready' : 'observing';
         S.gemelo.observationDays = res.observation_days || 0;
+        renderGemelo();
       }
     }
-
-    renderGemelo();
 
   } catch(e) {
     console.error('[Life OS] loadGemeloData error:', e);
@@ -9630,6 +9798,8 @@ function copyPrompt(guideId) {
  * Prioriza el insight más relevante según los patrones disponibles.
  */
 function _buildPaywallHookText() {
+  // Prioridad 1: gancho generado por Gemini y guardado en Firestore (día 30)
+  if (S.gemelo?.ganchoIntriga) return S.gemelo.ganchoIntriga;
   const sueno    = S.healthStats?.sueno || 7;
   const streak   = S.checkInStreak || 0;
   const habits   = S.habits  || [];
@@ -9817,7 +9987,7 @@ function showPaywallLockdown() {
       <div class="pwl-divider"></div>
       <div class="pwl-hook">${_buildPaywallHookText()}</div>
       <button class="pwl-cta" onclick="paywallTriggerPayment()">
-        ¿Quieres revelar lo que tu Gemelo<br>aprendió y detectó de ti?
+        ¿Quieres revelar lo que tu Gemelo detectó de ti?
       </button>
       <div class="pwl-price-note">$99 MXN/mes &nbsp;·&nbsp; Cancela cuando quieras &nbsp;·&nbsp; Acceso inmediato</div>
       <div class="pwl-footer">
@@ -10038,6 +10208,7 @@ function dismissPaywallLockdown() {
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     checkTrialAndRetention();
+    checkGemeloObservationDay();          // Día 29 badge / Día 30 gancho
     showModuleCard(S.currentPage || 'dashboard');
   }, 3500);
 });

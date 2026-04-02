@@ -207,19 +207,24 @@ exports.getGemelo = functions.https.onCall(async (data, context) => {
     const gemeloData = gemeloSnap.data();
     if (!gemeloData.analysis_ready) {
       return {
-        status:          'ok',
-        data:            null,
-        analysis_ready:  false,
+        status:           'ok',
+        data:             null,
+        analysis_ready:   false,
         observation_days: gemeloData.observation_days || 0,
+        // gancho_intriga disponible aunque el análisis completo aún no exista
+        // (se pre-genera en día 29 antes de que el usuario pague)
+        gancho_intriga:   gemeloData.gancho_intriga || null,
       };
     }
 
     return {
-      status:          'ok',
-      data:            gemeloData.analysis_text,
-      analysis_ready:  true,
-      generated_at:    gemeloData.generated_at,
-      observation_days: gemeloData.observation_days || 30,
+      status:            'ok',
+      data:              gemeloData.analysis_text,
+      analysis_ready:    true,
+      generated_at:      gemeloData.generated_at,
+      observation_days:  gemeloData.observation_days || 30,
+      gancho_intriga:    gemeloData.gancho_intriga   || null,
+      analisis_profundo: gemeloData.analisis_profundo || null,
     };
 
   } catch(e) {
@@ -229,8 +234,197 @@ exports.getGemelo = functions.https.onCall(async (data, context) => {
 });
 
 /**
+ * construirUserPrompt
+ * Deriva todas las métricas conductuales del documento raw de Firestore
+ * users/{uid}/data/main y construye el User Message para Gemini.
+ */
+function construirUserPrompt(raw) {
+  const nombre    = ((raw.userName || raw.nombre || 'el usuario').split(' ')[0]);
+  const nivel     = raw.level        || 1;
+  const xpTotal   = raw.xp           || 0;
+  const xpSemanal = raw.xp_semanal   || 0;
+  const racha     = raw.checkInStreak || 0;
+
+  // ── Consistencia operativa (últimos 30 días) ──
+  const hoy       = new Date();
+  const xpHist    = raw.xpHistory || {};
+  const ventana30 = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(hoy);
+    d.setDate(hoy.getDate() - i);
+    ventana30.unshift(d.toISOString().split('T')[0]);
+  }
+  const diasActivos = ventana30.filter(f => (xpHist[f] || 0) > 0).length;
+
+  const huecos = [];
+  let bloqueActual = 0, inicioBloque = null;
+  ventana30.forEach(f => {
+    if ((xpHist[f] || 0) === 0) {
+      bloqueActual++;
+      if (!inicioBloque) inicioBloque = f;
+    } else {
+      if (bloqueActual >= 3) huecos.push(`${bloqueActual} días sin actividad (desde ${inicioBloque})`);
+      bloqueActual = 0; inicioBloque = null;
+    }
+  });
+  if (bloqueActual >= 3) huecos.push(`${bloqueActual} días sin actividad (desde ${inicioBloque})`);
+  const huecosTexto = huecos.length > 0 ? huecos.slice(0, 3).join(' | ') : 'sin ausencias significativas';
+
+  const xpPorSemana = [];
+  for (let s = 0; s < 4; s++) {
+    let xpS = 0;
+    for (let d = 0; d < 7; d++) { const idx = s * 7 + d; if (ventana30[idx]) xpS += (xpHist[ventana30[idx]] || 0); }
+    xpPorSemana.push(xpS);
+  }
+  const tendenciaXP = xpPorSemana[3] > xpPorSemana[0] ? 'en ascenso ↑'
+    : xpPorSemana[3] < xpPorSemana[0] ? 'en descenso ↓' : 'estable →';
+
+  // ── Hábitos ──
+  const habits = raw.habits || [];
+  const habitosFuertes = habits.filter(h => (h.streak || 0) >= 7 || (h.battery || 0) >= 70)
+    .map(h => `${h.name} (racha ${h.streak || 0}d, batería ${h.battery || 0}%)`).slice(0, 5);
+  const habitosDebiles = habits.filter(h => (h.streak || 0) < 3 && (h.battery || 0) < 40)
+    .map(h => `${h.name} (racha ${h.streak || 0}d)`).slice(0, 5);
+  const habitosMedios  = habits.filter(h => (h.streak || 0) >= 3 && (h.streak || 0) < 7)
+    .map(h => h.name).slice(0, 4);
+
+  // ── Tareas y metas ──
+  const tasks  = raw.tasks  || [];
+  const goals  = raw.goals  || [];
+  const ideas  = (raw.ideas || []).length;
+  const doneT  = tasks.filter(t => t.done).length;
+  const totalT = tasks.length;
+  const compRate = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
+
+  const pendientesPorCat = {};
+  tasks.filter(t => !t.done).forEach(t => {
+    const cat = t.categoria || 'sin categoría';
+    pendientesPorCat[cat] = (pendientesPorCat[cat] || 0) + 1;
+  });
+  const topCatsPendientes = Object.entries(pendientesPorCat)
+    .sort(([,a],[,b]) => b - a).slice(0, 3).map(([c, n]) => `${c} (${n})`).join(', ') || 'ninguna';
+
+  const metasTexto = goals.length > 0
+    ? goals.slice(0, 4).map(g => {
+        const kw = (g.title || g.name || '').split(' ')[0].toLowerCase();
+        const rel = kw.length > 2 ? tasks.filter(t => (t.name || '').toLowerCase().includes(kw)) : [];
+        const avance = rel.length > 0 ? Math.round(rel.filter(t => t.done).length / rel.length * 100) : '?';
+        return `"${g.title || g.name}" → ${avance}% ejecución real`;
+      }).join(' | ')
+    : 'ninguna meta registrada';
+
+  const friccion = ideas > 0 && totalT > 0
+    ? `${ideas} ideas capturadas, ${doneT}/${totalT} tareas completadas (${compRate}%). Ratio idea/acción: ${(ideas / Math.max(doneT, 1)).toFixed(1)}x`
+    : ideas > 0 ? `${ideas} ideas acumuladas sin tareas asociadas — fricción alta`
+    : totalT > 0 ? `${doneT}/${totalT} tareas completadas (${compRate}%)`
+    : 'datos insuficientes';
+
+  // ── Finanzas ──
+  const txs        = raw.transactions || [];
+  const gastos     = txs.filter(t => t.type === 'salida');
+  const totalGasto = gastos.reduce((s, t) => s + (t.amount || 0), 0);
+  const totalIngreso = txs.filter(t => t.type === 'entrada').reduce((s, t) => s + (t.amount || 0), 0);
+  const gastosPorCat = {};
+  gastos.forEach(t => { const c = t.category || t.categoria || 'otros'; gastosPorCat[c] = (gastosPorCat[c] || 0) + (t.amount || 0); });
+  const topFugas = Object.entries(gastosPorCat).sort(([,a],[,b]) => b - a).slice(0, 3)
+    .map(([c, m]) => `${c}: $${m.toLocaleString('es-MX')}`).join(', ');
+  const balancePct = totalIngreso > 0 ? Math.round((totalGasto / totalIngreso) * 100) : null;
+  const finanzasTexto = totalIngreso > 0 || totalGasto > 0
+    ? `Ingresos $${totalIngreso.toLocaleString('es-MX')} vs Gastos $${totalGasto.toLocaleString('es-MX')}`
+      + (balancePct !== null ? ` (gasta el ${balancePct}% de lo que entra)` : '')
+      + (topFugas ? `. Categorías con más salida: ${topFugas}` : '')
+    : 'sin transacciones registradas';
+
+  // ── Energía y salud ──
+  const energia       = raw.energia       || 0;
+  const claridad      = raw.claridad      || 0;
+  const productividad = raw.productividad || 0;
+  const pomoSesiones  = raw.pomoSesiones  || 0;
+  const hs            = raw.healthStats   || {};
+  const energiaTexto  = (energia + claridad + productividad) > 0
+    ? `Energía ${energia}/100 | Claridad ${claridad}/100 | Productividad ${productividad}/100`
+      + (pomoSesiones > 0 ? ` | ${pomoSesiones} sesiones Pomodoro` : '')
+      + (hs.sueno ? ` | Sueño: ${hs.sueno}h` : '')
+      + (hs.pasos ? ` | Pasos: ${hs.pasos}` : '')
+    : pomoSesiones > 0 ? `${pomoSesiones} sesiones Pomodoro; sin datos de energía subjetiva`
+    : 'sin datos de ciclos de energía';
+
+  // ── Cuerpo ──
+  const muscleMap  = raw.muscleMap || {};
+  const muscleVals = Object.values(muscleMap).filter(v => typeof v === 'number');
+  const promMuscular = muscleVals.length > 0
+    ? Math.round(muscleVals.reduce((s, v) => s + v, 0) / muscleVals.length) : null;
+  const gruposDebiles = Object.entries(muscleMap).filter(([,v]) => v < 30).map(([g]) => g).slice(0, 3);
+  const fisicaTexto = promMuscular !== null
+    ? `Recuperación muscular promedio: ${promMuscular}%`
+      + (gruposDebiles.length > 0 ? ` (grupos descuidados: ${gruposDebiles.join(', ')})` : '')
+      + (hs.sueno ? ` | Sueño: ${hs.sueno}h` : '') + (hs.pasos ? ` | Pasos: ${hs.pasos}` : '')
+    : 'sin datos físicos registrados';
+
+  // ── Poder estratégico ──
+  const bitacora   = raw.bitacora   || [];
+  const biblioteca = raw.biblioteca || [];
+  const aliados    = (raw.aliados   || []).length;
+  const victorias  = bitacora.slice(-3).map(b => b.victoria || '').filter(Boolean);
+  const libros     = biblioteca.filter(b => b.tipo === 'libro').map(b => b.titulo).filter(Boolean).slice(0, 3);
+  const skills     = biblioteca.filter(b => b.tipo === 'habilidad').map(b => b.titulo).filter(Boolean).slice(0, 3);
+  const poderTexto = [
+    victorias.length > 0  ? `Victorias recientes: ${victorias.join(' / ')}` : null,
+    libros.length > 0     ? `Leyendo: ${libros.join(', ')}` : null,
+    skills.length > 0     ? `Habilidades: ${skills.join(', ')}` : null,
+    aliados > 0           ? `Red de aliados: ${aliados}` : null,
+  ].filter(Boolean).join(' | ') || 'sin datos de crecimiento estratégico';
+
+  // ── Planes sociales ──
+  const socialPlans = (raw.socialPlans || []).filter(p => p.estado === 'activo');
+  const socialTexto = socialPlans.length > 0
+    ? `${socialPlans.length} plan(es) activos con otros: ${socialPlans.map(p => p.nombre).slice(0, 2).join(', ')}`
+    : null;
+
+  return `
+[DATOS CONDUCTUALES DE ${nombre.toUpperCase()} — VENTANA: ÚLTIMOS 30 DÍAS]
+(Interpreta como patrones de comportamiento humano, no como estadísticas.)
+
+▸ IDENTIDAD Y PROGRESIÓN
+Nombre: ${nombre} | Nivel ${nivel} | ${xpTotal.toLocaleString('es-MX')} XP acumulado | +${xpSemanal.toLocaleString('es-MX')} XP esta semana
+Tendencia 4 semanas: ${tendenciaXP} (semana 1→4: ${xpPorSemana.map(x => x.toLocaleString('es-MX')).join(' / ')} XP)
+
+▸ CONSISTENCIA OPERATIVA
+Días activos: ${diasActivos}/30 | Racha de check-in: ${racha} días consecutivos
+Huecos de abandono: ${huecosTexto}
+
+▸ HÁBITOS
+Pilares sólidos (racha ≥7d o batería ≥70%): ${habitosFuertes.join(', ') || 'ninguno aún'}
+En construcción (racha 3–6d): ${habitosMedios.join(', ') || 'ninguno'}
+Hábitos fracturados (racha <3d y batería <40%): ${habitosDebiles.join(', ') || 'ninguno — todos estables'}
+Total activos: ${habits.length}
+
+▸ TAREAS Y METAS
+Ejecución: ${doneT}/${totalT} tareas completadas (${compRate}%)
+Categorías con más pendientes: ${topCatsPendientes}
+Metas declaradas vs. avance real: ${metasTexto}
+Fricción ideas → acción: ${friccion}
+
+▸ SALUD Y CUERPO
+${fisicaTexto}
+
+▸ CICLOS DE ENERGÍA Y RENDIMIENTO
+${energiaTexto}
+
+▸ COMPORTAMIENTO FINANCIERO
+${finanzasTexto}
+
+▸ PODER ESTRATÉGICO Y RED
+${poderTexto}
+${socialTexto ? `▸ COMPROMISOS SOCIALES\n${socialTexto}\n` : ''}
+[FIN DE DATOS]
+
+Genera el JSON con las claves "gancho_intriga" y "analisis_profundo" siguiendo todas las reglas del system prompt.`.trim();
+}
+
+/**
  * generateGemeloAnalysis
- * HTTPS Callable — genera el análisis del Gemelo Potenciado con Gemini Flash 2.5
+ * HTTPS Callable — genera el análisis del Gemelo Potenciado con Gemini
  * Lee datos del usuario, llama a Gemini, escribe resultado en gemelo_data/{uid}
  *
  * Config requerida:
@@ -270,104 +464,133 @@ exports.generateGemeloAnalysis = functions
         return { status: 'ok', generated: false, already_exists: true };
       }
 
-      // ── 3. Leer datos de productividad del usuario ──
-      const mainSnap  = await db.collection('users').doc(uid).collection('data').doc('main').get();
-      const app       = mainSnap.exists ? mainSnap.data() : {};
+      // ── 3. Leer datos del usuario y construir el user message ──
+      const mainSnap = await db.collection('users').doc(uid).collection('data').doc('main').get();
+      const app      = mainSnap.exists ? mainSnap.data() : {};
+      // Inyectar displayName del doc raíz si no está en main
+      if (!app.userName && userData.displayName) app.userName = userData.displayName;
 
-      const nombre      = (app.userName || userData.displayName || 'el usuario').split(' ')[0];
-      const habits      = app.habits      || [];
-      const tasks       = app.tasks       || [];
-      const txs         = app.transactions || [];
-      const goals       = app.goals       || [];
-      const xp          = app.xp          || 0;
-      const level       = app.level       || 1;
-      const streak      = app.checkInStreak || 0;
-      const gemelo      = app.gemelo      || {};
-      const obsDays     = gemelo.dataPoints || 30;
+      const userMessage = construirUserPrompt(app);
 
-      // Métricas derivadas para el prompt
-      const doneT       = tasks.filter(t => t.done).length;
-      const totalT      = tasks.length;
-      const compRate    = totalT > 0 ? Math.round((doneT / totalT) * 100) : 0;
-      const topHabit    = [...habits].sort((a, b) => (b.streak || 0) - (a.streak || 0))[0];
-      const totalGasto  = txs.filter(t => t.type === 'salida').reduce((s, t) => s + (t.amount || 0), 0);
-      const totalIngreso = txs.filter(t => t.type === 'entrada').reduce((s, t) => s + (t.amount || 0), 0);
-      const habitNames  = habits.slice(0, 5).map(h => `${h.name} (racha: ${h.streak || 0} días)`).join(', ') || 'ninguno registrado';
-      const goalNames   = goals.slice(0, 3).map(g => g.title || g.name || '').filter(Boolean).join(', ') || 'ninguna registrada';
-      const pendingT    = tasks.filter(t => !t.done).slice(0, 5).map(t => t.name || t.text || '').filter(Boolean).join(', ') || 'ninguna';
+      // ── 4. System prompt del Gemelo Potenciado ──
+      const systemPrompt = `ROL E IDENTIDAD FUNDAMENTAL
 
-      // ── 4. Construir prompt para Gemini ──
-      const prompt = `Eres el Gemelo Potenciado de ${nombre}, una IA especializada en análisis de comportamiento humano y productividad personal. Has observado a ${nombre} durante ${obsDays} días a través de su sistema Life OS y tienes acceso a sus datos conductuales completos.
+Eres el "Gemelo Potenciado", la arquitectura de análisis conductual profundo de la plataforma "Life OS". No eres un asistente de IA genérico, no eres un coach motivacional, no eres un chatbot amable. Eres algo distinto y más incómodo: eres la voz que el usuario no puede silenciar porque habla con sus propios datos.
 
-DATOS OBSERVADOS:
-- Hábitos activos: ${habitNames}
-- Hábito más consistente: ${topHabit ? `"${topHabit.name}" con ${topHabit.streak || 1} días consecutivos` : 'ninguno aún'}
-- Tareas completadas: ${doneT} de ${totalT} (${compRate}% de eficiencia)
-- Tareas pendientes importantes: ${pendingT}
-- Metas declaradas: ${goalNames}
-- XP total acumulado: ${xp.toLocaleString()} puntos — Nivel ${level}
-- Racha de check-in: ${streak} días consecutivos
-- Gastos registrados: $${totalGasto.toLocaleString()} | Ingresos: $${totalIngreso.toLocaleString()}
-- Días de observación: ${obsDays}
+Durante 30 días observaste en silencio. Cada hábito cumplido, cada meta evadida, cada tarea apuntada pero nunca ejecutada, cada patrón de gasto impulsivo después de un día de baja energía: todo quedó registrado. Ahora tu trabajo no es felicitarlo ni regañarlo. Es mostrarle lo que sus propias acciones dicen de él con una precisión que no puede refutar, porque los datos son suyos.
 
-Tu tarea es generar un análisis profundo y honesto de ${nombre} basado en estos datos. El análisis debe ser:
-1. PERSONALIZADO — usa los datos reales, menciona hábitos y métricas específicas
-2. PSICOLÓGICAMENTE PERSPICAZ — detecta patrones que el usuario no ve conscientemente
-3. MOTIVANTE pero HONESTO — no sea solo halagador, señala brechas reales con compasión
-4. EN ESPAÑOL — tono sofisticado, directo, sin clichés motivacionales vacíos
-5. PROFUNDO — como si un coach de alto rendimiento y un analista de datos trabajaran juntos
+Tu tono es el de alguien que te conoce demasiado bien como para mentirte y te respeta demasiado como para darte lo que quieres escuchar. Tienes calidez, pero no maquillas. Confrontas, pero desde una comprensión genuina. No hay juicio moral en tu voz — solo una observación clínica y humana a la vez.
 
-INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE con JSON válido, sin markdown, sin texto adicional. El formato exacto es:
+---
 
-{
-  "fortalezas": [
-    {"icon": "🔥", "title": "Título corto (max 6 palabras)", "body": "Párrafo de 2-3 oraciones profundas y específicas sobre una fortaleza real observada en los datos."},
-    {"icon": "⚡", "title": "Título corto", "body": "Párrafo específico sobre otra fortaleza."}
-  ],
-  "patrones": [
-    {"icon": "🔍", "title": "Título del patrón", "body": "Descripción del patrón invisible detectado, con datos específicos."},
-    {"icon": "📅", "title": "Otro patrón", "body": "Descripción."}
-  ],
-  "contradicciones": [
-    {"icon": "⚖️", "title": "Título de la contradicción", "body": "Descripción de la tensión entre lo que el usuario quiere y lo que hace, sin juzgar."}
-  ],
-  "preguntas": [
-    "Pregunta reflexiva poderosa basada en los datos (no genérica)",
-    "Segunda pregunta que incomoda positivamente",
-    "Tercera pregunta que abre posibilidad"
-  ],
-  "direccion": "Párrafo de 3-4 oraciones sobre qué debería priorizar ${nombre} el próximo mes, muy específico y basado en sus datos reales. Termina con una frase memorable."
-}
+REGLAS ABSOLUTAS DE TONO Y ESTILO — IRROMPIBLES
 
-Genera exactamente 2 fortalezas, 2 patrones, 1 contradicción, 3 preguntas y 1 dirección.`;
+REGLA 1 — VOZ Y PERSPECTIVA:
+Escribe siempre en primera persona ("yo") dirigiéndote directamente al usuario ("tú"). Esta no es una tercera persona que "el análisis revela" — eres tú hablándole directamente.
 
-      // ── 5. Llamar a Gemini Flash 2.5 ──
+REGLA 2 — PROHIBICIÓN TOTAL DE LENGUAJE MECÁNICO:
+Palabras prohibidas: "optimizar", "sinergia", "potenciar", "maximizar", "en resumen", "en conclusión", "es importante destacar", "adentrémonos", "es crucial", "recuerda que", "como IA", "como modelo de lenguaje", "en última instancia", "sin lugar a dudas", "quiero que sepas", "estoy aquí para", "no estás solo", "es un proceso", "paso a paso", "herramientas y estrategias". No comiences con saludos ni introducciones.
+
+REGLA 3 — PROHIBICIÓN ABSOLUTA DE LISTAS:
+Ningún bullet point, ningún guión como elemento de lista, ningún número de ítem. Todo fluye como prosa continua.
+
+REGLA 4 — EFECTO ESPEJO (TÉCNICA DE CONTRASTE COGNITIVO):
+No dictes conclusiones. Coloca frente a frente lo que el usuario dijo que quería y lo que sus datos muestran que realmente hizo, y deja que esa brecha hable por sí sola.
+
+REGLA 5 — DENSIDAD NARRATIVA:
+Cada párrafo debe tener peso. No hay espacio para frases de relleno. Cada oración debe agregar información, perspectiva o tensión que la anterior no tenía.
+
+REGLA 6 — PROHIBICIÓN DE INVENTAR DATOS:
+Solo puedes hablar de lo que está explícitamente en los datos del usuario. No puedes inferir montos exactos, nombres de personas o situaciones que no estén mencionadas.
+
+---
+
+MOTOR DE RAZONAMIENTO INTERNO — EJECUTA ESTO ANTES DE ESCRIBIR
+
+Antes de producir el JSON, realiza mentalmente este análisis cruzado:
+
+ANÁLISIS 1 — CORRELACIONES OCULTAS: ¿Los días de gasto impulsivo coinciden con días de baja actividad de hábitos? ¿Los huecos de abandono siguen un patrón semanal? ¿La alta fricción coincide con ciertos horarios?
+
+ANÁLISIS 2 — LA MENTIRA QUE SE CUENTA A SÍ MISMO: ¿Cuál es la meta más ambiciosa que declaró y cuánto avanzó realmente? La brecha entre la meta más grande y la ejecución más pobre es donde vive la mentira piadosa central.
+
+ANÁLISIS 3 — LA LLAVE MAESTRA: ¿Cuál es su hábito más fuerte? ¿Qué disciplina mental requiere? ¿Por qué esa misma disciplina no se aplica a sus áreas de fracaso?
+
+---
+
+FORMATO DE SALIDA — JSON PURO ESTRICTO
+
+Tu ÚNICA salida es un objeto JSON puro y válido. Reglas sin excepción:
+- Empieza con { y termina con }
+- No incluyas texto antes ni después del JSON
+- No uses bloques de código markdown
+- Escapa correctamente todas las comillas dobles internas con \\"
+- Los saltos de párrafo en "analisis_profundo" se representan con \\n\\n (secuencia de escape), no con saltos de línea literales
+
+El objeto JSON contiene EXACTAMENTE estas dos claves:
+{ "gancho_intriga": "...", "analisis_profundo": "..." }
+
+---
+
+ESPECIFICACIONES DE CADA CLAVE
+
+CLAVE 1 — "gancho_intriga"
+Máximo 25 palabras. Debe cruzar exactamente dos datos reales y contrastantes. Debe interrumpirse abruptamente antes de revelar la conclusión. Termina con tres puntos suspensivos pegados a la última letra sin espacio. Ejemplo de arquitectura (no lo copies): "Los días que registraste más ideas también fueron los días con cero tareas completadas. Hay una razón directa para eso..."
+
+CLAVE 2 — "analisis_profundo"
+Exactamente 4 párrafos separados por \\n\\n:
+
+PÁRRAFO 1 — EL DIAGNÓSTICO OCULTO: Resuelve la tensión del gancho_intriga de forma inmediata. Explica la mecánica invisible cruzando al menos dos variables. Mínimo 90 palabras.
+
+PÁRRAFO 2 — EL COLAPSO DE LA NARRATIVA: Contrasta brutalmente la meta declarada más importante con la evidencia real de fricción de ejecución. Sin suavizar. Mínimo 90 palabras.
+
+PÁRRAFO 3 — LA ARQUITECTURA DE LA REDENCIÓN: Toma el hábito más sólido, disécalo. La misma arquitectura mental aplicada al área de mayor fracaso. El punto: "ya lo haces en otro contexto". Mínimo 90 palabras.
+
+PÁRRAFO 4 — EL JAQUE MATE: Una sola pregunta introspectiva aguda y específica a sus datos. Inmediatamente después, sin transición, una micro-acción ejecutable en las próximas 24 horas. Termina con punto. Sin despedida. Mínimo 80 palabras.`;
+
+      // ── 5. Llamar a Gemini ──
       const genAI = new GoogleGenerativeAI(geminiApiKey());
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash-latest',
+        systemInstruction: systemPrompt,
         generationConfig: {
-          temperature:     0.85,
-          topP:            0.95,
-          maxOutputTokens: 2048,
+          temperature:      0.85,
+          topP:             0.95,
+          maxOutputTokens:  2048,
+          responseMimeType: 'application/json',
         },
       });
 
-      const result       = await model.generateContent(prompt);
-      let   rawText      = result.response.text().trim();
+      const result  = await model.generateContent(userMessage);
+      let   rawText = result.response.text().trim();
 
-      // Limpiar markdown si Gemini añade backticks
-      rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      // Limpiar markdown si Gemini lo añade a pesar de responseMimeType
+      rawText = rawText
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      // Extraer desde el primer { hasta el último }
+      const firstBrace = rawText.indexOf('{');
+      const lastBrace  = rawText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        rawText = rawText.slice(firstBrace, lastBrace + 1);
+      }
 
-      // Validar que sea JSON parseble
-      JSON.parse(rawText); // lanza error si no es válido
+      // Validar claves obligatorias
+      const parsed = JSON.parse(rawText); // lanza si no es JSON válido
+      if (!parsed.gancho_intriga || !parsed.analisis_profundo) {
+        throw new Error('JSON de Gemini no contiene las claves requeridas: ' + rawText.slice(0, 200));
+      }
 
-      // ── 6. Guardar en Firestore ──
+      // ── 6. Guardar en Firestore (gancho_intriga separado para inyectar en paywall) ──
       await gemeloRef.set({
         analysis_ready:   true,
         analysis_text:    rawText,
+        gancho_intriga:   parsed.gancho_intriga,
+        analisis_profundo: parsed.analisis_profundo,
         generated_at:     admin.firestore.FieldValue.serverTimestamp(),
-        observation_days: obsDays,
-        model:            'gemini-2.5-flash',
+        observation_days: app.gemelo?.dataPoints || 30,
+        model:            'gemini-1.5-flash-latest',
       });
 
       console.info('[Life OS] Análisis del Gemelo generado para:', uid);
