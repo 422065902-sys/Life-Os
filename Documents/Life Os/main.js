@@ -9941,6 +9941,10 @@ function showConsultaBanner(daysLeft) {
     </div>
     <span class="cb-days">⏳ ${days} días para eliminación</span>
     <button class="cb-btn" onclick="paywallTriggerPayment()">Activar Pro</button>
+    <button onclick="this.closest('#consulta-banner').remove();document.body.classList.remove('has-consulta-banner')"
+      style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;transition:color .2s"
+      onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.35)'"
+      title="Cerrar">✕</button>
   `;
   document.body.appendChild(banner);
   document.body.classList.add('has-consulta-banner');
@@ -9949,6 +9953,7 @@ function showConsultaBanner(daysLeft) {
 /** Activa el modo consulta: agrega clase CSS al body */
 function activateConsultaMode(daysLeft) {
   if (S.plan === 'pro') return;
+  dismissTrialBanner(); // el banner de arriba desaparece al activar el de abajo
   document.body.classList.add('consulta-mode');
   showConsultaBanner(daysLeft);
 }
