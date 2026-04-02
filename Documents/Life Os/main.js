@@ -4163,6 +4163,17 @@ async function loginSuccess(userObj) {
           if (prof.accent && /^#[0-9a-fA-F]{6}$/.test(prof.accent)) {
             applyAccent(prof.accent);
           }
+          // Sincronizar nombre real al estado global para el saludo y UI
+          if (prof.nombre && prof.nombre !== 'Usuario') {
+            S.userName = prof.nombre;
+            guardarDatos();
+            // Refrescar saludo si el dashboard ya está cargado
+            const greetEl = document.querySelector('.briefing-saludo');
+            if (greetEl) {
+              const firstName = prof.nombre.split(' ')[0];
+              greetEl.textContent = greetEl.textContent.replace(/,\s*\w+$/, ', ' + firstName);
+            }
+          }
         }
       } catch(e) {}
 
@@ -4390,13 +4401,19 @@ function updateUserUI(user) {
 
 function checkTrialBanner(user) {
   if (!user || user.plan === 'pro') return;
+  // Si el trial ya expiró, ocultar banner
+  if (S.trialExpired) { dismissTrialBanner(); return; }
   const diasTranscurridos = Math.floor((Date.now() - (user.trialStart || Date.now())) / (1000 * 60 * 60 * 24));
   const diasRestantes = Math.max(0, 30 - diasTranscurridos);
-  const banner   = document.getElementById('trial-banner');
-  const daysEl   = document.getElementById('trial-days');
-  const saasDays = document.getElementById('saas-trial-days');
+  if (diasRestantes === 0) { dismissTrialBanner(); return; }
+  const banner      = document.getElementById('trial-banner');
+  const trialTextEl = document.getElementById('trial-text');
+  const daysEl      = document.getElementById('trial-days');
+  const saasDays    = document.getElementById('saas-trial-days');
+  const label = diasRestantes === 1 ? '1 día restante' : diasRestantes + ' días restantes';
+  if (trialTextEl) trialTextEl.textContent = `⚡ MODO PRUEBA — ${label}`;
   if (daysEl)   daysEl.textContent   = diasRestantes;
-  if (saasDays) saasDays.textContent = diasRestantes + ' días restantes';
+  if (saasDays) saasDays.textContent = label;
   if (banner) {
     banner.classList.remove('hidden');
     document.body.classList.add('has-trial-banner');
@@ -8349,6 +8366,7 @@ function checkTrialAndRetention() {
     return;
   }
   if (!S.trialExpired) { S.trialExpired = true; guardarDatos(); }
+  dismissTrialBanner();
   if (trialEl) { trialEl.textContent = '⚠️ Prueba expirada'; trialEl.style.color = 'var(--red)'; }
   // Mostrar el Paywall Lockdown inmersivo del Gemelo Potenciado
   setTimeout(showPaywallLockdown, 500);
@@ -9888,7 +9906,8 @@ function showConsultaBanner(daysLeft) {
         position:fixed;bottom:0;left:0;right:0;z-index:3500;
         background:linear-gradient(90deg,rgba(10,8,0,.97),rgba(20,14,0,.97));
         border-top:1px solid rgba(212,175,55,0.3);
-        padding:9px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+        padding:9px 16px calc(9px + env(safe-area-inset-bottom,0px));
+        display:flex;align-items:center;gap:10px;flex-wrap:wrap;
         animation:cb-in .4s ease both;
       }
       @keyframes cb-in { from{transform:translateY(100%)} to{transform:none} }
@@ -9904,8 +9923,8 @@ function showConsultaBanner(daysLeft) {
         transition:transform .15s,box-shadow .15s; }
       .cb-btn:hover { transform:translateY(-1px);box-shadow:0 4px 14px rgba(212,175,55,0.35); }
       /* Empuja el FAB y el retention-alert hacia arriba cuando el banner está activo */
-      body.has-consulta-banner #fab-btn { bottom:82px !important; }
-      body.has-consulta-banner #retention-alert { bottom:148px !important; }
+      body.has-consulta-banner #fab-btn { bottom:calc(82px + env(safe-area-inset-bottom,0px)) !important; }
+      body.has-consulta-banner #retention-alert { bottom:calc(148px + env(safe-area-inset-bottom,0px)) !important; }
     `;
     document.head.appendChild(st);
   }

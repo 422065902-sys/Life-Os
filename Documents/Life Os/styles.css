@@ -1605,14 +1605,17 @@ body.modo-recuperacion #recovery-banner{display:flex;align-items:center;gap:10px
   position:fixed;top:0;left:0;right:0;z-index:300;
   background:linear-gradient(90deg,rgba(168,85,247,.9),rgba(0,229,255,.8));
   color:#000;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;
-  padding:7px 16px;display:flex;align-items:center;justify-content:center;
+  /* Rellena el área del status bar en iOS PWA y empuja el texto por debajo */
+  padding:calc(7px + env(safe-area-inset-top,0px)) 16px 7px;
+  display:flex;align-items:center;justify-content:center;
   letter-spacing:.05em;gap:12px;flex-wrap:wrap;text-align:center;
 }
 .trial-banner.hidden{display:none}
 .trial-close-btn{background:rgba(0,0,0,.25);border:none;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#000;font-size:11px;font-weight:900;line-height:1;flex-shrink:0;transition:background .2s;padding:0}
 .trial-close-btn:hover{background:rgba(0,0,0,.45)}
-body.has-trial-banner #topbar{top:34px}
-body.has-trial-banner #sidebar{padding-top:34px}
+/* Desplaza el topbar hacia abajo según la altura real del trial banner */
+body.has-trial-banner #topbar{top:calc(34px + env(safe-area-inset-top,0px))}
+body.has-trial-banner #sidebar{padding-top:calc(34px + env(safe-area-inset-top,0px))}
 
 /* ══════════════════════════════════════════
    FUNCIONALIDAD 1 — BOOT SEQUENCE TERMINAL
@@ -3566,5 +3569,23 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
   white-space: nowrap;
   background: rgba(0,0,0,.55);
   padding: 1px 5px; border-radius: 5px;
+}
+
+/* ── iOS safe area — home indicator (bottom) ───────────────────
+   viewport-fit=cover extiende la app a pantalla completa;
+   env(safe-area-inset-bottom) ≈ 34px en iPhones modernos.
+   Aplica a todos los elementos fijos en la parte inferior.
+─────────────────────────────────────────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #content{padding-bottom:calc(100px + env(safe-area-inset-bottom))!important}
+  #fab-btn{bottom:calc(28px + env(safe-area-inset-bottom))!important}
+  #retention-alert{bottom:calc(104px + env(safe-area-inset-bottom))!important}
+  #recovery-banner{bottom:calc(20px + env(safe-area-inset-bottom))!important}
+  #fab-confirm-chip{bottom:calc(-80px + env(safe-area-inset-bottom))}
+}
+@media(max-width:900px){
+  @supports (padding-bottom: env(safe-area-inset-bottom)){
+    #fab-btn{bottom:calc(18px + env(safe-area-inset-bottom))!important}
+  }
 }
 
