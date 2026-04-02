@@ -8228,32 +8228,45 @@ function _updateNotifStatusUI(permission) {
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/REEMPLAZA_CON_TU_LINK';
 
 /**
- * Abre una URL de pago de forma segura en todos los entornos:
- * - PWA standalone (iOS/Android home screen): window.open está bloqueado → usa location.href
- * - Navegador normal: abre en nueva pestaña
+ * Reserva una ventana en blanco SINCRÓNICAMENTE (durante el gesto del usuario)
+ * y devuelve una función que la redirige a la URL cuando esté lista.
+ *
+ * iOS Safari bloquea window.open() si se llama dentro de un callback async/Promise
+ * porque ya no hay contexto de gesto. La solución: abrir la ventana antes del await
+ * y redirigirla después.
+ *
+ * En PWA standalone iOS/Android, window.open no funciona en absoluto →
+ * se usa un <a target="_blank"> programático que sí respeta el sistema.
  */
-function _openPaymentUrl(url) {
+function _preparePaymentWindow() {
   const isStandalone = window.navigator.standalone === true ||
                        window.matchMedia('(display-mode: standalone)').matches;
   if (isStandalone) {
-    window.location.href = url; // PWA — nueva pestaña no permitida
-  } else {
-    window.open(url, '_blank');
+    // PWA: abrir con <a> es la única forma fiable en iOS standalone
+    return function(url) {
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
   }
+  // Navegador normal: abrir ventana en blanco ahora (contexto síncrono)
+  const win = window.open('', '_blank');
+  return function(url) {
+    if (win) { win.location.href = url; }
+    else { window.open(url, '_blank'); } // fallback si fue bloqueada
+  };
 }
 
 async function irAPagarStripe() {
   closeModal('modal-pago');
   showToast('🔐 Preparando sesión de pago...');
-  // Usar Cloud Function segura si está disponible
+  // ⚠️ DEBE llamarse antes de cualquier await (contexto síncrono del click)
+  const openUrl = _preparePaymentWindow();
   if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
     try {
       const createSession = _functions.httpsCallable('createStripeCheckoutSession');
       const result        = await createSession({ priceId: STRIPE_PRICE_GENERAL });
-      if (result.data?.url) {
-        _openPaymentUrl(result.data.url);
-        return;
-      }
+      if (result.data?.url) { openUrl(result.data.url); return; }
     } catch(e) {
       console.warn('[Life OS] createStripeCheckoutSession error:', e);
       showToast('⚠️ Error al iniciar pago. Intenta de nuevo.');
@@ -8262,7 +8275,7 @@ async function irAPagarStripe() {
   }
   // Fallback: URL estática con referencia del usuario
   const _uid = S.userId || (_auth?.currentUser?.uid) || 'anonimo';
-  _openPaymentUrl(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid));
+  openUrl(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid));
 }
 
 function activarPlanPro() {
@@ -9796,17 +9809,20 @@ async function paywallTriggerPayment() {
   const btn = document.querySelector('.pwl-cta');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando acceso seguro...'; }
 
+  // ⚠️ DEBE llamarse antes de cualquier await (contexto síncrono del click)
+  const openUrl = _preparePaymentWindow();
+
   if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
     try {
       const result = await _functions.httpsCallable('createStripeCheckoutSession')({ priceId: STRIPE_PRICE_GENERAL });
-      if (result.data?.url) { _openPaymentUrl(result.data.url); return; }
+      if (result.data?.url) { openUrl(result.data.url); return; }
     } catch(e) {
       console.warn('[Life OS] paywallTriggerPayment error:', e);
     }
   }
   // Fallback: abrir modal de pago existente
   const el = document.getElementById('paywall-lockdown');
-  if (el) el.style.zIndex = '9000'; // bajar para que el modal quede encima
+  if (el) el.style.zIndex = '9000';
   openModal('modal-pago');
 }
 
