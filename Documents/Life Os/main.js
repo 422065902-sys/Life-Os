@@ -108,6 +108,10 @@ function _buildSavePayload() {
     ideas:S.ideas||[],
     claudeApiKey:S.claudeApiKey||'',
     gemelo:S.gemelo||{state:'idle',startDate:null,dataPoints:0,lastAnalysis:null,survivalTasks:{}},
+    blackoutOverrideToday:S.blackoutOverrideToday||'',
+    bubbleColor:S.bubbleColor||'',
+    bubbleEmoji:S.bubbleEmoji||'',
+    friendRequests:S.friendRequests||[],
   };
   if (CLOUD_ENABLED && _db) {
     p._updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -182,6 +186,10 @@ const S = {
   ideas: [],                     // [{id, text, date}] — Ideas Rápidas desde FAB
   claudeApiKey: '',              // Anthropic API key para NLP semántico
   gemelo: { state:'idle', startDate:null, dataPoints:0, lastAnalysis:null, survivalTasks:{} },
+  blackoutOverrideToday: '',     // fecha YYYY-MM-DD cuando una acción XP (no check-in/calib) desvaneció el Blackout
+  bubbleColor: '',               // color de burbuja guardado en nube (Fix 2.1)
+  bubbleEmoji: '',               // emoji de burbuja guardado en nube (Fix 2.1)
+  friendRequests: [],            // [{id, fromUid, fromNombre, fromPublicId, toUid, sentAt, status:'pending'|'accepted'|'rejected'}]
 };
 
 /* ── Boot-sync: sincroniza animación terminal con carga de datos de Firestore ── */
@@ -290,6 +298,8 @@ function closeDrawer() {
 }
 
 function navigate(id) {
+  // Fix 3.1: Bloquear acceso a módulo admin para no-admins (stealth)
+  if (id === 'agencies' && !_isAdmin()) { return; }
   // Modo Consulta: bloquear módulos restringidos
   if (_consultaNavGuard(id)) return;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -646,8 +656,9 @@ function _addTaskOriginal() {
 function renderTasks() {
   const el = document.getElementById('task-list');
   if (!el) return;
-  if (!S.tasks.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">No hay tareas. ¡Agrega una!</div>'; return; }
-  el.innerHTML = S.tasks.map(t=>`
+  const visible = (S.tasks || []).filter(t => !t.deleted);
+  if (!visible.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">No hay tareas. ¡Agrega una!</div>'; return; }
+  el.innerHTML = visible.map(t=>`
     <div class="task-item ${t.done?'done':''}">
       <div class="task-cb ${t.done?'checked':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
       <div style="flex:1;min-width:0">
@@ -679,7 +690,12 @@ function toggleTask(id) {
   updateDashboardTaskCount();
 }
 
-function deleteTask(id) { S.tasks = S.tasks.filter(x=>x.id!==id); renderTasks(); updateDashboardTaskCount(); renderUpcomingList && renderUpcomingList(); }
+function deleteTask(id) {
+  const t = S.tasks.find(x=>x.id===id); if (!t) return;
+  t.deleted = true; t.deletedAt = Date.now();
+  guardarDatos(); renderTasks(); updateDashboardTaskCount(); renderUpcomingList && renderUpcomingList();
+  showToast('🗑 Tarea eliminada');
+}
 
 function openEditTask(id) {
   const t = S.tasks.find(x=>x.id===id); if (!t) return;
@@ -792,14 +808,15 @@ function addHabit() {
 function renderHabits() {
   const el = document.getElementById('habit-list');
   if (!el) return;
-  const maxStreak = S.habits.reduce((a, h) => Math.max(a, h.streak), 0);
+  const active = (S.habits || []).filter(h => !h.deleted);
+  const maxStreak = active.reduce((a, h) => Math.max(a, h.streak), 0);
   document.getElementById('h-streak') && (document.getElementById('h-streak').textContent = maxStreak + ' días');
-  document.getElementById('h-count')  && (document.getElementById('h-count').textContent  = S.habits.length);
-  if (!S.habits.length) {
+  document.getElementById('h-count')  && (document.getElementById('h-count').textContent  = active.length);
+  if (!active.length) {
     el.innerHTML = '<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Agrega tu primer hábito arriba</div>';
     return;
   }
-  el.innerHTML = S.habits.map(h => {
+  el.innerHTML = active.map(h => {
     ensureHabitBattery(h);
     const bState = getBatteryState(h.battery);
     const bColor = { high: 'var(--accent)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
@@ -870,7 +887,12 @@ function toggleHabit(id) {
   guardarDatos();
 }
 
-function deleteHabit(id) { S.habits = S.habits.filter(x=>x.id!==id); renderHabits(); }
+function deleteHabit(id) {
+  const h = S.habits.find(x=>x.id===id); if (!h) return;
+  h.deleted = true; h.deletedAt = Date.now();
+  guardarDatos(); renderHabits();
+  showToast('🗑 Hábito eliminado');
+}
 
 function openEditHabit(id) {
   S.editingHabit = id;
@@ -943,7 +965,7 @@ function _buildHeatmapGrid(el, dataMap, totalItems, totalDays, cols, opts) {
 function buildHeatmap() {
   const el = document.getElementById('heatmap'); if (!el) return;
   const habitCompletionMap = {};
-  (S.habits || []).forEach(h => {
+  (S.habits || []).filter(h => !h.deleted).forEach(h => {
     (h.history || []).forEach(dateStr => {
       habitCompletionMap[dateStr] = (habitCompletionMap[dateStr] || 0) + 1;
     });
@@ -1168,8 +1190,9 @@ function addRoutine() {
 
 function renderRoutines() {
   const el = document.getElementById('routines-container'); if (!el) return;
-  if (!S.routines.length) { el.innerHTML='<div style="text-align:center;padding:30px;font-size:13px;color:var(--text3)">No hay rutinas. ¡Crea una!</div>'; renderRutinasFrecuentes(); return; }
-  el.innerHTML = S.routines.map(r=>`
+  const active = (S.routines||[]).filter(r => !r.deleted);
+  if (!active.length) { el.innerHTML='<div style="text-align:center;padding:30px;font-size:13px;color:var(--text3)">No hay rutinas. ¡Crea una!</div>'; renderRutinasFrecuentes(); return; }
+  el.innerHTML = active.map(r=>`
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div>
@@ -1220,7 +1243,10 @@ function toggleRoutineActive(id) {
 }
 
 function deleteRoutine(id) {
-  S.routines = S.routines.filter(x=>x.id!==id); renderRoutines();
+  const r = S.routines.find(x=>x.id===id); if (!r) return;
+  r.deleted = true; r.deletedAt = Date.now();
+  guardarDatos(); renderRoutines();
+  showToast('🗑 Rutina eliminada');
 }
 
 function openEditRoutine(id) {
@@ -1414,8 +1440,9 @@ function buildPie(canvasId, emptyId, legendId, txs) {
 
 function renderTransactions() {
   const el = document.getElementById('tx-list'); if (!el) return;
-  if (!S.transactions.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Sin transacciones</div>'; return; }
-  el.innerHTML = S.transactions.map(t=>`
+  const visible = (S.transactions||[]).filter(t => !t.deleted);
+  if (!visible.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Sin transacciones</div>'; return; }
+  el.innerHTML = visible.map(t=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border-radius:10px;border:1px solid rgba(0,229,255,.07)">
       <span style="font-size:18px">${t.type==='entrada'?'▲':'▼'}</span>
       <div style="flex:1;min-width:0">
@@ -1434,9 +1461,14 @@ function renderTransactions() {
 
 function deleteTx(id) {
   const t = S.transactions.find(x=>x.id===id); if (!t) return;
+  // Revertir impacto en saldo
   if (t.scope==='personal') personalBalance += t.type==='entrada'?-t.amount:t.amount;
-  S.transactions=S.transactions.filter(x=>x.id!==id);
-  updateFinancialDisplay();
+  const saldoObj = (S.saldos||[]).find(s => s.id === t.scope);
+  if (saldoObj) saldoObj.monto += t.type==='entrada'?-t.amount:t.amount;
+  // Soft delete (Fix 1.2)
+  t.deleted = true; t.deletedAt = Date.now();
+  guardarDatos(); updateFinancialDisplay();
+  showToast('🗑 Transacción eliminada');
 }
 
 function openEditTx(id) {
@@ -1468,7 +1500,7 @@ function addCard() {
 
 function renderCards() {
   const el=document.getElementById('cards-container'); if (!el) return;
-  el.innerHTML=S.cards.map(c=>`
+  el.innerHTML=(S.cards||[]).filter(c=>!c.deleted).map(c=>`
     <div class="bank-card" style="background:linear-gradient(135deg,${c.type==='personal'?'rgba(0,229,255,.12),rgba(0,80,170,.1)':'rgba(168,85,247,.12),rgba(100,50,200,.1)'});border:1px solid ${c.type==='personal'?'rgba(0,229,255,.3)':'rgba(168,85,247,.3)'}">
       <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${'💳 PERSONAL'}</div>
       <div class="f-display" style="font-size:16px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.8)">•••• ${escHtml(c.last4)}</div>
@@ -1477,7 +1509,12 @@ function renderCards() {
     </div>`).join('');
 }
 
-function deleteCard(id) { S.cards=S.cards.filter(x=>x.id!==id); renderCards(); }
+function deleteCard(id) {
+  const c = S.cards.find(x=>x.id===id); if (!c) return;
+  c.deleted = true; c.deletedAt = Date.now();
+  guardarDatos(); renderCards();
+  showToast('🗑 Tarjeta eliminada');
+}
 
 function addDebt() {
   const creditor=document.getElementById('debt-creditor').value.trim();
@@ -1492,8 +1529,9 @@ function addDebt() {
 
 function renderDebts() {
   const el=document.getElementById('debt-list'); if (!el) return;
-  if (!S.debts.length) { el.innerHTML='<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin deudas registradas</div>'; return; }
-  el.innerHTML=S.debts.map(d=>{
+  const active=(S.debts||[]).filter(d=>!d.deleted);
+  if (!active.length) { el.innerHTML='<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin deudas registradas</div>'; return; }
+  el.innerHTML=active.map(d=>{
     const pct=Math.min(100,(d.paid/d.amount)*100);
     return `<div class="debt-card">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
@@ -1509,7 +1547,12 @@ function renderDebts() {
   }).join('');
 }
 
-function deleteDebt(id) { S.debts=S.debts.filter(x=>x.id!==id); renderDebts(); }
+function deleteDebt(id) {
+  const d = S.debts.find(x=>x.id===id); if (!d) return;
+  d.deleted = true; d.deletedAt = Date.now();
+  guardarDatos(); renderDebts();
+  showToast('🗑 Deuda eliminada');
+}
 
 /* ═══════════════════════════════════════════
    SECOND BRAIN
@@ -1580,16 +1623,17 @@ function addGoal() {
 
 function renderGoals() {
   const el=document.getElementById('goals-list'); if (!el) return;
-  const totalObj=S.goals.reduce((a,g)=>a+(g.objectives?.length||0),0);
-  const doneObj=S.goals.reduce((a,g)=>a+(g.objectives?.filter(o=>o.done).length||0),0);
+  const active = (S.goals||[]).filter(g => !g.deleted);
+  const totalObj=active.reduce((a,g)=>a+(g.objectives?.length||0),0);
+  const doneObj=active.reduce((a,g)=>a+(g.objectives?.filter(o=>o.done).length||0),0);
   const globalPct=totalObj>0?Math.round((doneObj/totalObj)*100):0;
   document.getElementById('global-pct') && (document.getElementById('global-pct').textContent=globalPct+'%');
   document.getElementById('global-bar') && (document.getElementById('global-bar').style.width=globalPct+'%');
   document.getElementById('global-dot') && (document.getElementById('global-dot').style.display=globalPct>2?'block':'none');
   document.getElementById('global-sub') && (document.getElementById('global-sub').textContent=doneObj+'/'+totalObj+' objetivos completados');
-  document.getElementById('global-goals-count') && (document.getElementById('global-goals-count').textContent=S.goals.length+' metas activas');
-  if (!S.goals.length) { el.innerHTML='<div style="text-align:center;padding:40px;font-size:13px;color:var(--text3)">Crea tu primera meta para comenzar tu viaje</div>'; renderCompletedGoals(); return; }
-  el.innerHTML=S.goals.map(g=>{
+  document.getElementById('global-goals-count') && (document.getElementById('global-goals-count').textContent=active.length+' metas activas');
+  if (!active.length) { el.innerHTML='<div style="text-align:center;padding:40px;font-size:13px;color:var(--text3)">Crea tu primera meta para comenzar tu viaje</div>'; renderCompletedGoals(); return; }
+  el.innerHTML=active.map(g=>{
     const done=g.objectives?.filter(o=>o.done).length||0;
     const total=g.objectives?.length||0;
     const pct=total>0?Math.round((done/total)*100):0;
@@ -1676,7 +1720,12 @@ function deleteObj(goalId, objId) {
   g.objectives=g.objectives.filter(x=>x.id!==objId); renderGoals();
 }
 
-function deleteGoal(id) { S.goals=S.goals.filter(x=>x.id!==id); renderGoals(); }
+function deleteGoal(id) {
+  const g = S.goals.find(x=>x.id===id); if (!g) return;
+  g.deleted = true; g.deletedAt = Date.now();
+  guardarDatos(); renderGoals();
+  showToast('🗑 Meta eliminada');
+}
 
 function openEditGoal(id) {
   S.editingGoal=id;
@@ -1757,9 +1806,9 @@ function renderCalendar() {
 function renderUpcomingList() {
   const el=document.getElementById('upcoming-list'); if(!el) return;
   const todayStr=today();
-  // Collect tasks with future/today dates, not done
+  // Collect tasks with future/today dates, not done, not deleted
   const items=[];
-  (S.tasks||[]).forEach(t=>{
+  (S.tasks||[]).filter(t => !t.deleted).forEach(t=>{
     if(!t.done && t.date) items.push({ date:t.date, time:t.time||'', label:escHtml(t.name), emoji:getTaskEmoji(t.name), type:'task' });
   });
   // Calendar events: flatten all date-keyed events
@@ -1830,6 +1879,54 @@ function deleteCalEvent(id) {
 
 function calPrev() { if(S.calMonth===0){S.calMonth=11;S.calYear--;}else S.calMonth--; renderCalendar(); }
 function calNext() { if(S.calMonth===11){S.calMonth=0;S.calYear++;}else S.calMonth++; renderCalendar(); }
+
+/* ── Exportar calendario a .ics (Fix 2.4) ── */
+function exportCalendarICS() {
+  const events = S.calEvents || {};
+  const allEvents = [];
+  Object.entries(events).forEach(([dateStr, evList]) => {
+    (evList||[]).forEach(e => {
+      if (e.id && e.text) allEvents.push({ date: dateStr, text: e.text, time: e.time || '' });
+    });
+  });
+  if (!allEvents.length) { showToast('⚠️ No hay eventos para exportar'); return; }
+
+  const _pad = n => String(n).padStart(2,'0');
+  const _icsDate = (d, t) => {
+    const dt = new Date(d + 'T' + (t || '00:00') + ':00');
+    return dt.getFullYear() + _pad(dt.getMonth()+1) + _pad(dt.getDate()) +
+      'T' + _pad(dt.getHours()) + _pad(dt.getMinutes()) + '00';
+  };
+
+  const now = new Date();
+  const dtstamp = now.getFullYear() + _pad(now.getMonth()+1) + _pad(now.getDate()) +
+    'T' + _pad(now.getHours()) + _pad(now.getMinutes()) + _pad(now.getSeconds()) + 'Z';
+
+  let ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Life OS//Calendar//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  allEvents.forEach(e => {
+    const uid_ics = 'lifeos-' + e.date + '-' + Math.random().toString(36).slice(2,7) + '@lifeos';
+    const dtStart = _icsDate(e.date, e.time);
+    const dtEnd   = _icsDate(e.date, e.time ? (String(parseInt(e.time)+1).padStart(2,'0') + ':00') : '01:00');
+    const summary = e.text.replace(/[,;\\]/g, c => '\\' + c).replace(/\n/g, '\\n');
+    ics.push('BEGIN:VEVENT',
+      'UID:' + uid_ics, 'DTSTAMP:' + dtstamp,
+      'DTSTART' + (e.time ? ':' + dtStart : ';VALUE=DATE:' + e.date.replace(/-/g,'')),
+      'DTEND'   + (e.time ? ':' + dtEnd   : ';VALUE=DATE:' + e.date.replace(/-/g,'')),
+      'SUMMARY:' + summary,
+      'END:VEVENT');
+  });
+  ics.push('END:VCALENDAR');
+
+  const blob = new Blob([ics.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'lifeos-calendario.ics';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📅 Calendario exportado (' + allEvents.length + ' eventos)');
+}
 
 /* ═══════════════════════════════════════════
    SETTINGS
@@ -2363,11 +2460,12 @@ function renderBiblioteca() {
   const el = document.getElementById('biblioteca-list'); if (!el) return;
   const badge = document.getElementById('xp-mental-badge');
   if (badge) badge.textContent = 'XP Mental: ' + S.xpMental;
-  if (!S.biblioteca.length) {
+  const active = (S.biblioteca||[]).filter(b => !b.deleted);
+  if (!active.length) {
     el.innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Agrega libros y habilidades para ganar XP Mental</div>';
     return;
   }
-  el.innerHTML = S.biblioteca.map(b => {
+  el.innerHTML = active.map(b => {
     const isLibro    = b.tipo === 'libro';
     const pct        = b.readPct ?? (b.status === 'terminado' ? 100 : null);
     const inProgress = isLibro && b.status === 'proceso';
@@ -2404,9 +2502,9 @@ function renderBiblioteca() {
 
 function deleteBiblioteca(id) {
   const b = S.biblioteca.find(x=>x.id===id); if(!b) return;
-  S.xpMental = Math.max(0, S.xpMental - b.xp);
-  S.biblioteca = S.biblioteca.filter(x=>x.id!==id);
+  b.deleted = true; b.deletedAt = Date.now();
   renderBiblioteca(); guardarDatos();
+  showToast('🗑 Entrada eliminada');
 }
 
 /* ═══════════════════════════════════════════
@@ -2669,68 +2767,150 @@ function _renderSearchResults(container, results, q) {
   }).join('');
 }
 
-/* ── Añadir aliado vía Firestore (conexión bidireccional) ── */
+/* ── Enviar solicitud de amistad (Fix 4.1 + Bug 5.2) ── */
 async function addAliadoCloud(targetUid, nombre, publicId) {
   const myUid = _auth?.currentUser?.uid;
-  if (!myUid || !targetUid || targetUid === myUid) return;
+  if (!myUid || !targetUid || targetUid === myUid) {
+    showToast('⚠️ No se puede añadir este usuario'); return;
+  }
+  // Evitar duplicar solicitud si ya son aliados
+  if (S.aliados.some(a => a.uid === targetUid)) {
+    showToast('ℹ️ Ya son aliados'); return;
+  }
 
-  // Feedback inmediato
-  showToast('⏳ Añadiendo aliado…');
+  showToast('📨 Enviando solicitud de amistad…');
   _setBtnAliadoLoading(targetUid, true);
 
   try {
     if (CLOUD_ENABLED && _db) {
-      const batch = _db.batch();
-      const ts    = firebase.firestore.FieldValue.serverTimestamp();
-      const myNombre  = _auth.currentUser.displayName || S.userName || 'Usuario';
-      const myPubId   = S.publicId || '';
+      const myNombre = _auth.currentUser.displayName || S.userName || 'Usuario';
+      const myPubId  = S.publicId || '';
+      const reqId    = myUid + '_' + targetUid;
+      const ts       = firebase.firestore.FieldValue.serverTimestamp();
 
-      // A → B
-      batch.set(_db.collection('users').doc(myUid).collection('connections').doc(targetUid), {
-        status: 'accepted', addedBy: myUid, addedAt: ts,
-        nombre, publicId,
+      // Guardar solicitud en colección global de solicitudes
+      await _db.collection('friendRequests').doc(reqId).set({
+        fromUid: myUid, fromNombre: myNombre, fromPublicId: myPubId,
+        toUid: targetUid, toNombre: nombre, toPublicId: publicId || '',
+        status: 'pending', sentAt: ts,
       });
-      // B → A (bidireccional)
-      batch.set(_db.collection('users').doc(targetUid).collection('connections').doc(myUid), {
-        status: 'accepted', addedBy: myUid, addedAt: ts,
-        nombre: myNombre, publicId: myPubId,
-      });
-      await batch.commit();
     }
 
-    // Actualizar estado local
-    const newAlly = {
-      id:         targetUid,
-      uid:        targetUid,
-      nombre,
-      publicId,
-      contacto:   '',
-      notas:      '',
-      addedAt:    Date.now(),
-      isCloudAlly: true,
-    };
-    S.aliados = S.aliados.filter(a => a.uid !== targetUid); // evitar duplicado
-    S.aliados.unshift(newAlly);
-    _rebuildAliadosUids();
-    guardarDatos();
-    renderAliados();
     _hideSearchResults();
     document.getElementById('aliado-search-input') && (document.getElementById('aliado-search-input').value = '');
-    showToast(`✅ ${nombre} añadido como aliado`);
-    // Marcar botón como aliado en resultados (por si sigue visible)
-    _setBtnAliadoLoading(targetUid, false, true);
+    _setBtnAliadoLoading(targetUid, false, false, true);
+    showToast(`📨 Solicitud enviada a ${nombre}`);
   } catch(e) {
     console.error('[Life OS] addAliadoCloud error:', e);
-    showToast('⚠️ Error al añadir aliado. Verifica tu conexión.');
+    showToast('⚠️ Error al enviar solicitud. Verifica tu conexión.');
     _setBtnAliadoLoading(targetUid, false, false);
   }
 }
 
-function _setBtnAliadoLoading(targetUid, loading, success) {
+/* ── Cargar solicitudes pendientes recibidas ── */
+async function loadFriendRequests() {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  const myUid = _auth.currentUser.uid;
+  try {
+    const snap = await _db.collection('friendRequests')
+      .where('toUid', '==', myUid)
+      .where('status', '==', 'pending')
+      .get();
+    S.friendRequests = [];
+    snap.forEach(doc => {
+      S.friendRequests.push({ id: doc.id, ...doc.data() });
+    });
+    renderFriendRequests();
+  } catch(e) {
+    console.warn('[Life OS] loadFriendRequests error:', e);
+  }
+}
+
+/* ── Aceptar solicitud de amistad ── */
+async function acceptFriendRequest(reqId) {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  const myUid = _auth.currentUser.uid;
+  const req   = S.friendRequests.find(r => r.id === reqId);
+  if (!req) return;
+
+  try {
+    const batch = _db.batch();
+    const ts    = firebase.firestore.FieldValue.serverTimestamp();
+    const myNombre = _auth.currentUser.displayName || S.userName || 'Usuario';
+
+    // Conexión bidireccional
+    batch.set(_db.collection('users').doc(myUid).collection('connections').doc(req.fromUid), {
+      status: 'accepted', addedBy: req.fromUid, addedAt: ts,
+      nombre: req.fromNombre, publicId: req.fromPublicId || '',
+    });
+    batch.set(_db.collection('users').doc(req.fromUid).collection('connections').doc(myUid), {
+      status: 'accepted', addedBy: req.fromUid, addedAt: ts,
+      nombre: myNombre, publicId: S.publicId || '',
+    });
+    // Marcar solicitud como aceptada
+    batch.update(_db.collection('friendRequests').doc(reqId), { status: 'accepted' });
+    await batch.commit();
+
+    // Estado local
+    const newAlly = {
+      id: req.fromUid, uid: req.fromUid,
+      nombre: req.fromNombre, publicId: req.fromPublicId || '',
+      contacto: '', notas: '', addedAt: Date.now(), isCloudAlly: true,
+    };
+    S.aliados = S.aliados.filter(a => a.uid !== req.fromUid);
+    S.aliados.unshift(newAlly);
+    S.friendRequests = S.friendRequests.filter(r => r.id !== reqId);
+    _rebuildAliadosUids();
+    guardarDatos(); renderAliados(); renderFriendRequests();
+    showToast(`✅ ¡${req.fromNombre} ahora es tu aliado!`);
+  } catch(e) {
+    console.error('[Life OS] acceptFriendRequest error:', e);
+    showToast('⚠️ Error al aceptar solicitud.');
+  }
+}
+
+/* ── Rechazar solicitud de amistad ── */
+async function rejectFriendRequest(reqId) {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  try {
+    await _db.collection('friendRequests').doc(reqId).update({ status: 'rejected' });
+    S.friendRequests = S.friendRequests.filter(r => r.id !== reqId);
+    renderFriendRequests();
+    showToast('❌ Solicitud rechazada');
+  } catch(e) {
+    console.warn('[Life OS] rejectFriendRequest error:', e);
+  }
+}
+
+/* ── Renderizar solicitudes pendientes ── */
+function renderFriendRequests() {
+  const el = document.getElementById('friend-requests-list');
+  if (!el) return;
+  const pending = (S.friendRequests || []).filter(r => r.status === 'pending');
+  const badge = document.getElementById('friend-requests-badge');
+  if (badge) { badge.textContent = pending.length; badge.style.display = pending.length > 0 ? 'inline-block' : 'none'; }
+  if (!pending.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px">Sin solicitudes pendientes</div>';
+    return;
+  }
+  el.innerHTML = pending.map(r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:10px;border:1px solid rgba(0,229,255,.1);margin-bottom:8px">
+      <div class="aliado-avatar stranger" style="background:rgba(0,229,255,.15);color:var(--accent);font-size:14px">${(r.fromNombre||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${escHtml(r.fromNombre||'Usuario')}</div>
+        <div style="font-size:10px;color:var(--text3)">Quiere ser tu aliado</div>
+      </div>
+      <button class="btn btn-a btn-sm" onclick="acceptFriendRequest('${r.id}')">✅ Aceptar</button>
+      <button class="btn btn-d btn-sm" onclick="rejectFriendRequest('${r.id}')">✕</button>
+    </div>`).join('');
+}
+
+function _setBtnAliadoLoading(targetUid, loading, success, pending) {
   const btn = document.querySelector(`[onclick*="addAliadoCloud('${targetUid}'"]`);
   if (!btn) return;
-  if (loading) { btn.disabled = true; btn.textContent = '⏳'; return; }
-  if (success) { btn.className = 'btn btn-add-aliado already'; btn.disabled = true; btn.textContent = '✓ Aliado'; return; }
+  if (loading)  { btn.disabled = true; btn.textContent = '⏳'; return; }
+  if (success)  { btn.className = 'btn btn-add-aliado already'; btn.disabled = true; btn.textContent = '✓ Aliado'; return; }
+  if (pending)  { btn.className = 'btn btn-add-aliado already'; btn.disabled = true; btn.textContent = '📨 Enviado'; return; }
   btn.disabled = false; btn.textContent = '+ Añadir';
 }
 
@@ -3033,6 +3213,15 @@ function renderPoderSections() {
           </div>
         </details>
 
+        <!-- ── Solicitudes de amistad recibidas (Fix 4.1) ── -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:6px;letter-spacing:.04em;display:flex;align-items:center;gap:6px">
+            📨 SOLICITUDES RECIBIDAS
+            <span id="friend-requests-badge" style="display:none;background:var(--accent);color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;display:inline-flex;align-items:center;justify-content:center"></span>
+          </div>
+          <div id="friend-requests-list"></div>
+        </div>
+
         <!-- ── Lista de aliados ── -->
         <div id="aliados-list" style="max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.2) transparent"></div>
       </div>`
@@ -3089,6 +3278,7 @@ function renderPoderSections() {
   renderBiblioteca();
   renderBitacoraList();
   renderAliados();
+  renderFriendRequests();   // Fix 4.1: mostrar solicitudes pendientes
   updatePomoDisplay();
 }
 
@@ -3706,15 +3896,23 @@ function initAnalisisCharts() {
   });
   const focus = Math.round((S.claridad+S.energia+S.productividad)/3);
   document.getElementById('an-focus-val') && (document.getElementById('an-focus-val').textContent=focus);
-  // Gráfica Físico vs Mental (3 días de retraso)
+  // Gráfica Físico vs Mental — datos REALES de los últimos 7 días (Fix 1.3)
   const canvas = document.getElementById('fisicoMentalChart'); if(!canvas) return;
   if(S.charts.fisicoMental) S.charts.fisicoMental.destroy();
   const labels=[], fisico=[], mental=[];
-  for(let i=9;i>=3;i--) {
+  const avgMusculo = Math.round(Object.values(S.muscleMap||{}).reduce((a,v)=>a+v,0)/Math.max(1,Object.keys(S.muscleMap||{}).length));
+  for(let i=6;i>=0;i--) {
     const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
     labels.push(d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric'}));
-    fisico.push(Math.round(50+Math.random()*40));
-    mental.push(Math.round(40+Math.random()*50));
+    // Estado Físico: promedio músculo base + XP de gym ese día (si hubo)
+    const didGym = !!(S.gymDays && S.gymDays[key]);
+    const fisPct = Math.min(100, Math.round(avgMusculo * 0.6 + (didGym ? 35 : 10) + (S.saludXP||0)*0.01));
+    fisico.push(fisPct);
+    // Enfoque Mental: basado en XP ganado ese día + claridad actual ajustada
+    const xpDay = (S.xpHistory||{})[key] || 0;
+    const menPct = Math.min(100, Math.round(S.claridad * 0.5 + Math.min(50, xpDay * 0.25)));
+    mental.push(menPct);
   }
   S.charts.fisicoMental = new Chart(canvas, {
     type:'line',
@@ -3881,6 +4079,13 @@ function _applyData(d) {
   Object.assign(S, d);
   if (!S.level || S.level < 1) S.level = 1;
   if (!S.saldos) S.saldos = [];
+  // ── Fix 1.1: Recalcular personalBalance desde transacciones (no se persiste como variable) ──
+  personalBalance = (S.transactions || [])
+    .filter(t => t.scope === 'personal' && !t.deleted)
+    .reduce((a, t) => a + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+  // Restaurar color/emoji de burbuja desde estado guardado (Fix 2.1)
+  if (S.bubbleColor) W.bubble.color = S.bubbleColor;
+  if (S.bubbleEmoji) W.bubble.emoji = S.bubbleEmoji;
   if (!S.aliados || !Array.isArray(S.aliados)) S.aliados = [];
   if (!S.aliadosUids || !Array.isArray(S.aliadosUids)) S.aliadosUids = [];
   // Support flat-field format saved by _buildSavePayload (Firestore forbids nested arrays)
@@ -3915,6 +4120,8 @@ function _applyData(d) {
   if (!S.socialPlanXPBonus) S.socialPlanXPBonus = 0;
   if (typeof S.modoRecuperacion === 'undefined') S.modoRecuperacion = false;
   if (!S.modoRecuperacionFecha) S.modoRecuperacionFecha = '';
+  if (!S.blackoutOverrideToday) S.blackoutOverrideToday = '';
+  if (!S.friendRequests) S.friendRequests = [];
   checkModoRecuperacionAlInicio();
 }
 
@@ -4303,6 +4510,8 @@ async function loginSuccess(userObj) {
 
       // 6. Conexiones / aliados desde Firestore
       loadAliadosFromCloud(myUid).catch(() => {});
+      // 7. Solicitudes de amistad pendientes (Fix 4.1)
+      loadFriendRequests().catch(() => {});
 
       // Re-render con datos frescos de la nube
       updateXP(); renderHabits(); renderTasks(); renderGoals();
@@ -4639,7 +4848,7 @@ function renderCompletedGoals() {
 function updateDashboardTaskCount() {
   const el = document.getElementById('db-tasks-today'); if (!el) return;
   const todayStr = today();
-  const todayTasks = (S.tasks||[]).filter(t => !t.date || t.date === todayStr);
+  const todayTasks = (S.tasks||[]).filter(t => !t.deleted && (!t.date || t.date === todayStr));
   const done = todayTasks.filter(t => t.done).length;
   el.textContent = done + '/' + todayTasks.length;
 }
@@ -4744,8 +4953,9 @@ function syncCalibrationAndCheckin() {
   S.dailyCheckIn[key] = true;
 
   // XP: 15 calibración + 15 check-in (solo si no lo había hecho antes)
+  // skipBlackout=true: check-in y calibración NO deben desactivar el Blackout (Fix 1.5)
   const xpTotal = yaHizoCheckin ? 15 : 30;
-  gainXP(xpTotal);
+  gainXP(xpTotal, true);
   spawnConfetti();
   showToast(yaHizoCheckin ? '🧬 Calibración lista — +15 XP' : '⚡ +30 XP · ¡Calibrado y check-in completado!');
 
@@ -5013,20 +5223,9 @@ function updateGemeloBar() {
   }
   const paused = (daysSince > 2) && (recentXP === 0);
 
-  // ── 4. Progreso híbrido: 70% tiempo + 30% datos capturados ──
-  const timePct = Math.round((daysSince / 30) * 100);          // 0–100
-  const habits    = (S.habits || []).length;
-  const tasks     = (S.tasks  || []).filter(t => t.done).length;
-  const txCount   = (S.transactions || []).length;
-  const xpTotal   = Object.values(S.xpHistory || {}).reduce((a, v) => a + v, 0);
-  // Normalizar datos (cada categoría aporta hasta 25% del componente de datos)
-  const dHabits = Math.min(1, habits / 3);
-  const dTasks  = Math.min(1, tasks  / 5);
-  const dTx     = Math.min(1, txCount / 5);
-  const dXP     = Math.min(1, xpTotal / 200);
-  const dataPct = Math.round(((dHabits + dTasks + dTx + dXP) / 4) * 100); // 0–100
-  const rawPct  = Math.round(timePct * 0.7 + dataPct * 0.3);
-  const pct     = Math.min(100, rawPct);
+  // ── 4. Progreso LINEAL: día 1 = ~3.3%, día 15 = ~50%, día 30 = 100% (Fix 1.4) ──
+  const timePct = Math.round((daysSince / 30) * 100);  // escala pura: 0–100 en 30 días
+  const pct     = Math.min(100, timePct);
 
   _gpbSet(wrap, fill, label, pctEl, pct, paused);
 }
@@ -5036,13 +5235,13 @@ function _gpbSet(wrap, fill, label, pctEl, pct, paused) {
   if (fill) fill.style.width = pct + '%';
   // Porcentaje
   if (pctEl) pctEl.textContent = pct + '%';
-  // Mensaje
+  // Mensaje progresivo por semana (Fix 1.4)
   const msgs = [
-    [0,   'Tu Gemelo está conociendo tus patrones...'],
-    [25,  'Empieza a reconocer tus hábitos...'],
-    [50,  'Ya anticipa tus ciclos de energía...'],
-    [75,  'Tu Gemelo está casi listo...'],
-    [100, 'Gemelo Potenciado activo 🔥'],
+    [0,   'Semana 1 — Tu Gemelo Digital despierta y observa tus primeros patrones…'],
+    [23,  'Semana 2 — Reconoce tus hábitos y empieza a anticipar tus ciclos de energía…'],
+    [50,  'Semana 3 — Calibrado a mitad del proceso, sincronizando tu ritmo profundo…'],
+    [77,  'Semana 4 — Tu Gemelo está casi listo. Las predicciones se vuelven precisas…'],
+    [100, 'Gemelo Potenciado activo — Conoce tu patrón mejor que nadie 🔥'],
   ];
   const msg = msgs.slice().reverse().find(([t]) => pct >= t);
   if (label) label.textContent = msg ? msg[1] : msgs[0][1];
@@ -5494,10 +5693,11 @@ function getBatteryState(pct) {
    HÁBITOS — funciones auxiliares de batería
 ═══════════════════════════════════════════════════════════════ */
 function updateGlobalCore() {
-  const totalH   = (S.habits || []).length;
-  const doneH    = (S.habits || []).filter(h => h.completedToday).length;
+  const activeHabits = (S.habits || []).filter(h => !h.deleted);
+  const totalH   = activeHabits.length;
+  const doneH    = activeHabits.filter(h => h.completedToday).length;
   const todayStr = today();
-  const todayTasks = (S.tasks || []).filter(t => !t.date || t.date === todayStr);
+  const todayTasks = (S.tasks || []).filter(t => !t.deleted && (!t.date || t.date === todayStr));
   const doneT    = todayTasks.filter(t => t.done).length;
   const totalT   = todayTasks.length;
   const combined = (totalH + totalT) > 0
@@ -5522,8 +5722,12 @@ function updateGlobalCore() {
   } else if (!hasData || S.primeraSesion) {
     // Sin datos aún, o primera sesión activa: nunca Blackout
     state='idle'; badgeClass='state-idle'; labelText='SIN ACTIVIDAD'; badgeText='NÚCLEO INACTIVO';
-  } else if (combined === 0) {
+  } else if (combined === 0 && S.blackoutOverrideToday !== todayStr) {
+    // Blackout solo si combined=0 Y no hubo acción XP real hoy (Fix 1.5)
     state='blackout'; badgeClass='state-blackout'; labelText='SYSTEM BLACKOUT'; badgeText='⚠ BLACKOUT ACTIVO';
+  } else if (combined === 0) {
+    // XP real ganado hoy → Blackout desactivado, mostrar como activo
+    state='active'; badgeClass='state-active'; labelText='ACTIVANDO NÚCLEO'; badgeText='⚡ ACTIVANDO NÚCLEO';
   } else if (combined >= 100) {
     state='complete'; badgeClass='state-complete'; labelText='¡NÚCLEO COMPLETO!'; badgeText='🏆 MULTIPLICADOR ×2';
   } else if (combined >= 60) {
@@ -6757,18 +6961,22 @@ function _applyBubble() {
 
 function setBubbleColor(c, apply=true) {
   W.bubble.color = c;
+  // Fix 2.1: persistir en estado para sincronizar con Firestore
+  S.bubbleColor = c;
   document.querySelectorAll('.bcolor').forEach(el => {
     el.classList.toggle('sel', el.dataset.c === c);
   });
-  if (apply) _applyBubble();
+  if (apply) { _applyBubble(); _scheduleFSsave(); }
 }
 
 function setBubbleEmoji(em, apply=true) {
   W.bubble.emoji = em;
+  // Fix 2.1: persistir en estado para sincronizar con Firestore
+  S.bubbleEmoji = em;
   document.querySelectorAll('.emj-btn').forEach(el => {
     el.classList.toggle('sel', el.textContent === em);
   });
-  if (apply) _applyBubble();
+  if (apply) { _applyBubble(); _scheduleFSsave(); }
 }
 
 function updateWorldStatus(val) {
@@ -6952,15 +7160,42 @@ function _updateWorldActivityBadge(zoneLabel, pageId) {
    Page HTML lives in the static markup (#page-agencies).
    This function only injects the nav entry when role === 'admin'.
 ═══════════════════════════════════════════════════════════════ */
+function _isAdmin(user) {
+  // Comprueba rol desde argumento o desde estado de sesión actual
+  const u = user || _currentUser || {};
+  return u.role === 'admin' || u.email?.toLowerCase() === 'wencesreal35@gmail.com';
+}
+
 function buildAdminModules(user) {
-  if (!user || user.role !== 'admin') return; // STRICT: no trace in DOM
+  const isAdmin = _isAdmin(user);
+
+  // Fix 3.1: Stealth — mostrar/ocultar página de agencia según rol
+  const agencyPage = document.getElementById('page-agencies');
+  if (agencyPage) {
+    if (isAdmin) {
+      agencyPage.style.removeProperty('display');
+      agencyPage.style.setProperty('display', '', '');
+    } else {
+      agencyPage.setAttribute('style', 'display:none!important');
+    }
+  }
+
+  if (!isAdmin) {
+    // Eliminar nav item de agencia si existe (usuario degradado)
+    const idx = NAV.findIndex(n => n.id === 'agencies');
+    if (idx !== -1) { NAV.splice(idx, 1); buildNav(); }
+    return;
+  }
 
   // Inject nav item (only once)
   if (!NAV.find(n => n.id === 'agencies')) {
     NAV.push({ id: 'agencies', icon: '🏢', label: 'Agencia' });
     buildNav();
   }
+  // Cache admin user for guard checks
+  _currentUser = user;
 }
+let _currentUser = null;
 
 /* ═══════════════════════════════════════════
    AGENCY MODULE — admin-only
@@ -7223,10 +7458,11 @@ function renderIdeas() {
     if (spanEl) { spanEl.textContent = pendingCount; spanEl.style.display = pendingCount > 0 ? 'inline-block' : 'none'; }
   }
 
-  // Filter
-  let visible = ideas;
-  if (_ideasFilter === 'pending')   visible = ideas.filter(i => !i.status || i.status === 'pending');
-  if (_ideasFilter === 'converted') visible = ideas.filter(i => i.status === 'task' || i.status === 'goal' || i.status === 'kept');
+  // Filter — excluir soft-deleted (Fix 1.2)
+  const allActive = ideas.filter(i => !i.deleted);
+  let visible = allActive;
+  if (_ideasFilter === 'pending')   visible = allActive.filter(i => !i.status || i.status === 'pending');
+  if (_ideasFilter === 'converted') visible = allActive.filter(i => i.status === 'task' || i.status === 'goal' || i.status === 'kept');
 
   if (!visible.length) {
     const msgs = {
@@ -7265,8 +7501,10 @@ function _renderIdeaCard(idea) {
   const dateLabel = _fmtIdeaDate(idea.date);
   const timeLabel = idea.time ? ` · ${idea.time}` : '';
 
+  // Fix 5.3: Botón "Revertir" para ideas convertidas/guardadas (despriorizar)
   const actionArea = isConverted || idea.status === 'kept'
-    ? `<button class="idea-action-btn btn-del" onclick="deleteIdea('${idea.id}')">🗑 Eliminar</button>`
+    ? `<button class="idea-action-btn btn-revert" onclick="revertIdea('${idea.id}')" style="background:rgba(251,146,60,.12);color:#fb923c;border-color:rgba(251,146,60,.3)">↩ Revertir</button>
+       <button class="idea-action-btn btn-del" onclick="deleteIdea('${idea.id}')">🗑 Eliminar</button>`
     : `<button class="idea-action-btn btn-keep" onclick="keepIdea('${idea.id}')">💡 Mantener</button>
        <button class="idea-action-btn btn-task" onclick="ideaToTask('${idea.id}')">✅ Tarea</button>
        <button class="idea-action-btn btn-goal" onclick="ideaToGoal('${idea.id}')">🎯 Meta</button>`;
@@ -7337,9 +7575,17 @@ function ideaToGoal(id) {
 }
 
 function deleteIdea(id) {
-  S.ideas = (S.ideas||[]).filter(i => i.id !== id);
-  guardarDatos();
-  renderIdeas();
+  const idea = (S.ideas||[]).find(i => i.id === id); if (!idea) return;
+  idea.deleted = true; idea.deletedAt = Date.now();
+  guardarDatos(); renderIdeas();
+  showToast('🗑 Idea eliminada');
+}
+
+function revertIdea(id) {
+  const idea = (S.ideas||[]).find(i => i.id === id); if (!idea) return;
+  idea.status = 'pending';
+  guardarDatos(); renderIdeas();
+  showToast('🔄 Idea revertida a pendiente');
 }
 
 function switchInnerTab(pageId, tabId) {
@@ -7402,12 +7648,17 @@ function _initInnerTab(pageId) {
 }
 /* ═══════════════════════════════════════════════════════════════
    FUNCIONALIDAD 1 — GAINXP WRAPPER
+   skipBlackout=true → solo para check-in diario y calibración (Fix 1.5)
 ═══════════════════════════════════════════════════════════════ */
-function gainXP(amount) {
+function gainXP(amount, skipBlackout = false) {
   S.xp += amount;
   // Track daily XP history
   const t = today();
   S.xpHistory[t] = (S.xpHistory[t] || 0) + amount;
+  // Desactivar Blackout cuando hay acción real (no check-in / calibración)
+  if (!skipBlackout) {
+    S.blackoutOverrideToday = t;
+  }
   updateXP();
   updateGlobalCore();
   guardarDatos();
