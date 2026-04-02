@@ -8227,6 +8227,21 @@ function _updateNotifStatusUI(permission) {
 // URL estática de respaldo (se usa si Cloud Functions no está disponible)
 const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/REEMPLAZA_CON_TU_LINK';
 
+/**
+ * Abre una URL de pago de forma segura en todos los entornos:
+ * - PWA standalone (iOS/Android home screen): window.open está bloqueado → usa location.href
+ * - Navegador normal: abre en nueva pestaña
+ */
+function _openPaymentUrl(url) {
+  const isStandalone = window.navigator.standalone === true ||
+                       window.matchMedia('(display-mode: standalone)').matches;
+  if (isStandalone) {
+    window.location.href = url; // PWA — nueva pestaña no permitida
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 async function irAPagarStripe() {
   closeModal('modal-pago');
   showToast('🔐 Preparando sesión de pago...');
@@ -8236,7 +8251,7 @@ async function irAPagarStripe() {
       const createSession = _functions.httpsCallable('createStripeCheckoutSession');
       const result        = await createSession({ priceId: STRIPE_PRICE_GENERAL });
       if (result.data?.url) {
-        window.open(result.data.url, '_blank');
+        _openPaymentUrl(result.data.url);
         return;
       }
     } catch(e) {
@@ -8247,7 +8262,7 @@ async function irAPagarStripe() {
   }
   // Fallback: URL estática con referencia del usuario
   const _uid = S.userId || (_auth?.currentUser?.uid) || 'anonimo';
-  window.open(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid), '_blank');
+  _openPaymentUrl(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid));
 }
 
 function activarPlanPro() {
@@ -9784,7 +9799,7 @@ async function paywallTriggerPayment() {
   if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
     try {
       const result = await _functions.httpsCallable('createStripeCheckoutSession')({ priceId: STRIPE_PRICE_GENERAL });
-      if (result.data?.url) { window.open(result.data.url, '_blank'); return; }
+      if (result.data?.url) { _openPaymentUrl(result.data.url); return; }
     } catch(e) {
       console.warn('[Life OS] paywallTriggerPayment error:', e);
     }

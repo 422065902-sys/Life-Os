@@ -3571,6 +3571,37 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
   padding: 1px 5px; border-radius: 5px;
 }
 
+/* ── PLANES DE PAGO — Modal grid ───────────────────────────────
+   2 columnas en desktop · 1 columna en móvil · altura igual
+─────────────────────────────────────────────────────────────── */
+.planes-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;align-items:stretch}
+@media(max-width:560px){.planes-grid{grid-template-columns:1fr}}
+.plan-card{
+  padding:20px 16px;border-radius:14px;position:relative;cursor:pointer;
+  display:flex;flex-direction:column;text-align:left;
+}
+.plan-card-active{
+  border:2px solid rgba(0,229,255,.5);
+  background:linear-gradient(135deg,rgba(0,229,255,.08),rgba(168,85,247,.05));
+  transition:box-shadow .2s;
+}
+.plan-card-active:hover{box-shadow:0 0 24px rgba(0,229,255,.15)}
+.plan-card-soon{border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);opacity:.7;cursor:default}
+.plan-badge{
+  position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  font-family:'Orbitron',monospace;font-size:9px;font-weight:900;
+  padding:3px 10px;border-radius:20px;letter-spacing:.06em;white-space:nowrap;
+}
+.plan-badge-accent{background:var(--accent);color:#000}
+.plan-badge-purple{background:rgba(168,85,247,.8);color:#fff}
+.plan-name{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:.08em;margin-bottom:8px;margin-top:8px}
+.plan-price{font-family:'Orbitron',monospace;font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1}
+.plan-period{font-size:12px;color:var(--text2);margin-bottom:10px}
+.plan-features{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;flex:1}
+.plan-feat{font-size:11px;color:var(--text2)}
+.plan-btn{width:100%;padding:11px;font-size:12px;font-weight:900;border-radius:10px;margin-top:auto}
+.plan-btn-soon{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);color:var(--text3);cursor:not-allowed;font-family:'Syne',sans-serif;border-radius:10px;padding:11px;width:100%;font-size:12px}
+
 /* ── iOS safe area — home indicator (bottom) ───────────────────
    viewport-fit=cover extiende la app a pantalla completa;
    env(safe-area-inset-bottom) ≈ 34px en iPhones modernos.

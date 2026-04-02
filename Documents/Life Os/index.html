@@ -3030,42 +3030,42 @@
 
 <!-- Modal Pasarela de Pago — simplificado -->
 <div class="modal" id="modal-pago">
-  <div class="modal-box pop-in" style="max-width:440px;text-align:center">
+  <div class="modal-box pop-in" style="max-width:480px;text-align:center">
     <div style="font-size:48px;margin-bottom:10px;line-height:1">🔐</div>
     <div class="f-display c-accent" style="font-size:19px;font-weight:900;margin-bottom:4px;letter-spacing:.04em">ACTIVAR LIFE OS PRO</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6">Elige el plan que más se adapte a ti.</div>
 
-    <!-- GRID DE PLANES -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
+    <!-- GRID DE PLANES: 2 cols en desktop, 1 col en móvil -->
+    <div class="planes-grid">
 
       <!-- Plan General — ACTIVO -->
-      <div style="padding:18px 16px;border-radius:14px;border:2px solid rgba(0,229,255,.5);background:linear-gradient(135deg,rgba(0,229,255,.08),rgba(168,85,247,.05));position:relative;cursor:pointer" onclick="irAPagarStripe()">
-        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-family:'Orbitron',monospace;font-size:9px;font-weight:900;padding:3px 10px;border-radius:20px;letter-spacing:.06em;white-space:nowrap">MÁS POPULAR</div>
-        <div style="font-size:10px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:.08em;margin-bottom:8px;margin-top:6px">GENERAL</div>
-        <div class="f-display c-accent" style="font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1">$99</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">MXN / mes</div>
-        <div style="display:flex;flex-direction:column;gap:5px;text-align:left;margin-bottom:14px">
-          <div style="font-size:11px;color:var(--text2)">✅ Todos los módulos</div>
-          <div style="font-size:11px;color:var(--text2)">✅ Datos en la nube</div>
-          <div style="font-size:11px;color:var(--text2)">✅ Gemelo Potenciado</div>
-          <div style="font-size:11px;color:var(--text2)">✅ Sin cobros ocultos</div>
+      <div class="plan-card plan-card-active" onclick="irAPagarStripe()">
+        <div class="plan-badge plan-badge-accent">MÁS POPULAR</div>
+        <div class="plan-name" style="color:var(--accent)">GENERAL</div>
+        <div class="plan-price c-accent">$99</div>
+        <div class="plan-period">MXN / mes</div>
+        <div class="plan-features">
+          <div class="plan-feat">✅ Todos los módulos</div>
+          <div class="plan-feat">✅ Datos en la nube</div>
+          <div class="plan-feat">✅ Gemelo Potenciado</div>
+          <div class="plan-feat">✅ Sin cobros ocultos</div>
         </div>
-        <button onclick="irAPagarStripe()" class="btn btn-a" style="width:100%;padding:10px;font-size:12px;font-weight:900;border-radius:10px">🔒 Activar ahora</button>
+        <button onclick="event.stopPropagation();irAPagarStripe()" class="btn btn-a plan-btn">🔒 Activar ahora</button>
       </div>
 
       <!-- Plan Estudiantes — PRÓXIMAMENTE -->
-      <div style="padding:18px 16px;border-radius:14px;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);position:relative;opacity:.7">
-        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:rgba(168,85,247,.8);color:#fff;font-family:'Orbitron',monospace;font-size:9px;font-weight:900;padding:3px 10px;border-radius:20px;letter-spacing:.06em;white-space:nowrap">PRÓXIMAMENTE</div>
-        <div style="font-size:10px;color:var(--text3);font-family:'Orbitron',monospace;letter-spacing:.08em;margin-bottom:8px;margin-top:6px">ESTUDIANTES</div>
-        <div style="font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--text2);font-family:'Orbitron',monospace">$49</div>
-        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">MXN / mes</div>
-        <div style="display:flex;flex-direction:column;gap:5px;text-align:left;margin-bottom:14px">
-          <div style="font-size:11px;color:var(--text3)">✅ Todo lo del plan General</div>
-          <div style="font-size:11px;color:var(--text3)">✅ Precio especial</div>
-          <div style="font-size:11px;color:var(--text3)">✅ Verificación estudiantil</div>
-          <div style="font-size:11px;color:var(--text3)">🔜 Disponible muy pronto</div>
+      <div class="plan-card plan-card-soon">
+        <div class="plan-badge plan-badge-purple">PRÓXIMAMENTE</div>
+        <div class="plan-name" style="color:var(--text3)">ESTUDIANTES</div>
+        <div class="plan-price" style="color:var(--text2)">$49</div>
+        <div class="plan-period" style="color:var(--text3)">MXN / mes</div>
+        <div class="plan-features">
+          <div class="plan-feat" style="color:var(--text3)">✅ Todo lo del plan General</div>
+          <div class="plan-feat" style="color:var(--text3)">✅ Precio especial</div>
+          <div class="plan-feat" style="color:var(--text3)">✅ Verificación estudiantil</div>
+          <div class="plan-feat" style="color:var(--text3)">🔜 Disponible muy pronto</div>
         </div>
-        <button disabled style="width:100%;padding:10px;font-size:12px;font-weight:900;border-radius:10px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);color:var(--text3);cursor:not-allowed;font-family:'Syne',sans-serif">Próximamente</button>
+        <button disabled class="plan-btn plan-btn-soon">Próximamente</button>
       </div>
     </div>
 
@@ -3539,7 +3539,7 @@
         <h2>VII. Derechos ARCO</h2>
         <p>Conforme a los artículos 22 al 35 de la LFPDPPP, el usuario tiene derecho a:</p>
         <ul>
-          <li><strong>Acceso:</strong> Exportar todos sus datos desde Ajustes → Descargar respaldo local, o mediante solicitud formal.</li>
+          <i><strong>Acceso:</strong> Exportar todos sus datos desde Ajustes → Descargar respaldo local, o mediante solicitud formal.</li>
           <li><strong>Rectificación:</strong> Corregir datos directamente en los módulos de la Plataforma.</li>
           <li><strong>Cancelación:</strong> Solicitar la eliminación completa de su cuenta y datos del servidor.</li>
           <li><strong>Oposición:</strong> Oponerse a finalidades específicas, como las analíticas (opt-out disponible).</li>
