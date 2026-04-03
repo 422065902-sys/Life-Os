@@ -112,6 +112,7 @@ function _buildSavePayload() {
     bubbleColor:S.bubbleColor||'',
     bubbleEmoji:S.bubbleEmoji||'',
     friendRequests:S.friendRequests||[],
+    physWeight:S.physWeight||0,
   };
   if (CLOUD_ENABLED && _db) {
     p._updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -307,7 +308,7 @@ function navigate(id) {
   S.currentPage = id;
   buildNav();
   // Lazy init charts + global core update on every navigation
-  if (id==='dashboard')     { initRadarChart(); initFocusBars(); updateDashboardTaskCount(); renderMorningBriefing(); updateGlobalCore(); renderDashboardHeader(); }
+  if (id==='dashboard')     { initRadarChart(); initFocusBars(); hydrateDashboard(); renderMorningBriefing(); updateGlobalCore(); renderDashboardHeader(); }
   if (id==='world')         { initWorldMap(); }
   // ── Auto-move bubble whenever ANY module is visited ──
   worldTrackNavigation(id);
@@ -331,6 +332,8 @@ function navigate(id) {
   if (id==='analisis')  { navigate('stats');  switchInnerTab('stats','analisis');  return; }
   if (id==='saas')      { navigate('stats');  switchInnerTab('stats','saas');      return; }
   if (id==='routines')  { navigate('cuerpo'); switchInnerTab('cuerpo','physical'); return; }
+  // ── Telemetría: módulo visitado ──
+  registrarEvento('modulo_visitado', { modulo: id });
   // ── Onboarding tips (primera semana) ──
   if (typeof _hookNavigateTips === 'function') _hookNavigateTips(id);
 }
@@ -345,6 +348,9 @@ function toggleTheme() {
   document.getElementById('theme-label') && (document.getElementById('theme-label').textContent = S.dark ? '🌙 Modo Oscuro' : '☀️ Modo Claro');
   const tog = document.getElementById('theme-toggle');
   if (tog) tog.checked = S.dark;
+  // Re-aplicar acento con nueva tema para ajustar luminosidad si es necesario
+  if (S.accent) applyAccent(S.accent);
+  guardarDatos();
   // Redraw charts
   setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); }, 100);
 }
@@ -378,11 +384,60 @@ function selectRegAccent(color) {
   buildRegAccentPicker();
 }
 
+/* ── ajustarAcento: adapta el color de acento según el tema ──────────────────
+   En modo claro, colores muy claros (L > 65%) se oscurecen para ser legibles
+   sobre fondo blanco. En modo oscuro se usa el color exacto del usuario.
+──────────────────────────────────────────────────────────────────────────── */
+function ajustarAcento(hexColor, tema) {
+  if (!hexColor || !/^#[0-9a-fA-F]{6}$/.test(hexColor)) return hexColor;
+  if (tema !== 'light') return hexColor;
+
+  // hex → RGB normalizado
+  const r = parseInt(hexColor.slice(1,3),16) / 255;
+  const g = parseInt(hexColor.slice(3,5),16) / 255;
+  const b = parseInt(hexColor.slice(5,7),16) / 255;
+
+  // RGB → HSL
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  const delta = max - min;
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (delta > 0) {
+    s = delta / (1 - Math.abs(2 * l - 1));
+    if      (max === r) h = ((g - b) / delta) % 6;
+    else if (max === g) h = (b - r) / delta + 2;
+    else                h = (r - g) / delta + 4;
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+
+  // Si luminosidad > 65% en modo claro → ajustar para legibilidad
+  if (l * 100 > 65) {
+    const newL = 40;
+    const newS = Math.max(s * 100, 70); // mínimo 70% de saturación
+
+    // HSL → RGB → Hex
+    const _hsl2rgb = (h, s, l) => {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+    };
+    const [nr, ng, nb] = _hsl2rgb(h, newS, newL);
+    return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2,'0')).join('');
+  }
+  return hexColor;
+}
+
 function applyAccent(c) {
   S.accent = c;
-  const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+  // Adaptar color si el tema activo es claro
+  const tema = S.dark ? 'dark' : 'light';
+  const cEfectivo = ajustarAcento(c, tema);
+
+  const r=parseInt(cEfectivo.slice(1,3),16),g=parseInt(cEfectivo.slice(3,5),16),b=parseInt(cEfectivo.slice(5,7),16);
   const dk = v => Math.max(0, Math.round(v * 0.68));
-  document.documentElement.style.setProperty('--accent', c);
+  document.documentElement.style.setProperty('--accent', cEfectivo);
   document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
   document.documentElement.style.setProperty('--accent-dark', `rgb(${dk(r)},${dk(g)},${dk(b)})`);
   document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},.15)`);
@@ -392,7 +447,7 @@ function applyAccent(c) {
   document.getElementById('custom-color') && (document.getElementById('custom-color').value = c);
   setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); syncHeatmapColors(); }, 100);
   guardarDatos();
-  // Persistir color en Firebase profile para sincronía entre dispositivos
+  // Persistir color ORIGINAL (no el ajustado) en Firebase profile
   if (CLOUD_ENABLED && _auth?.currentUser) {
     _profileRef(_auth.currentUser.uid).update({ accent: c }).catch(() => {});
   }
@@ -650,6 +705,7 @@ function _addTaskOriginal() {
   if (!name) return;
   S.tasks.unshift({ id:uid(), name, desc:document.getElementById('t-desc').value, date:document.getElementById('t-date').value, time:document.getElementById('t-time').value, done:false });
   ['t-name','t-desc'].forEach(id=>document.getElementById(id).value='');
+  guardarDatos();
   renderTasks();
 }
 
@@ -1061,23 +1117,79 @@ function buildFreqHeatmap() {
 // Keep old name as alias for legacy calls
 function buildFreqCalendar() { buildFreqHeatmap(); }
 
-function initVolumeChart() {
+/* ─── Telemetría silenciosa ─────────────────────────────────── */
+function registrarEvento(tipo, datos) {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  const uid = _auth.currentUser.uid;
+  _db.collection('analytics').doc(uid).collection('eventos').add({
+    tipo, datos, uid,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {}); // silencioso — no bloquea UI
+}
+
+async function calcularVolumenSemanal(uid) {
+  if (!CLOUD_ENABLED || !uid || !_db) return Array(6).fill(0);
+  const now = new Date();
+  const dow = now.getDay(); // 0=Dom
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  monday.setHours(0, 0, 0, 0);
+  const seisSemanasAtras = new Date(monday);
+  seisSemanasAtras.setDate(monday.getDate() - 35); // 5 semanas previas
+  try {
+    const snap = await _db.collection('users').doc(uid).collection('entrenamientos')
+      .where('fecha', '>=', firebase.firestore.Timestamp.fromDate(seisSemanasAtras))
+      .orderBy('fecha', 'asc')
+      .get();
+    const semanas = Array(6).fill(0);
+    snap.forEach(doc => {
+      const d = doc.data();
+      const fecha = d.fecha?.toDate ? d.fecha.toDate() : new Date(d.fecha);
+      const diffMs = fecha - seisSemanasAtras;
+      const idx = Math.min(5, Math.max(0, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))));
+      semanas[idx] += (d.volumenTotal || 0);
+    });
+    return semanas;
+  } catch(e) {
+    console.warn('[Life OS] calcularVolumenSemanal:', e.message);
+    return Array(6).fill(0);
+  }
+}
+
+async function updateBioVol() {
+  const el = document.getElementById('bio-vol'); if (!el) return;
+  const uid = _auth?.currentUser?.uid; if (!uid) { el.textContent = '—'; return; }
+  el.textContent = '…';
+  const semanas = await calcularVolumenSemanal(uid);
+  const vol = semanas[5] || 0;
+  el.textContent = vol >= 1000 ? (vol / 1000).toFixed(1) + ' t' : vol.toLocaleString() + ' kg';
+}
+
+async function initVolumeChart() {
   const canvas = document.getElementById('volumeChart'); if (!canvas) return;
   if (S.charts.volume) S.charts.volume.destroy();
+  const tickColor = S.dark ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.4)';
   S.charts.volume = new Chart(canvas, {
     type:'bar',
     data:{
       labels:['S1','S2','S3','S4','S5','S6'],
-      datasets:[{data:[4200,5100,4800,6200,5900,7100],backgroundColor:S.accent+'cc',borderRadius:6,label:'Volumen (kg)'}]
+      datasets:[{data:Array(6).fill(0),backgroundColor:S.accent+'cc',borderRadius:6,label:'Volumen (kg)'}]
     },
     options:{
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y.toLocaleString()} kg`}}},
       scales:{
-        x:{grid:{color:'rgba(0,229,255,.06)'},ticks:{color:S.dark?'rgba(255,255,255,.5)':'rgba(0,0,0,.4)',font:{family:'Syne'}}},
-        y:{grid:{color:'rgba(0,229,255,.06)'},ticks:{color:S.dark?'rgba(255,255,255,.5)':'rgba(0,0,0,.4)',font:{family:'Syne'}}}
+        x:{grid:{color:'rgba(0,229,255,.06)'},ticks:{color:tickColor,font:{family:'Syne'}}},
+        y:{grid:{color:'rgba(0,229,255,.06)'},ticks:{color:tickColor,font:{family:'Syne'}}}
       }
     }
   });
+  const uid = _auth?.currentUser?.uid;
+  if (!uid) return;
+  const realData = await calcularVolumenSemanal(uid);
+  if (S.charts.volume) {
+    S.charts.volume.data.datasets[0].data = realData;
+    S.charts.volume.update('none');
+  }
 }
 
 /**
@@ -1174,8 +1286,13 @@ async function renderXPChart(uid) {
 }
 
 function editWeightPrompt() {
-  const w = prompt('Nuevo peso (kg):', document.getElementById('phys-weight').textContent);
-  if (w && !isNaN(w)) document.getElementById('phys-weight').textContent = parseFloat(w).toFixed(1);
+  const current = S.physWeight || '';
+  const w = prompt('Nuevo peso (kg):', current);
+  if (w && !isNaN(w)) {
+    S.physWeight = parseFloat(w);
+    document.getElementById('phys-weight').textContent = S.physWeight.toFixed(1);
+    guardarDatos();
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -1185,6 +1302,7 @@ function addRoutine() {
   const name = document.getElementById('new-routine-name').value.trim(); if (!name) return;
   S.routines.push({ id:uid(), name, active:true, exercises:[] });
   document.getElementById('new-routine-name').value='';
+  guardarDatos();
   renderRoutines();
 }
 
@@ -1384,6 +1502,7 @@ function addTransaction() {
   }
   document.getElementById('tx-amount').value='';
   document.getElementById('tx-desc').value='';
+  guardarDatos();
   closeModal('modal-tx');
   updateFinancialDisplay();
 }
@@ -1485,6 +1604,7 @@ function saveTxEdit() {
   const diff=newAmt-t.amount;
   if (t.scope==='personal') personalBalance += t.type==='entrada'?diff:-diff;
   t.amount=newAmt; t.desc=document.getElementById('etx-desc').value||t.desc;
+  guardarDatos();
   closeModal('modal-edit-tx'); updateFinancialDisplay();
 }
 
@@ -1495,6 +1615,7 @@ function addCard() {
   S.cards.push({ id:uid(), last4, bank, type:document.getElementById('card-type').value });
   document.getElementById('card-last4').value='';
   document.getElementById('card-bank').value='';
+  guardarDatos();
   closeModal('modal-card'); renderCards();
 }
 
@@ -1524,6 +1645,7 @@ function addDebt() {
   document.getElementById('debt-creditor').value='';
   document.getElementById('debt-amount').value='';
   document.getElementById('debt-paid').value='';
+  guardarDatos();
   closeModal('modal-debt'); renderDebts();
 }
 
@@ -1618,6 +1740,7 @@ function addGoal() {
   document.getElementById('goal-title').value='';
   document.getElementById('goal-desc').value='';
   if (document.getElementById('goal-due')) document.getElementById('goal-due').value='';
+  guardarDatos();
   closeModal('modal-goal'); renderGoals();
 }
 
@@ -1868,64 +1991,134 @@ function addCalEvent() {
   if (!S.calEvents[S.calSelectedDay]) S.calEvents[S.calSelectedDay]=[];
   S.calEvents[S.calSelectedDay].push({ id:uid(), text:txt });
   document.getElementById('cal-event-input').value='';
+  guardarDatos();
   renderCalendar(); renderCalEvents();
 }
 
 function deleteCalEvent(id) {
   if (!S.calSelectedDay) return;
   S.calEvents[S.calSelectedDay]=S.calEvents[S.calSelectedDay].filter(e=>e.id!==id);
+  guardarDatos();
   renderCalEvents(); renderCalendar();
 }
 
 function calPrev() { if(S.calMonth===0){S.calMonth=11;S.calYear--;}else S.calMonth--; renderCalendar(); }
 function calNext() { if(S.calMonth===11){S.calMonth=0;S.calYear++;}else S.calMonth++; renderCalendar(); }
 
-/* ── Exportar calendario a .ics (Fix 2.4) ── */
-function exportCalendarICS() {
-  const events = S.calEvents || {};
-  const allEvents = [];
-  Object.entries(events).forEach(([dateStr, evList]) => {
-    (evList||[]).forEach(e => {
-      if (e.id && e.text) allEvents.push({ date: dateStr, text: e.text, time: e.time || '' });
-    });
-  });
-  if (!allEvents.length) { showToast('⚠️ No hay eventos para exportar'); return; }
+/* ── Toggle del menú de exportación ── */
+function toggleCalExportMenu(e) {
+  e && e.stopPropagation();
+  const menu = document.getElementById('cal-export-menu');
+  if (!menu) return;
+  const open = menu.style.display !== 'none';
+  menu.style.display = open ? 'none' : 'block';
+  if (!open) {
+    const closeMenu = ev => {
+      if (!document.getElementById('cal-export-wrap')?.contains(ev.target)) {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 10);
+  }
+}
 
+/* ── generarICS: convierte array de eventos a string ICS — UID estable por doc.id ── */
+function generarICS(eventos) {
   const _pad = n => String(n).padStart(2,'0');
-  const _icsDate = (d, t) => {
-    const dt = new Date(d + 'T' + (t || '00:00') + ':00');
-    return dt.getFullYear() + _pad(dt.getMonth()+1) + _pad(dt.getDate()) +
-      'T' + _pad(dt.getHours()) + _pad(dt.getMinutes()) + '00';
+
+  // Timestamp actual en formato iCalendar UTC
+  const now = new Date();
+  const dtstamp = now.getUTCFullYear() + _pad(now.getUTCMonth()+1) + _pad(now.getUTCDate()) +
+    'T' + _pad(now.getUTCHours()) + _pad(now.getUTCMinutes()) + _pad(now.getUTCSeconds()) + 'Z';
+
+  // Calcula DTSTART y DTEND a partir de fecha (YYYY-MM-DD) y hora opcional (HH:MM)
+  const _buildDates = (dateStr, timeStr) => {
+    if (timeStr) {
+      // Evento con hora: DTSTART + 1h de duración
+      const [hh, mm] = timeStr.split(':').map(Number);
+      const start = dateStr.replace(/-/g,'') + 'T' + _pad(hh) + _pad(mm) + '00';
+      const endHh = hh + 1 >= 24 ? 23 : hh + 1;
+      const endMm = hh + 1 >= 24 ? 59 : mm;
+      const end   = dateStr.replace(/-/g,'') + 'T' + _pad(endHh) + _pad(endMm) + '00';
+      return { dtstart: 'DTSTART:' + start, dtend: 'DTEND:' + end };
+    } else {
+      // Evento de día completo: DTEND debe ser el día siguiente (RFC 5545 §3.6.1)
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const nextDay = d.getFullYear() + _pad(d.getMonth()+1) + _pad(d.getDate());
+      return {
+        dtstart: 'DTSTART;VALUE=DATE:' + dateStr.replace(/-/g,''),
+        dtend:   'DTEND;VALUE=DATE:'   + nextDay
+      };
+    }
   };
 
-  const now = new Date();
-  const dtstamp = now.getFullYear() + _pad(now.getMonth()+1) + _pad(now.getDate()) +
-    'T' + _pad(now.getHours()) + _pad(now.getMinutes()) + _pad(now.getSeconds()) + 'Z';
+  const _esc = txt => (txt||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
 
-  let ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Life OS//Calendar//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
-  allEvents.forEach(e => {
-    const uid_ics = 'lifeos-' + e.date + '-' + Math.random().toString(36).slice(2,7) + '@lifeos';
-    const dtStart = _icsDate(e.date, e.time);
-    const dtEnd   = _icsDate(e.date, e.time ? (String(parseInt(e.time)+1).padStart(2,'0') + ':00') : '01:00');
-    const summary = e.text.replace(/[,;\\]/g, c => '\\' + c).replace(/\n/g, '\\n');
-    ics.push('BEGIN:VEVENT',
-      'UID:' + uid_ics, 'DTSTAMP:' + dtstamp,
-      'DTSTART' + (e.time ? ':' + dtStart : ';VALUE=DATE:' + e.date.replace(/-/g,'')),
-      'DTEND'   + (e.time ? ':' + dtEnd   : ';VALUE=DATE:' + e.date.replace(/-/g,'')),
-      'SUMMARY:' + summary,
-      'END:VEVENT');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Life OS//mylifeos.lat//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Life OS'
+  ];
+
+  eventos.forEach(ev => {
+    // UID ESTABLE: usa el id interno del evento para que reimportaciones actualicen, no dupliquen
+    const uidStr = 'UID:' + ev.id + '@mylifeos.lat';
+    const { dtstart, dtend } = _buildDates(ev.date, ev.time || '');
+    lines.push(
+      'BEGIN:VEVENT',
+      uidStr,
+      'DTSTAMP:' + dtstamp,
+      dtstart,
+      dtend,
+      'SUMMARY:' + _esc(ev.text),
+      'END:VEVENT'
+    );
   });
-  ics.push('END:VCALENDAR');
 
-  const blob = new Blob([ics.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+/* ── Descarga un string ICS como archivo ── */
+function _descargarICS(contenido, nombreArchivo) {
+  const blob = new Blob([contenido], { type: 'text/calendar;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'lifeos-calendario.ics';
+  a.href = url; a.download = nombreArchivo;
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('📅 Calendario exportado (' + allEvents.length + ' eventos)');
+}
+
+/* ── Exportar calendario completo ── */
+function exportCalendarICS() {
+  const calEvents = S.calEvents || {};
+  const eventos = [];
+  Object.entries(calEvents).forEach(([dateStr, evList]) => {
+    (evList||[]).forEach(e => {
+      if (e.id && e.text) eventos.push({ id: e.id, date: dateStr, text: e.text, time: e.time || '' });
+    });
+  });
+  if (!eventos.length) { showToast('⚠️ No hay eventos para exportar'); return; }
+  _descargarICS(generarICS(eventos), 'lifeos-calendario.ics');
+  showToast('📅 Calendario exportado (' + eventos.length + ' evento' + (eventos.length !== 1 ? 's' : '') + ')');
+}
+
+/* ── Exportar solo el día actualmente seleccionado ── */
+function exportarDiaActual() {
+  const dia = S.calSelectedDay || today();
+  const evList = S.calEvents[dia] || [];
+  const eventos = evList.filter(e => e.id && e.text)
+    .map(e => ({ id: e.id, date: dia, text: e.text, time: e.time || '' }));
+  if (!eventos.length) { showToast('⚠️ No hay eventos en este día'); return; }
+  const nombre = 'lifeos-' + dia + '.ics';
+  _descargarICS(generarICS(eventos), nombre);
+  showToast('📅 Día exportado (' + eventos.length + ' evento' + (eventos.length !== 1 ? 's' : '') + ')');
 }
 
 /* ═══════════════════════════════════════════
@@ -2191,7 +2384,7 @@ function toggleCombustible(tipo) {
   if (S.healthStats[tipo]) return;
   S.healthStats[tipo] = true;
   S.saludXP += 15;
-  gainXP(15); updateSaludUI();
+  gainXP(15); guardarDatos(); updateSaludUI();
   showToast('🔥 +15 XP · '+tipo.charAt(0).toUpperCase()+tipo.slice(1)+' registrado');
   spawnConfetti();
 }
@@ -2202,6 +2395,7 @@ function adjustSleep(delta) {
   let val = parseFloat(S.healthStats.sueno) + delta;
   val = Math.max(0, Math.min(24, val));
   S.healthStats.sueno = Math.round(val*2)/2;
+  guardarDatos();
   updateSaludUI();
 }
 
@@ -2213,7 +2407,7 @@ function registrarSueno() {
   const bonus = (h >= 7 && h <= 8);
   const xpGanado = bonus ? 40 : 10;
   S.saludXP += xpGanado;
-  gainXP(xpGanado); updateSaludUI();
+  gainXP(xpGanado); guardarDatos(); updateSaludUI();
   if (bonus) { spawnConfetti(); showToast('🌙 +40 XP · ¡Zona óptima de sueño!'); }
   else showToast('🌙 +10 XP · Sueño registrado');
 }
@@ -2223,7 +2417,7 @@ function toggleLongevidad(tipo) {
   if (S.healthStats[tipo]) return;
   S.healthStats[tipo] = true;
   S.saludXP += 10;
-  gainXP(10); updateSaludUI();
+  gainXP(10); guardarDatos(); updateSaludUI();
   showToast('♾️ +10 XP · '+tipo.charAt(0).toUpperCase()+tipo.slice(1)+' completado');
 }
 
@@ -2613,6 +2807,92 @@ function checkModoRecuperacionAlInicio() {
    Local S.aliados = caché; S.aliadosUids = Set rápido para World
 ═══════════════════════════════════════════════════════════════ */
 
+// ── SISTEMA DE PRESENCIA — Firestore TTL (sin RTDB) ──────────────────────────
+// Escribe online:true en userDirectory/{uid} al entrar y online:false al salir.
+// Un heartbeat cada 2 min mantiene ultimaVez fresco. Si ultimaVez > 5min → offline.
+// ─────────────────────────────────────────────────────────────────────────────
+let _presenceMap   = {};  // { uid: { online, ultimaVez } }
+let _heartbeatId   = null;
+
+async function _setPresenceOnline() {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  try {
+    await _dirRef(_auth.currentUser.uid).set({
+      online:    true,
+      ultimaVez: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch(e) { /* no crítico */ }
+}
+
+async function _setPresenceOffline() {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  try {
+    await _dirRef(_auth.currentUser.uid).set({
+      online:    false,
+      ultimaVez: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch(e) { /* no crítico */ }
+}
+
+function _startPresenceHeartbeat() {
+  _setPresenceOnline();
+  clearInterval(_heartbeatId);
+  _heartbeatId = setInterval(_setPresenceOnline, 2 * 60 * 1000);
+  // Marcar offline en pestaña cerrada / oculta
+  window.addEventListener('beforeunload', _setPresenceOffline);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') _setPresenceOffline();
+    else _setPresenceOnline();
+  });
+}
+
+function _stopPresenceHeartbeat() {
+  clearInterval(_heartbeatId);
+  _heartbeatId = null;
+}
+
+/* Carga presencia de los aliados cloud y la guarda en _presenceMap */
+async function loadAliadosPresence() {
+  if (!CLOUD_ENABLED || !_db) return;
+  const cloudUids = (S.aliados || []).filter(a => a.isCloudAlly && a.uid).map(a => a.uid);
+  if (!cloudUids.length) return;
+  try {
+    // Leer en lote (máx 10 por consulta 'in')
+    for (let i = 0; i < cloudUids.length; i += 10) {
+      const batch = cloudUids.slice(i, i + 10);
+      const snaps = await Promise.all(batch.map(uid => _dirRef(uid).get()));
+      snaps.forEach((snap, idx) => {
+        if (snap.exists) {
+          const d = snap.data();
+          _presenceMap[batch[idx]] = {
+            online: !!d.online,
+            ultimaVez: d.ultimaVez?.toDate ? d.ultimaVez.toDate() : null,
+          };
+        }
+      });
+    }
+    renderAliados(); // refrescar indicadores
+  } catch(e) { /* no crítico */ }
+}
+
+/* Devuelve { dot, label } para mostrar en la UI */
+function _presenceTag(uid) {
+  const p = _presenceMap[uid];
+  if (!p) return { dot: 'rgba(128,148,180,.3)', label: '' };
+  if (p.online && p.ultimaVez) {
+    const mins = Math.round((Date.now() - p.ultimaVez.getTime()) / 60000);
+    if (mins < 5) return { dot: '#4ade80', label: 'En línea' };
+  }
+  if (p.ultimaVez) {
+    const mins = Math.round((Date.now() - p.ultimaVez.getTime()) / 60000);
+    if (mins < 60)  return { dot: '#fb923c', label: `Hace ${mins} min` };
+    const hrs = Math.round(mins / 60);
+    if (hrs  < 24)  return { dot: 'rgba(128,148,180,.4)', label: `Hace ${hrs}h` };
+    return { dot: 'rgba(128,148,180,.25)', label: `Hace ${Math.round(hrs/24)}d` };
+  }
+  return { dot: 'rgba(128,148,180,.2)', label: '' };
+}
+
 // ── ID pendiente de eliminación (para el modal de confirmación) ──
 let _pendingDeleteId   = null;
 let _pendingDeleteName = '';
@@ -2826,32 +3106,51 @@ async function loadFriendRequests() {
   }
 }
 
-/* ── Aceptar solicitud de amistad ── */
+/* ── Aceptar solicitud de amistad — batch atómico ──────────────────────────
+   Las 3 escrituras ocurren en un único writeBatch():
+     a) friendRequests/{reqId}  → { status: 'accepted' }
+     b) users/{myUid}/connections/{fromUid} → conexión receptor
+     c) users/{fromUid}/connections/{myUid} → conexión remitente
+   Si cualquiera falla, NINGUNA persiste (atomicidad garantizada).
+─────────────────────────────────────────────────────────────────────────── */
+let _acceptingReqId = null; // guard anti-doble-click
 async function acceptFriendRequest(reqId) {
   if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
-  const myUid = _auth.currentUser.uid;
-  const req   = S.friendRequests.find(r => r.id === reqId);
-  if (!req) return;
+  if (_acceptingReqId === reqId) return; // evitar doble ejecución
+  _acceptingReqId = reqId;
+
+  // Deshabilitar botón mientras procesa
+  const btn = document.querySelector(`[onclick="acceptFriendRequest('${reqId}')"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  const myUid    = _auth.currentUser.uid;
+  const req      = S.friendRequests.find(r => r.id === reqId);
+  if (!req) { _acceptingReqId = null; return; }
 
   try {
-    const batch = _db.batch();
-    const ts    = firebase.firestore.FieldValue.serverTimestamp();
+    const batch    = _db.batch();
+    const ts       = firebase.firestore.FieldValue.serverTimestamp();
     const myNombre = _auth.currentUser.displayName || S.userName || 'Usuario';
 
-    // Conexión bidireccional
+    // a) Marcar solicitud como aceptada
+    batch.update(_db.collection('friendRequests').doc(reqId), {
+      status: 'accepted', acceptedAt: ts,
+    });
+    // b) Conexión en el documento del receptor (yo)
     batch.set(_db.collection('users').doc(myUid).collection('connections').doc(req.fromUid), {
       status: 'accepted', addedBy: req.fromUid, addedAt: ts,
       nombre: req.fromNombre, publicId: req.fromPublicId || '',
     });
+    // c) Conexión en el documento del remitente (ellos)
     batch.set(_db.collection('users').doc(req.fromUid).collection('connections').doc(myUid), {
       status: 'accepted', addedBy: req.fromUid, addedAt: ts,
       nombre: myNombre, publicId: S.publicId || '',
     });
-    // Marcar solicitud como aceptada
-    batch.update(_db.collection('friendRequests').doc(reqId), { status: 'accepted' });
+
+    // Las 3 operaciones son atómicas — si falla alguna, ninguna persiste
     await batch.commit();
 
-    // Estado local
+    // Solo después del commit exitoso actualizar estado local
     const newAlly = {
       id: req.fromUid, uid: req.fromUid,
       nombre: req.fromNombre, publicId: req.fromPublicId || '',
@@ -2865,7 +3164,11 @@ async function acceptFriendRequest(reqId) {
     showToast(`✅ ¡${req.fromNombre} ahora es tu aliado!`);
   } catch(e) {
     console.error('[Life OS] acceptFriendRequest error:', e);
-    showToast('⚠️ Error al aceptar solicitud.');
+    // Restaurar botón si falló
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Aceptar'; }
+    showToast('⚠️ No se pudo aceptar la solicitud. Verifica tu conexión e intenta de nuevo.');
+  } finally {
+    _acceptingReqId = null;
   }
 }
 
@@ -2961,18 +3264,26 @@ function renderAliados() {
   }
 
   el.innerHTML = S.aliados.map(a => {
-    const initial     = (a.nombre || '?').charAt(0).toUpperCase();
-    const isCloud     = !!a.isCloudAlly;
-    const cloudBadge  = isCloud
+    const initial    = (a.nombre || '?').charAt(0).toUpperCase();
+    const isCloud    = !!a.isCloudAlly;
+    const cloudBadge = isCloud
       ? `<span class="aliado-pid">${escHtml(a.publicId || '☁️')}</span>`
       : `<span class="aliado-pid" title="Contacto local">💾 Local</span>`;
     // Indicar si es amigo en World (solo cloud allies)
     const worldTag = isCloud
       ? `<span class="aliado-zone-tag" title="Aliado en Life OS World">🗺️ World</span>`
       : '';
+    // Indicador de presencia para aliados cloud
+    const pres  = isCloud && a.uid ? _presenceTag(a.uid) : null;
+    const presHtml = pres
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)">
+           <span style="width:7px;height:7px;border-radius:50%;background:${pres.dot};flex-shrink:0;box-shadow:${pres.dot !== 'rgba(128,148,180,.3)' && pres.dot !== 'rgba(128,148,180,.2)' && pres.dot !== 'rgba(128,148,180,.4)' && pres.dot !== 'rgba(128,148,180,.25)' ? '0 0 5px '+pres.dot : 'none'}"></span>
+           ${pres.label ? escHtml(pres.label) : ''}
+         </span>`
+      : '';
 
     return `<div class="aliado-item">
-      <div class="aliado-avatar ${isCloud ? 'connected' : 'stranger'}">
+      <div class="aliado-avatar ${isCloud ? 'connected' : 'stranger'}" style="position:relative">
         ${escHtml(initial)}
       </div>
       <div style="flex:1;min-width:0">
@@ -2982,6 +3293,7 @@ function renderAliados() {
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:2px;flex-wrap:wrap">
           ${cloudBadge}
+          ${presHtml}
           ${a.contacto ? `<span style="font-size:11px;color:var(--text3)">${escHtml(a.contacto)}</span>` : ''}
         </div>
       </div>
@@ -3376,6 +3688,7 @@ function setPomoMin(min) {
   if(pomoRunning) return;
   S.pomoMinutos = min;
   pomoSecondsLeft = min*60;
+  guardarDatos();
   updatePomoDisplay();
 }
 
@@ -3626,6 +3939,18 @@ function confirmarEntreno() {
   updateBioMainBtn();
   renderMuscleMapAnalisis();
   guardarDatos();
+
+  // Persistir sesión de texto en Firestore para historial de volumen
+  if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+    const uid = _auth.currentUser.uid;
+    _db.collection('users').doc(uid).collection('entrenamientos').add({
+      fecha: firebase.firestore.FieldValue.serverTimestamp(),
+      musculos: detected.map(m => m.key),
+      volumenTotal: 0,
+      totalSeries: 0,
+      tipo: 'texto'
+    }).catch(e => console.warn('[Life OS] entrenamientos save:', e.message));
+  }
 }
 
 function registrarEntrenamiento() { abrirModalEntreno(); } // alias legacy
@@ -3656,7 +3981,7 @@ function enterGymMode(routineId) {
       <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">
         ${detectarMusculos(ex.name)[0]?.emoji || '💪'} ${escHtml(ex.name)}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">SERIES</div>
           <input class="inp" id="gsetup-sets-${i}" type="number" value="3" min="1" max="20" style="text-align:center"/>
@@ -3664,6 +3989,10 @@ function enterGymMode(routineId) {
         <div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">REPS</div>
           <input class="inp" id="gsetup-reps-${i}" type="number" value="10" min="1" max="100" style="text-align:center"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">KG</div>
+          <input class="inp" id="gsetup-weight-${i}" type="number" value="0" min="0" max="500" step="0.5" style="text-align:center"/>
         </div>
       </div>
     </div>`).join('');
@@ -3678,8 +4007,9 @@ function startGymSession() {
   _gymSession.routineId = r.id;
   _gymSession.currentIdx = 0;
   _gymSession.exercises = r.exercises.map((ex, i) => {
-    const sets = parseInt(document.getElementById(`gsetup-sets-${i}`)?.value) || 3;
-    const reps = parseInt(document.getElementById(`gsetup-reps-${i}`)?.value) || 10;
+    const sets   = parseInt(document.getElementById(`gsetup-sets-${i}`)?.value) || 3;
+    const reps   = parseInt(document.getElementById(`gsetup-reps-${i}`)?.value) || 10;
+    const weight = parseFloat(document.getElementById(`gsetup-weight-${i}`)?.value) || 0;
     const musculos = detectarMusculos(ex.name);
     return {
       id: ex.id,
@@ -3687,6 +4017,7 @@ function startGymSession() {
       emoji: musculos[0]?.emoji || '💪',
       targetSets: sets,
       targetReps: reps,
+      targetWeight: weight,
       completedSets: [],
     };
   });
@@ -3735,7 +4066,7 @@ function renderGymSession() {
             Serie ${i+1}
           </span>
           <span style="font-size:12px;color:var(--text2);margin-left:auto">
-            ${s.reps} reps · ${new Date(s.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}
+            ${s.reps} reps${s.weight ? ' · ' + s.weight + ' kg' : ''} · ${new Date(s.ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}
           </span>
         </div>`).join('');
     }
@@ -3779,7 +4110,7 @@ function gymSessionLogRep() {
   const ex = _gymSession.exercises[_gymSession.currentIdx];
   if (!ex || ex.completedSets.length >= ex.targetSets) return;
 
-  ex.completedSets.push({ reps: ex.targetReps, ts: Date.now() });
+  ex.completedSets.push({ reps: ex.targetReps, weight: ex.targetWeight || 0, ts: Date.now() });
 
   // Pulso visual en el botón
   const btn = document.getElementById('gses-rep-btn');
@@ -3834,6 +4165,23 @@ function finishGymSession() {
     updateBioMainBtn();
     renderMuscleMapAnalisis();
     guardarDatos();
+
+    // Persistir entrenamiento completo en Firestore para historial de volumen
+    if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+      const uid = _auth.currentUser.uid;
+      const volTotal = sess.exercises.reduce((sum, ex) =>
+        sum + ex.completedSets.reduce((s2, set) => s2 + set.reps * (set.weight || 0), 0), 0);
+      _db.collection('users').doc(uid).collection('entrenamientos').add({
+        fecha: firebase.firestore.FieldValue.serverTimestamp(),
+        rutina: S.routines.find(r => r.id === sess.routineId)?.name || 'Libre',
+        ejercicios: sess.exercises.map(ex => ({
+          nombre: ex.name,
+          sets: ex.completedSets
+        })),
+        volumenTotal: volTotal,
+        totalSeries: totalSets
+      }).catch(e => console.warn('[Life OS] entrenamientos save:', e.message));
+    }
   }
 
   closeModal('modal-gym-session');
@@ -4086,6 +4434,15 @@ function _applyData(d) {
   // Restaurar color/emoji de burbuja desde estado guardado (Fix 2.1)
   if (S.bubbleColor) W.bubble.color = S.bubbleColor;
   if (S.bubbleEmoji) W.bubble.emoji = S.bubbleEmoji;
+  // Restaurar peso corporal guardado en la UI (elimina el hardcode de 78.5)
+  const physWeightEl = document.getElementById('phys-weight');
+  if (physWeightEl && S.physWeight) physWeightEl.textContent = parseFloat(S.physWeight).toFixed(1);
+  // Restaurar score de cuerpo
+  const bioScoreEl = document.getElementById('bio-score-val');
+  if (bioScoreEl) {
+    const vals = Object.values(S.muscleMap || {});
+    bioScoreEl.textContent = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) + '/100' : '—';
+  }
   if (!S.aliados || !Array.isArray(S.aliados)) S.aliados = [];
   if (!S.aliadosUids || !Array.isArray(S.aliadosUids)) S.aliadosUids = [];
   // Support flat-field format saved by _buildSavePayload (Firestore forbids nested arrays)
@@ -4393,6 +4750,7 @@ async function loginSuccess(userObj) {
 
   // Cargar caché local para render inmediato (evita pantalla en blanco)
   cargarDatos();
+  hydrateDashboard();   // ← widgets muestran valores reales desde localStorage
   updateUserUI(userObj);
   checkTrialBanner(userObj);
   buildAdminModules(userObj);
@@ -4417,6 +4775,7 @@ async function loginSuccess(userObj) {
     }
     setTimeout(() => {
       renderDashboardHeader(); // doble llamada para asegurar nombre correcto
+      hydrateDashboard();      // ← widgets con datos frescos al mostrar el dashboard
       renderCheckinDots('dashboard-ci-dots');
       updateCheckinStreak();
       renderMorningBriefing();
@@ -4507,15 +4866,23 @@ async function loginSuccess(userObj) {
 
       // 5. Perfil público en userDirectory (crear/actualizar)
       syncUserDirectory({ ...userObj, id: myUid }).catch(() => {});
+      // Telemetría: apertura de app
+      registrarEvento('app_open', { hora: new Date().getHours() });
 
-      // 6. Conexiones / aliados desde Firestore
+      // 6. Sistema de presencia — heartbeat + onDisconnect
+      _startPresenceHeartbeat();
+
+      // 7. Conexiones / aliados desde Firestore
       loadAliadosFromCloud(myUid).catch(() => {});
-      // 7. Solicitudes de amistad pendientes (Fix 4.1)
+      // 8. Solicitudes de amistad pendientes (Fix 4.1)
       loadFriendRequests().catch(() => {});
 
       // Re-render con datos frescos de la nube
       updateXP(); renderHabits(); renderTasks(); renderGoals();
       renderCalendar(); renderExtraSaldos(); renderRutinasFrecuentes();
+      updateFinancialDisplay();
+      updateDashboardTaskCount();
+      updateFisicoWidget();
       updateGlobalCore();
       // Toast diferido: se mostrará solo después de que la terminal se desmonte
       _toastQueue.push('✅ Datos sincronizados');
@@ -4537,6 +4904,8 @@ async function doLogout() {
 
   // Forzar guardado final en Firestore antes de cerrar
   if (CLOUD_ENABLED && _auth?.currentUser) {
+    _stopPresenceHeartbeat();
+    await _setPresenceOffline().catch(() => {});
     await guardarDatosInmediato().catch(() => {});
     await _auth.signOut().catch(() => {});
   }
@@ -4771,6 +5140,7 @@ function completeGoal(id) {
   S.goals = S.goals.filter(x=>x.id!==id);
   gainXP(200); spawnConfetti();
   showToast('🏆 ¡Meta lograda! +200 XP');
+  guardarDatos();
   renderGoals();
 }
 
@@ -4843,7 +5213,7 @@ function renderCompletedGoals() {
 }
 
 /* ═══════════════════════════════════════════
-   DASHBOARD — TASK COUNT CARD
+   DASHBOARD — WIDGETS
 ═══════════════════════════════════════════ */
 function updateDashboardTaskCount() {
   const el = document.getElementById('db-tasks-today'); if (!el) return;
@@ -4851,6 +5221,32 @@ function updateDashboardTaskCount() {
   const todayTasks = (S.tasks||[]).filter(t => !t.deleted && (!t.date || t.date === todayStr));
   const done = todayTasks.filter(t => t.done).length;
   el.textContent = done + '/' + todayTasks.length;
+}
+
+/* Widget Estado Físico: promedio del muscleMap (0-100) */
+function updateFisicoWidget() {
+  const valEl = document.getElementById('db-fisico-val'); if (!valEl) return;
+  const subEl = document.getElementById('db-fisico-sub');
+  const vals = Object.values(S.muscleMap || {});
+  if (!vals.length) {
+    valEl.textContent = '—';
+    if (subEl) subEl.textContent = 'Sin datos de gym';
+    return;
+  }
+  const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  valEl.textContent = avg + '/100';
+  if (subEl) {
+    const label = avg >= 75 ? 'Rendimiento elite' : avg >= 50 ? 'En progreso' : 'Comienza a entrenar';
+    subEl.textContent = label;
+  }
+}
+
+/* Hidrata todos los widgets del Dashboard con datos reales de S.* */
+function hydrateDashboard() {
+  updateXP();
+  updateFinancialDisplay();
+  updateDashboardTaskCount();
+  updateFisicoWidget();
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -7613,10 +8009,10 @@ function _fireTabInit(pageId, tabId) {
   if (tabId === 'habits')   { buildHeatmap(); renderHabits(); }
   if (tabId === 'goals')    { renderGoals(); }
   if (tabId === 'ideas')    { renderIdeas(); }
-  if (tabId === 'physical') { initVolumeChart(); buildMuscleMap(); buildFreqHeatmap(); _applyNPCVisibility(); applyMuscleHighlights(); updateBioMainBtn(); renderRutinasFrecuentes(); renderRoutines(); }
+  if (tabId === 'physical') { initVolumeChart(); updateBioVol(); buildMuscleMap(); buildFreqHeatmap(); _applyNPCVisibility(); applyMuscleHighlights(); updateBioMainBtn(); renderRutinasFrecuentes(); renderRoutines(); }
   if (tabId === 'salud')    { resetSaludIfNewDay(); updateSaludUI(); }
   if (tabId === 'brain')    { initGemelo(); }
-  if (tabId === 'poder')    { renderPoderSections(); }
+  if (tabId === 'poder')    { renderPoderSections(); loadAliadosPresence(); }
   if (tabId === 'analisis') {
     initAnalisisCharts();
     updateGlobalCore();

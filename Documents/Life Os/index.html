@@ -375,10 +375,10 @@
     <div class="ui-grid">
 
       <!-- PILAR 3: .card-small — 1 col cada una (4 llenan la fila completa) -->
-      <div class="card stat-card card-small"><div class="stat-label">💪 Estado Físico</div><div class="stat-val c-accent">72/100</div><div class="stat-sub">Puntuación global</div></div>
-      <div class="card stat-card card-small"><div class="stat-label">💳 Saldo Personal</div><div class="stat-val c-green" id="db-personal-bal">$0</div><div class="stat-sub">MXN disponible</div></div>
-      <div class="card stat-card card-small"><div class="stat-label">⭐ Nivel Actual</div><div class="stat-val c-gold" id="db-level">Nv. 0</div><div class="stat-sub" id="db-xp-sub">0/1000 XP</div></div>
-      <div class="card stat-card card-small"><div class="stat-label">✅ Tareas de Hoy</div><div class="stat-val c-purple" id="db-tasks-today">0/0</div><div class="stat-sub">Completadas hoy</div></div>
+      <div class="card stat-card card-small"><div class="stat-label">💪 Estado Físico</div><div class="stat-val c-accent" id="db-fisico-val"><span class="db-skel" style="width:52px"></span></div><div class="stat-sub" id="db-fisico-sub">Puntuación global</div></div>
+      <div class="card stat-card card-small"><div class="stat-label">💳 Saldo Personal</div><div class="stat-val c-green" id="db-personal-bal"><span class="db-skel" style="width:60px"></span></div><div class="stat-sub">MXN disponible</div></div>
+      <div class="card stat-card card-small"><div class="stat-label">⭐ Nivel Actual</div><div class="stat-val c-gold" id="db-level"><span class="db-skel" style="width:48px"></span></div><div class="stat-sub" id="db-xp-sub"><span class="db-skel" style="width:70px;height:.7em"></span></div></div>
+      <div class="card stat-card card-small"><div class="stat-label">✅ Tareas de Hoy</div><div class="stat-val c-purple" id="db-tasks-today"><span class="db-skel" style="width:36px"></span></div><div class="stat-sub">Completadas hoy</div></div>
 
       <!-- RACHA — tarjeta de 2 columnas con dots de la semana -->
       <div class="card card-wide" id="dashboard-ci-row" style="background:linear-gradient(135deg,rgba(0,229,255,.07),rgba(0,229,255,.02));border-color:rgba(0,229,255,.2)">
@@ -699,16 +699,16 @@
 
     <!-- ② STATS ROW -->
     <div class="ui-grid" id="bio-stats-grid">
-      <div class="card stat-card card-small"><div class="stat-label">⚡ Score</div><div class="stat-val c-accent">72/100</div><div class="stat-sub">Puntuación global</div></div>
+      <div class="card stat-card card-small"><div class="stat-label">⚡ Score</div><div class="stat-val c-accent" id="bio-score-val">—</div><div class="stat-sub">Puntuación global</div></div>
       <div class="card stat-card card-small">
         <div class="stat-label">⚖️ Peso</div>
         <div class="row" style="align-items:baseline;gap:6px">
-          <span class="stat-val c-green" id="phys-weight">78.5</span>
+          <span class="stat-val c-green" id="phys-weight">—</span>
           <span style="font-size:11px;color:var(--text2)">kg</span>
           <button class="btn btn-g btn-sm" onclick="editWeightPrompt()">✏️</button>
         </div>
       </div>
-      <div class="card stat-card card-small"><div class="stat-label">📦 Volumen</div><div class="stat-val c-gold" id="bio-vol">7.1 t</div><div class="stat-sub">Esta semana</div></div>
+      <div class="card stat-card card-small"><div class="stat-label">📦 Volumen</div><div class="stat-val c-gold" id="bio-vol">—</div><div class="stat-sub">Esta semana</div></div>
       <div class="card stat-card card-small"><div class="stat-label">📅 Entrenos</div><div class="stat-val c-purple" id="bio-entrenos">0</div><div class="stat-sub">Este mes</div></div>
     </div>
 
@@ -1506,7 +1506,15 @@
       <div class="page-title">CALENDARIO</div>
       <div class="page-sub">Agenda y eventos interactivos</div>
     </div>
-    <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div><button class="btn btn-g btn-sm" onclick="exportCalendarICS()" style="flex-shrink:0;white-space:nowrap" title="Exportar a Google Calendar, Apple Calendar u Outlook">📤 Exportar .ics</button></div>
+    <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div>
+      <div style="position:relative;flex-shrink:0" id="cal-export-wrap">
+        <button class="btn btn-g btn-sm" onclick="toggleCalExportMenu(event)" style="white-space:nowrap" title="Exportar calendario">📤 Exportar ▾</button>
+        <div id="cal-export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg2);border:1px solid rgba(0,229,255,.18);border-radius:10px;overflow:hidden;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+          <button onclick="exportarDiaActual();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📅 Exportar día actual</button>
+          <button onclick="exportCalendarICS();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📆 Exportar calendario completo</button>
+        </div>
+      </div>
+    </div>
     <div class="card mb14">
       <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px">
         <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px">‹</button>

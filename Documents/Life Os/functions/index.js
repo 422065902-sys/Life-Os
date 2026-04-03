@@ -416,8 +416,11 @@ ${finanzasTexto}
 
 ▸ PODER ESTRATÉGICO Y RED
 ${poderTexto}
-${socialTexto ? `▸ COMPROMISOS SOCIALES\n${socialTexto}\n` : ''}
-[FIN DE DATOS]
+${socialTexto ? `▸ COMPROMISOS SOCIALES\n${socialTexto}\n` : ''}${raw._analytics ? `▸ PATRONES DE USO (TELEMETRÍA)
+Aperturas de app en 30 días: ${raw._analytics.totalAperturas}
+Módulos más visitados: ${raw._analytics.modulosFrecuentes || 'sin datos'}
+Total eventos registrados: ${raw._analytics.totalEventos}
+` : ''}[FIN DE DATOS]
 
 Genera el JSON con las claves "gancho_intriga" y "analisis_profundo" siguiendo todas las reglas del system prompt.`.trim();
 }
@@ -469,6 +472,38 @@ exports.generateGemeloAnalysis = functions
       const app      = mainSnap.exists ? mainSnap.data() : {};
       // Inyectar displayName del doc raíz si no está en main
       if (!app.userName && userData.displayName) app.userName = userData.displayName;
+
+      // ── 3b. Leer telemetría de comportamiento (últimos 30 días) ──
+      try {
+        const hace30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const analyticsSnap = await db.collection('analytics').doc(uid).collection('eventos')
+          .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(hace30d))
+          .orderBy('timestamp', 'asc')
+          .limit(500)
+          .get();
+        if (!analyticsSnap.empty) {
+          // Agrupar por tipo
+          const porTipo = {};
+          const moduloFrecuencia = {};
+          analyticsSnap.forEach(doc => {
+            const ev = doc.data();
+            porTipo[ev.tipo] = (porTipo[ev.tipo] || 0) + 1;
+            if (ev.tipo === 'modulo_visitado' && ev.datos?.modulo) {
+              moduloFrecuencia[ev.datos.modulo] = (moduloFrecuencia[ev.datos.modulo] || 0) + 1;
+            }
+          });
+          // Módulos más visitados (top 5)
+          const topModulos = Object.entries(moduloFrecuencia)
+            .sort((a, b) => b[1] - a[1]).slice(0, 5)
+            .map(([m, c]) => `${m}(${c}x)`).join(', ');
+          const totalAperturas = porTipo['app_open'] || 0;
+          app._analytics = {
+            totalAperturas,
+            modulosFrecuentes: topModulos,
+            totalEventos: analyticsSnap.size
+          };
+        }
+      } catch(e) { /* analytics opcionales — no interrumpir */ }
 
       const userMessage = construirUserPrompt(app);
 
@@ -866,6 +901,62 @@ exports.reengagementNotif = functions.pubsub
         'reengagement',
         '/'
       );
+    }
+    return null;
+  });
+
+/**
+ * F — midDayCheckIn
+ * Cron 12pm CDMX (18:00 UTC) — solo usuarios activos en últimas 24h
+ * Mensaje contextual de revisión de tareas al mediodía
+ */
+exports.midDayCheckIn = functions.pubsub
+  .schedule('0 18 * * *')
+  .timeZone('America/Mexico_City')
+  .onRun(async () => {
+    const mensajes = [
+      '¿Ya revisaste tus tareas de hoy? Mediodía es el mejor momento para hacer balance. 📋',
+      'A mitad del día — ¿cuántas tareas tienes listas? Tu racha te lo agradecerá. ✅',
+      'Check de mediodía: pausa 2 minutos y revisa qué completaste y qué sigue pendiente. ⚡',
+      'El mediodía es tu punto de control. Una tarea completada ahora vale el doble. 🎯',
+      'Ya pasó la mañana. ¿Qué moviste hoy? Entra y registra tu avance. 📈',
+    ];
+    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const snap = await db.collectionGroup('user_activity')
+      .where('completed_at', '>=', admin.firestore.Timestamp.fromDate(hace24h))
+      .get();
+    const activeUids = new Set(snap.docs.map(d => d.ref.parent.parent.id));
+    for (const uid of activeUids) {
+      const userSnap = await db.collection('users').doc(uid).get();
+      if (!userSnap.exists) continue;
+      const user = userSnap.data();
+      if (!user.notifications_enabled || !user.fcm_token) continue;
+      const msg = mensajes[Math.floor(Math.random() * mensajes.length)];
+      await _sendPush(user.fcm_token, '🕛 Revisión de mediodía — Life OS', msg, 'midday-check', '/');
+    }
+    return null;
+  });
+
+/**
+ * G — afternoonGoalReview
+ * Cron 4pm CDMX (22:00 UTC) — enfocado en metas y hábitos de tarde
+ * Solo usuarios Pro o con trial activo
+ */
+exports.afternoonGoalReview = functions.pubsub
+  .schedule('0 22 * * *')
+  .timeZone('America/Mexico_City')
+  .onRun(async () => {
+    const mensajes = [
+      'Quedan pocas horas del día. Una meta pequeña completada esta tarde cierra el día en verde. 🎯',
+      'Las 4pm son el último punto de impulso antes de que la energía baje. Úsalas. 💪',
+      'Tu hábito de la tarde está esperando. Entrena, lee, reflexiona — lo que sea, hazlo ahora. ⚡',
+      '¿Lograste lo que planeaste esta mañana? Cierra el ciclo antes de que se haga noche. ✅',
+      'La consistencia se construye en momentos como este. Abre Life OS y registra algo. 🔥',
+    ];
+    const users = await _getNotifiableUsers();
+    for (const user of users) {
+      const msg = mensajes[Math.floor(Math.random() * mensajes.length)];
+      await _sendPush(user.fcm_token, '🌅 Tarde productiva — Life OS', msg, 'afternoon-goal', '/');
     }
     return null;
   });

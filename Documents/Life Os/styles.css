@@ -38,10 +38,10 @@
   --bg2:rgba(255,255,255,.96);
   --bg3:rgba(0,0,0,.03);
   --border:rgba(0,80,180,.1);
-  /* Typography — deep navy, not pure black */
-  --text:#1a2035;
-  --text2:rgba(30,50,100,.65);
-  --text3:rgba(30,50,100,.38);
+  /* Typography — gris carbón, no negro puro (reduce fatiga visual) */
+  --text:#1a1a1a;
+  --text2:rgba(26,26,26,.62);
+  --text3:rgba(26,26,26,.38);
   /* Green, red, gold stay the same */
   --green:#16a34a;
   --red:#dc2626;
@@ -99,7 +99,7 @@ body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;
 .light .card{
   background:rgba(255,255,255,.98);
   border-color:rgba(0,80,180,.09);
-  box-shadow:0 2px 16px rgba(0,0,0,.05),0 1px 3px rgba(0,0,0,.04);
+  box-shadow:0 2px 12px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.05);
 }
 .light .card-title{ color:var(--accent); }
 /* Page titles */
@@ -3620,3 +3620,12 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
   }
 }
 
+
+/* ── Dashboard skeleton loader ─────────────────────────────── */
+@keyframes db-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.db-skel{
+  display:inline-block;height:.85em;border-radius:5px;
+  background:linear-gradient(90deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.04) 100%);
+  background-size:200% 100%;animation:db-shimmer 1.4s ease-in-out infinite;
+  min-width:60px;vertical-align:middle;
+}
