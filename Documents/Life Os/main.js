@@ -63,6 +63,8 @@ function _profileRef(uid)  { return _db.collection('users').doc(uid).collection(
 function _authDocRef(uid)  { return _db.collection('users').doc(uid); }
 // Sub-colección de actividad — alimenta el XP Chart real
 function _activityRef(uid) { return _db.collection('users').doc(uid).collection('user_activity'); }
+// Sub-colección de transacciones financieras — Cloud-First (una por documento)
+function _txCollRef(uid)   { return _db.collection('users').doc(uid).collection('transactions'); }
 
 // ── Debounce para guardar en Firestore sin saturar escrituras ──
 let _saveTimer = null;
@@ -1452,7 +1454,64 @@ function addGymSet(rId, exId) {
 /* ═══════════════════════════════════════════
    FINANCIAL
 ═══════════════════════════════════════════ */
-let personalBalance = 0;
+let personalBalance  = 0;
+let _finUnsubscribe  = null; // Unsubscribe handle del onSnapshot financiero
+
+/**
+ * _startFinancialListener — configura onSnapshot en tiempo real sobre
+ * users/{uid}/transactions. Migra automáticamente datos del doc monolítico
+ * a la sub-colección si la sub-colección todavía está vacía.
+ */
+async function _startFinancialListener(uid) {
+  if (!CLOUD_ENABLED || !_db) return;
+  if (_finUnsubscribe) { _finUnsubscribe(); _finUnsubscribe = null; }
+
+  // ── Migración única: si sub-colección vacía pero hay datos en el doc principal ──
+  try {
+    const checkSnap = await _txCollRef(uid).limit(1).get();
+    if (checkSnap.empty && S.transactions && S.transactions.length > 0) {
+      console.info('[Life OS] 💸 Migrando', S.transactions.length, 'transacciones a sub-colección...');
+      const batch = _db.batch();
+      S.transactions.forEach(tx => {
+        const ref = _txCollRef(uid).doc(tx.id || ('tx_' + Date.now() + Math.random()));
+        batch.set(ref, { ...tx, deleted: tx.deleted || false, createdAt: tx.createdAt || Date.now() });
+      });
+      await batch.commit();
+      console.info('[Life OS] ✅ Migración financiera completada.');
+    }
+  } catch(e) {
+    console.error('[Life OS] ❌ Financial migration error:', e.code, e.message);
+    if (e.code === 'permission-denied')
+      console.error('[Life OS] ❌ PERMISO DENEGADO — revisa la regla users/{uid}/transactions en firestore.rules');
+  }
+
+  // ── Listener en tiempo real ──
+  _finUnsubscribe = _txCollRef(uid)
+    .orderBy('date', 'desc')
+    .limit(300)
+    .onSnapshot(snap => {
+      S.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Recalcular saldo personal desde transacciones (fuente de verdad)
+      personalBalance = S.transactions
+        .filter(t => !t.deleted && t.scope === 'personal')
+        .reduce((a, t) => a + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+
+      // Recalcular saldos extras desde sus transacciones
+      (S.saldos || []).forEach(s => {
+        s.monto = S.transactions
+          .filter(t => !t.deleted && t.scope === s.id)
+          .reduce((a, t) => a + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+      });
+
+      // Solo actualizar UI si el módulo financiero está montado
+      if (document.getElementById('tx-list')) updateFinancialDisplay();
+    }, err => {
+      console.error('[Life OS] ❌ Financial onSnapshot error:', err.code, err.message);
+      if (err.code === 'permission-denied')
+        console.error('[Life OS] ❌ PERMISO DENEGADO en users/{uid}/transactions. Verifica firestore.rules.');
+    });
+}
 let piePChart=null, pieAChart=null;
 
 function toggleCuotas() {
@@ -1478,33 +1537,54 @@ function openTxModal() {
   openModal('modal-tx');
 }
 
-function addTransaction() {
+async function addTransaction() {
   const amount = parseFloat(document.getElementById('tx-amount').value); if (!amount||amount<=0) return;
-  // Determinar saldo destino: si hay dropdown de saldos visible, usarlo; si no, el scope hidden
   const saldoSel = document.getElementById('tx-saldo-select');
   const scopeVal = (saldoSel && saldoSel.style.display !== 'none')
     ? saldoSel.value
     : document.getElementById('tx-scope').value;
   const tx = {
-    id:uid(), type:document.getElementById('tx-type').value, scope:scopeVal,
-    category:document.getElementById('tx-cat').value, amount, desc:document.getElementById('tx-desc').value,
-    date:document.getElementById('tx-date').value||today(), cuotas:document.getElementById('tx-cuotas').checked,
-    numCuotas:document.getElementById('tx-num-cuotas').value
+    id: uid(),
+    type: document.getElementById('tx-type').value,
+    scope: scopeVal,
+    category: document.getElementById('tx-cat').value,
+    amount,
+    desc: document.getElementById('tx-desc').value,
+    date: document.getElementById('tx-date').value || today(),
+    cuotas: document.getElementById('tx-cuotas').checked,
+    numCuotas: document.getElementById('tx-num-cuotas').value,
+    deleted: false,
+    createdAt: Date.now()
   };
+
+  // ── Actualización optimista (inmediata en UI) ──
   S.transactions.unshift(tx);
-  _logActivity('finance', 5, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
-  // Actualizar saldo correspondiente
   const saldoObj = (S.saldos||[]).find(s => s.id === tx.scope);
   if (saldoObj) {
     saldoObj.monto += tx.type === 'entrada' ? amount : -amount;
   } else if (tx.scope === 'personal') {
     personalBalance += tx.type === 'entrada' ? amount : -amount;
   }
-  document.getElementById('tx-amount').value='';
-  document.getElementById('tx-desc').value='';
-  guardarDatos();
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-desc').value = '';
   closeModal('modal-tx');
   updateFinancialDisplay();
+
+  _logActivity('finance', 5, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
+  guardarDatos(); // localStorage + monolith doc (fallback)
+
+  // ── Cloud-First: escritura directa a sub-colección (sin debounce) ──
+  if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+    try {
+      await _txCollRef(_auth.currentUser.uid).doc(tx.id).set(tx);
+      // onSnapshot actualizará S.transactions y saldos automáticamente
+    } catch(e) {
+      console.error('[Life OS] ❌ addTransaction Firestore error:', e.code, e.message);
+      if (e.code === 'permission-denied')
+        console.error('[Life OS] ❌ PERMISO DENEGADO — revisa la regla users/{uid}/transactions en firestore.rules');
+      showToast('⚠️ Sin conexión — transacción guardada localmente');
+    }
+  }
 }
 
 function updateFinancialDisplay() {
@@ -1580,14 +1660,20 @@ function renderTransactions() {
 
 function deleteTx(id) {
   const t = S.transactions.find(x=>x.id===id); if (!t) return;
-  // Revertir impacto en saldo
+  // Revertir impacto en saldo (optimista)
   if (t.scope==='personal') personalBalance += t.type==='entrada'?-t.amount:t.amount;
   const saldoObj = (S.saldos||[]).find(s => s.id === t.scope);
   if (saldoObj) saldoObj.monto += t.type==='entrada'?-t.amount:t.amount;
-  // Soft delete (Fix 1.2)
+  // Soft delete local
   t.deleted = true; t.deletedAt = Date.now();
   guardarDatos(); updateFinancialDisplay();
   showToast('🗑 Transacción eliminada');
+  // Cloud-First: soft-delete directo en sub-colección
+  if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+    _txCollRef(_auth.currentUser.uid).doc(id)
+      .update({ deleted: true, deletedAt: t.deletedAt })
+      .catch(e => console.error('[Life OS] ❌ deleteTx Firestore error:', e.code, e.message));
+  }
 }
 
 function openEditTx(id) {
@@ -1602,10 +1688,19 @@ function saveTxEdit() {
   const t=S.transactions.find(x=>x.id===S.editingTx); if (!t) return;
   const newAmt=parseFloat(document.getElementById('etx-amount').value)||t.amount;
   const diff=newAmt-t.amount;
+  // Actualización optimista de saldos
   if (t.scope==='personal') personalBalance += t.type==='entrada'?diff:-diff;
+  const saldoObj = (S.saldos||[]).find(s => s.id === t.scope);
+  if (saldoObj) saldoObj.monto += t.type==='entrada'?diff:-diff;
   t.amount=newAmt; t.desc=document.getElementById('etx-desc').value||t.desc;
   guardarDatos();
   closeModal('modal-edit-tx'); updateFinancialDisplay();
+  // Cloud-First: actualización directa en sub-colección
+  if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+    _txCollRef(_auth.currentUser.uid).doc(t.id)
+      .update({ amount: t.amount, desc: t.desc })
+      .catch(e => console.error('[Life OS] ❌ saveTxEdit Firestore error:', e.code, e.message));
+  }
 }
 
 function addCard() {
@@ -4871,6 +4966,8 @@ async function loginSuccess(userObj) {
 
       // 6. Sistema de presencia — heartbeat + onDisconnect
       _startPresenceHeartbeat();
+      // 6b. Listener financiero en tiempo real
+      _startFinancialListener(myUid).catch(e => console.error('[Life OS] _startFinancialListener init error:', e.message));
 
       // 7. Conexiones / aliados desde Firestore
       loadAliadosFromCloud(myUid).catch(() => {});
@@ -4905,6 +5002,7 @@ async function doLogout() {
   // Forzar guardado final en Firestore antes de cerrar
   if (CLOUD_ENABLED && _auth?.currentUser) {
     _stopPresenceHeartbeat();
+    if (_finUnsubscribe) { _finUnsubscribe(); _finUnsubscribe = null; }
     await _setPresenceOffline().catch(() => {});
     await guardarDatosInmediato().catch(() => {});
     await _auth.signOut().catch(() => {});

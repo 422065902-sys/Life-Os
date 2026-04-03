@@ -40,15 +40,33 @@ service cloud.firestore {
       }
 
       // ── users/{uid}/user_activity/{activityId} — Historial de actividad ──
-      // Escritura permitida desde el cliente (el usuario registra sus propias acciones)
-      // Lectura permitida para el propio usuario y para Cloud Functions (Admin SDK bypasea estas reglas)
       match /user_activity/{activityId} {
         allow read:   if isAuth() && isOwner(uid);
         allow create: if isAuth() && isOwner(uid)
           && request.resource.data.keys().hasAll(['type','xp_earned','completed_at','label'])
           && request.resource.data.type in ['task','habit','workout','finance'];
-        // Sin update ni delete — los registros de actividad son inmutables
         allow update, delete: if false;
+      }
+
+      // ── users/{uid}/transactions/{txId} — Transacciones financieras (Cloud-First) ──
+      // Cada transacción es un documento individual. Soft-delete vía campo 'deleted'.
+      match /transactions/{txId} {
+        allow read:   if isAuth() && isOwner(uid);
+        allow create: if isAuth() && isOwner(uid)
+          && request.resource.data.keys().hasAll(['amount','type','scope','date','deleted'])
+          && request.resource.data.type in ['entrada','salida']
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0;
+        // Solo permite actualizar campos seguros (soft-delete, edición de monto/descripción)
+        allow update: if isAuth() && isOwner(uid)
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['type','scope','createdAt']);
+      }
+
+      // ── users/{uid}/entrenamientos/{entId} — Historial de sesiones de gym ──
+      match /entrenamientos/{entId} {
+        allow read:   if isAuth() && isOwner(uid);
+        allow create: if isAuth() && isOwner(uid);
       }
     }
 
