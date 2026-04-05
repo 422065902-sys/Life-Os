@@ -1,7 +1,7 @@
 # LIFE OS — HANDOVER DE EMERGENCIA
-**Fecha de generación:** 2026-04-03  
+**Fecha de generación:** 2026-04-03 · **Última actualización:** 2026-04-05  
 **Generado por:** Claude Code (Staff Engineer mode)  
-**Estado:** WIP activo — hay cambios no commiteados en `main.js`, `firestore.rules`, `.claude/settings.local.json`
+**Estado:** LIMPIO — todo commiteado y deployado en producción (commit `046e787`)
 
 ---
 
@@ -218,72 +218,44 @@ La boot screen es un guardia real de UI: nada se muestra hasta que tanto la anim
 
 ---
 
-## 5. ESTADO ACTUAL (WIP) — CONTEXTO INMEDIATO
+## 5. ESTADO ACTUAL — PRODUCCIÓN LIMPIA (2026-04-05)
 
-### Qué se estaba construyendo: **Sistema Financiero Cloud-First**
+### Último commit deployado: `046e787`
+```
+Feat: financial Cloud-First, iconos v3, reglas friendRequests, handover doc
+```
 
-La sesión anterior (y los cambios no commiteados en `main.js`) implementan una **migración arquitectural del módulo financiero**: las transacciones dejan de vivir en el documento monolítico (`users/{uid}/data/main`) y pasan a una **sub-colección dedicada con listener en tiempo real**.
+### Qué se completó y está en producción
+✅ **Sistema Financiero Cloud-First** — `users/{uid}/transactions` subcollection activa  
+✅ **`_startFinancialListener(uid)`** — onSnapshot en tiempo real operativo  
+✅ **Migración automática** — doc monolítico → subcollection al primer login  
+✅ **Reglas Firestore** `friendRequests` (Fix 4.1) — compiladas y en producción  
+✅ **Iconos PWA** — todos los tamaños actualizados  
+✅ **Firestore rules** `transactions` subcollection — con validaciones de type, amount, soft-delete  
 
-### Cambios NO commiteados (diff activo)
-
-**`main.js` — 126 líneas cambiadas:**
-
-1. **`_txCollRef(uid)`** — Nueva función helper (`main.js:67`):
-   ```js
-   function _txCollRef(uid) { return _db.collection('users').doc(uid).collection('transactions'); }
-   ```
-
-2. **`_startFinancialListener(uid)`** — Nueva función (`main.js:~1454`):
-   - Configura `onSnapshot` en tiempo real sobre `users/{uid}/transactions`
-   - **Migración automática única:** si la sub-colección está vacía pero `S.transactions` tiene datos, los migra en batch a la sub-colección
-   - En cada snapshot: recalcula `personalBalance` y los saldos adicionales desde las transacciones (fuente de verdad)
-   - Solo actualiza UI si el módulo financiero está montado
-   - Se llama en `loginSuccess()` paso 6b
-
-3. **`addTransaction()`** — Ahora `async`:
-   - Actualización optimista inmediata en UI
-   - Escribe directamente a `_txCollRef` (sin debounce)
-   - `guardarDatos()` sigue corriendo como fallback
-
-4. **`deleteTx(id)`** — Cloud-First:
-   - Soft-delete local inmediato
-   - Actualiza directamente `_txCollRef(uid).doc(id).update({ deleted: true, deletedAt })`
-
-5. **`saveTxEdit()`** — Cloud-First:
-   - Actualiza `_txCollRef(uid).doc(t.id).update({ amount, desc })`
-   - Corrige bug: también actualiza `saldoObj.monto` para saldos adicionales (estaba faltando)
-
-**`firestore.rules` — 24 líneas añadidas:**
-- Reglas completas para `friendRequests/{reqId}` (Fix 4.1) — ya están en el archivo, ya deployadas o pendientes de deploy.
+### Componentes financieros en producción (`main.js`)
+| Función | Línea | Rol |
+|---------|-------|-----|
+| `_txCollRef(uid)` | 67 | Helper ref a subcollección |
+| `_startFinancialListener(uid)` | 1465 | onSnapshot + migración automática |
+| `addTransaction()` | 1540 | async, Cloud-First + optimista |
+| `deleteTx(id)` | 1661 | Soft-delete local + Firestore |
+| `saveTxEdit()` | 1687 | Edit + saldoObj fix + Firestore |
 
 ### Bugs conocidos no críticos
 - `NotFoundError: insertBefore on Node` en `showModuleCard()` — race condition DOM, no bloquea features.
 - `email-decode.min.js 404` — script de Cloudflare/Vercel, no es código nuestro.
 - `enableMultiTabIndexedDbPersistence() deprecated` — advertencia de Firebase SDK.
 
-### Próximas 3 Tareas Inmediatas
+### Próxima tarea sugerida
+**Verificar migración de transacciones en producción (primera vez que un usuario real abre la app)**
+1. Login → DevTools Console → buscar `[Life OS] 💸 Migrando`
+2. Agregar transacción → verificar en Firestore Console bajo `users/{uid}/transactions/`
+3. Saldo debe actualizarse en tiempo real sin refresh
 
-**TAREA 1 — Verificar y deployar `firestore.rules` con reglas de `transactions`**
-La regla para `users/{uid}/transactions` YA existe en `firestore.rules` (líneas 51-64). El listener en tiempo real (`_startFinancialListener`) fallará silenciosamente si las reglas no están en producción.
-```bash
-firebase deploy --only firestore:rules
-```
-Luego probar en DevTools que `onSnapshot` recibe datos sin error `permission-denied`.
-
-**TAREA 2 — Commitear los cambios de `main.js` (Financial Cloud-First)**
-Los cambios en `main.js` son sólidos y funcionales. Commitear:
-```bash
-git add "Documents/Life Os/main.js" "Documents/Life Os/firestore.rules"
-git commit -m "Feat: financial Cloud-First — transactions subcollection + real-time listener"
-```
-Luego hacer `git push` para que Vercel deploy automáticamente.
-
-**TAREA 3 — Verificar migración de transacciones en producción**
-Después del deploy:
-1. Login con `wencesreal35@gmail.com`
-2. Abrir DevTools → Console → verificar que aparece `[Life OS] 💸 Migrando X transacciones a sub-colección...` seguido de `[Life OS] ✅ Migración financiera completada.`
-3. Agregar una transacción nueva → verificar que aparece en Firestore Console bajo `users/{uid}/transactions/`
-4. Verificar que el saldo se actualiza en tiempo real
+### Pendiente de sesiones anteriores (carry-over)
+- **OpenClaw en Hostinger:** quiere configurar pruebas automatizadas para `mylifeos.lat`. Preguntar qué tiene ya en Hostinger y qué falta conectar.
+- **MAPA_FUNCIONES.md** — creado para guion de TikTok. Ver `MAPA_FUNCIONES.md` en la raíz del proyecto.
 
 ---
 
@@ -330,4 +302,4 @@ S.equippedRoom           // string — ID de la room actualmente equipada
 
 ---
 
-*Documento generado automáticamente el 2026-04-03. Para actualizar, re-ejecutar handover desde Claude Code.*
+*Generado 2026-04-03 · Actualizado 2026-04-05. Para regenerar: pedirle a Claude Code "handover de emergencia".*
