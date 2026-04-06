@@ -315,6 +315,7 @@ function navigate(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
   S.currentPage = id;
+  window.scrollTo({ top: 0, behavior: 'instant' });
   buildNav();
   // Lazy init charts + global core update on every navigation
   if (id==='dashboard')     { initRadarChart(); initFocusBars(); hydrateDashboard(); renderMorningBriefing(); updateGlobalCore(); renderDashboardHeader(); }
