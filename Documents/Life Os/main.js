@@ -122,6 +122,8 @@ function _buildSavePayload() {
     bubbleEmoji:S.bubbleEmoji||'',
     friendRequests:S.friendRequests||[],
     physWeight:S.physWeight||0,
+    unlockedRooms:S.unlockedRooms||['starter_basic','starter_soft'],
+    equippedRoom:S.equippedRoom||'starter_basic',
   };
   if (CLOUD_ENABLED && _db) {
     p._updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -4600,6 +4602,14 @@ function _applyData(d) {
   if (!S.modoRecuperacionFecha) S.modoRecuperacionFecha = '';
   if (!S.blackoutOverrideToday) S.blackoutOverrideToday = '';
   if (!S.friendRequests) S.friendRequests = [];
+  // Restaurar estado del apartamento (rooms desbloqueadas y room equipada)
+  if (!S.unlockedRooms || !Array.isArray(S.unlockedRooms)) S.unlockedRooms = ['starter_basic','starter_soft'];
+  if (!S.equippedRoom) S.equippedRoom = 'starter_basic';
+  // Aplicar la room equipada al fondo del apartamento si el DOM ya existe
+  const aptBg = document.getElementById('apt-bg');
+  if (aptBg && S.equippedRoom && typeof ROOM_IMAGES !== 'undefined' && ROOM_IMAGES[S.equippedRoom]) {
+    aptBg.src = ROOM_IMAGES[S.equippedRoom];
+  }
   checkModoRecuperacionAlInicio();
 }
 
