@@ -134,10 +134,10 @@ service cloud.firestore {
         && request.resource.data.status  == 'pending'
         && request.resource.data.keys().hasAll(['fromUid','toUid','fromNombre','status','sentAt']);
 
-      // Actualizar: solo el destinatario puede cambiar el status
+      // Actualizar: solo el destinatario puede cambiar status (y opcionalmente acceptedAt)
       allow update: if isAuth()
         && resource.data.toUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','acceptedAt'])
         && request.resource.data.status in ['accepted','rejected'];
 
       // Eliminar: el remitente puede cancelar su solicitud

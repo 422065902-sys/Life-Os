@@ -788,6 +788,7 @@ function saveTaskEdit() {
   t.desc = document.getElementById('et-desc').value;
   t.date = document.getElementById('et-date').value;
   t.time = document.getElementById('et-time').value;
+  guardarDatos();
   closeModal('modal-edit-task');
   renderTasks();
 }
@@ -1376,7 +1377,7 @@ function removeExercise(rId, exId) {
 
 function toggleRoutineActive(id) {
   const r = S.routines.find(x=>x.id===id); if (!r) return;
-  r.active = !r.active; renderRoutines();
+  r.active = !r.active; guardarDatos(); renderRoutines();
 }
 
 function deleteRoutine(id) {
@@ -1396,6 +1397,7 @@ function openEditRoutine(id) {
 function saveRoutineEdit() {
   const r = S.routines.find(x=>x.id===S.editingRoutine); if (!r) return;
   r.name = document.getElementById('er-name').value||r.name;
+  guardarDatos();
   closeModal('modal-edit-routine'); renderRoutines();
 }
 
@@ -1465,6 +1467,7 @@ function addGymSet(rId, exId) {
   } else {
     _logActivity('workout', 10, (ex.name || 'Ejercicio') + ' ' + w + 'kg × ' + reps + ' reps');
   }
+  guardarDatos();
   renderGymMode();
 }
 
@@ -1941,18 +1944,18 @@ function addObjective(goalId) {
   const text=inp.value.trim(); if (!text) return;
   const g=S.goals.find(x=>x.id===goalId); if (!g) return;
   g.objectives.push({ id:uid(), text, done:false });
-  inp.value=''; renderGoals(); showToast('🎯 Objetivo agregado');
+  inp.value=''; guardarDatos(); renderGoals(); showToast('🎯 Objetivo agregado');
 }
 
 function toggleObj(goalId, objId) {
   const g=S.goals.find(x=>x.id===goalId); if (!g) return;
   const o=g.objectives.find(x=>x.id===objId); if (!o) return;
-  o.done=!o.done; renderGoals();
+  o.done=!o.done; guardarDatos(); renderGoals();
 }
 
 function deleteObj(goalId, objId) {
   const g=S.goals.find(x=>x.id===goalId); if (!g) return;
-  g.objectives=g.objectives.filter(x=>x.id!==objId); renderGoals();
+  g.objectives=g.objectives.filter(x=>x.id!==objId); guardarDatos(); renderGoals();
 }
 
 function deleteGoal(id) {
@@ -1976,6 +1979,7 @@ function saveGoalEdit() {
   g.title=document.getElementById('eg-title').value||g.title;
   g.desc=document.getElementById('eg-desc').value;
   g.category=document.getElementById('eg-cat').value;
+  guardarDatos();
   closeModal('modal-edit-goal'); renderGoals();
 }
 
