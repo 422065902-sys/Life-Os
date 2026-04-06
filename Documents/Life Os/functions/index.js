@@ -741,10 +741,12 @@ exports.notifyTrialExpiring = functions.pubsub
 
 /**
  * C — dailyBriefing
- * Cron 8am CDMX (14:00 UTC) todos los días
+ * Cron 8am CDMX todos los días
+ * NOTA: cuando se usa .timeZone(), el cron se interpreta en esa zona horaria directamente.
+ * '0 8 * * *' + timeZone('America/Mexico_City') = 08:00 CDMX ✓
  */
 exports.dailyBriefing = functions.pubsub
-  .schedule('0 14 * * *')
+  .schedule('0 8 * * *')
   .timeZone('America/Mexico_City')
   .onRun(async () => {
     const users = await _getNotifiableUsers();
@@ -762,10 +764,10 @@ exports.dailyBriefing = functions.pubsub
 
 /**
  * D — motivationalPill
- * Cron 3pm CDMX (21:00 UTC) — solo usuarios activos en últimas 48h
+ * Cron 3pm CDMX — solo usuarios activos en últimas 48h
  */
 exports.motivationalPill = functions.pubsub
-  .schedule('0 21 * * *')
+  .schedule('0 15 * * *')
   .timeZone('America/Mexico_City')
   .onRun(async () => {
     const mensajes = [
@@ -907,11 +909,11 @@ exports.reengagementNotif = functions.pubsub
 
 /**
  * F — midDayCheckIn
- * Cron 12pm CDMX (18:00 UTC) — solo usuarios activos en últimas 24h
+ * Cron 12pm CDMX — solo usuarios activos en últimas 24h
  * Mensaje contextual de revisión de tareas al mediodía
  */
 exports.midDayCheckIn = functions.pubsub
-  .schedule('0 18 * * *')
+  .schedule('0 12 * * *')
   .timeZone('America/Mexico_City')
   .onRun(async () => {
     const mensajes = [
@@ -939,11 +941,10 @@ exports.midDayCheckIn = functions.pubsub
 
 /**
  * G — afternoonGoalReview
- * Cron 4pm CDMX (22:00 UTC) — enfocado en metas y hábitos de tarde
- * Solo usuarios Pro o con trial activo
+ * Cron 4pm CDMX — enfocado en metas y hábitos de tarde
  */
 exports.afternoonGoalReview = functions.pubsub
-  .schedule('0 22 * * *')
+  .schedule('0 16 * * *')
   .timeZone('America/Mexico_City')
   .onRun(async () => {
     const mensajes = [
@@ -957,6 +958,41 @@ exports.afternoonGoalReview = functions.pubsub
     for (const user of users) {
       const msg = mensajes[Math.floor(Math.random() * mensajes.length)];
       await _sendPush(user.fcm_token, '🌅 Tarde productiva — Life OS', msg, 'afternoon-goal', '/');
+    }
+    return null;
+  });
+
+/**
+ * H — eveningWindDown
+ * Cron 8pm CDMX — cierre del día: reflexión y registro de victorias
+ * Solo usuarios con actividad en las últimas 12h para no molestar a inactivos
+ */
+exports.eveningWindDown = functions.pubsub
+  .schedule('0 20 * * *')
+  .timeZone('America/Mexico_City')
+  .onRun(async () => {
+    const mensajes = [
+      'El día casi termina. ¿Registraste tu victoria de hoy en la bitácora? 📝',
+      'Antes de cerrar el día: una entrada en tu bitácora vale más que cualquier resumen de fin de año. 💜',
+      '8pm — momento de reflexión. ¿Qué funcionó hoy? Escríbelo antes de que lo olvides. 🌙',
+      '¿Completaste tus hábitos de hoy? Hay tiempo. Un hábito antes de dormir cierra el ciclo. ⚡',
+      'El mejor momento para planear mañana es esta noche. Abre Life OS y deja todo listo. 🎯',
+    ];
+    const hace12h = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+    const snap = await db.collectionGroup('user_activity')
+      .where('completed_at', '>=', admin.firestore.Timestamp.fromDate(hace12h))
+      .get();
+
+    const activeUids = new Set(snap.docs.map(d => d.ref.parent.parent.id));
+
+    for (const uid of activeUids) {
+      const userSnap = await db.collection('users').doc(uid).get();
+      if (!userSnap.exists) continue;
+      const user = userSnap.data();
+      if (!user.notifications_enabled || !user.fcm_token) continue;
+      const msg = mensajes[Math.floor(Math.random() * mensajes.length)];
+      await _sendPush(user.fcm_token, '🌙 Cierre de día — Life OS', msg, 'evening-winddown', '/');
     }
     return null;
   });

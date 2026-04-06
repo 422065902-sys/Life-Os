@@ -39,6 +39,7 @@ const VAPID_PUBLIC_KEY = 'BGbVlyWzU_HsWTKx6c2iLI9-1JhGPfjkz6wwWKRoi4r0owTEyUk4lP
 let _auth      = null;
 let _db        = null;
 let _functions = null;
+let _messaging = null;
 
 if (CLOUD_ENABLED) {
   try {
@@ -46,6 +47,12 @@ if (CLOUD_ENABLED) {
     _auth      = firebase.auth();
     _db        = firebase.firestore();
     _functions = firebase.functions();
+    // Inicializar Firebase Cloud Messaging (requiere SDK de messaging en index.html)
+    if (typeof firebase.messaging === 'function') {
+      try { _messaging = firebase.messaging(); } catch(e) {
+        console.warn('[Life OS] firebase.messaging() no disponible:', e.message);
+      }
+    }
     // Habilitar persistencia offline de Firestore
     try { _db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
     console.info('[Life OS] ☁️ Firebase inicializado correctamente.');
@@ -8906,15 +8913,15 @@ async function registerPushNotifications(uid) {
   }
 
   try {
-    // Registrar Service Worker
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    // Registrar el SW de Firebase Messaging (firebase-messaging-sw.js)
+    // IMPORTANTE: debe ser este SW para que FCM funcione correctamente
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     await navigator.serviceWorker.ready;
 
     // Solicitar permiso al usuario
     const permission = await Notification.requestPermission();
 
     if (permission === 'denied') {
-      // Actualizar Firestore y notificar al usuario
       await _authDocRef(uid).update({ notifications_enabled: false }).catch(() => {});
       showToast('🔕 Notificaciones bloqueadas. Actívalas desde la configuración de tu navegador.');
       _updateNotifStatusUI('denied');
@@ -8926,19 +8933,33 @@ async function registerPushNotifications(uid) {
       return false;
     }
 
-    // Suscribir con VAPID key
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly:      true,
-      applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+    // Obtener FCM registration token (requerido por admin.messaging().send() en Cloud Functions)
+    let token = null;
+    if (_messaging) {
+      // Ruta correcta: FCM token via Firebase Messaging SDK
+      token = await _messaging.getToken({ vapidKey: VAPID_PUBLIC_KEY, serviceWorkerRegistration: registration });
+    } else {
+      // Fallback si el SDK de Messaging no está cargado (no recomendado para producción)
+      console.warn('[Life OS] firebase.messaging() no disponible — usando Web Push endpoint como fallback');
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly:      true,
+        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      token = subscription.endpoint;
+    }
 
-    // Guardar token en Firestore (usar p256dh como identificador de sesión)
-    const token = subscription.endpoint;
+    if (!token) {
+      showToast('⚠️ No se pudo obtener el token de notificaciones. Verifica los permisos.');
+      return false;
+    }
+
+    // Persistir en Firestore: doc raíz users/{uid} (lo leen las Cloud Functions)
     await _authDocRef(uid).update({
       fcm_token:             token,
       notifications_enabled: true,
     });
 
+    console.info('[Life OS] 🔔 FCM token registrado correctamente para uid:', uid);
     showToast('🔔 Notificaciones activadas — recibirás tu Daily Briefing cada mañana');
     _updateNotifStatusUI('granted');
     return true;

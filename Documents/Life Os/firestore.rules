@@ -145,6 +145,21 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════
+    //  analytics/{uid}/eventos — Telemetría silenciosa
+    //  El cliente SOLO puede crear eventos propios (no leer, no editar, no borrar).
+    //  Lectura reservada al Admin SDK (Cloud Functions / consola de admin).
+    //  Estos datos alimentan el Gemelo Potenciado vía generateGemeloAnalysis.
+    // ═══════════════════════════════════════════════════════════
+    match /analytics/{uid}/eventos/{eventId} {
+      // Crear: solo el propio usuario puede escribir sus eventos
+      allow create: if isAuth() && isOwner(uid)
+        && request.resource.data.keys().hasAll(['tipo', 'timestamp', 'uid'])
+        && request.resource.data.uid == request.auth.uid;
+      // Lectura y escritura admin → solo vía Admin SDK (bypasea estas reglas)
+      allow read, update, delete: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════
     //  Bloquear todo lo no definido explícitamente
     // ═══════════════════════════════════════════════════════════
     match /{document=**} {
