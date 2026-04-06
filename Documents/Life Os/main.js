@@ -315,7 +315,16 @@ function navigate(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
   S.currentPage = id;
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  // Reset scroll en todos los contenedores posibles (iOS PWA, Android, desktop)
+  try {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    const main = document.getElementById('main');
+    if (main) main.scrollTop = 0;
+    const content = document.getElementById('content');
+    if (content) content.scrollTop = 0;
+  } catch(e) {}
   buildNav();
   // Lazy init charts + global core update on every navigation
   if (id==='dashboard')     { initRadarChart(); initFocusBars(); hydrateDashboard(); renderMorningBriefing(); updateGlobalCore(); renderDashboardHeader(); }
