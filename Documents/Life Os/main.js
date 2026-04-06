@@ -1474,8 +1474,9 @@ function addGymSet(rId, exId) {
 /* ═══════════════════════════════════════════
    FINANCIAL
 ═══════════════════════════════════════════ */
-let personalBalance  = 0;
-let _finUnsubscribe  = null; // Unsubscribe handle del onSnapshot financiero
+let personalBalance      = 0;
+let _finUnsubscribe      = null;  // Unsubscribe handle del onSnapshot financiero
+let _finListenerReady    = false; // true después del primer onSnapshot — evita mostrar $0 falso
 
 /**
  * _startFinancialListener — configura onSnapshot en tiempo real sobre
@@ -1524,8 +1525,10 @@ async function _startFinancialListener(uid) {
           .reduce((a, t) => a + (t.type === 'entrada' ? t.amount : -t.amount), 0);
       });
 
-      // Solo actualizar UI si el módulo financiero está montado
-      if (document.getElementById('tx-list')) updateFinancialDisplay();
+      // Marcar listener como listo (evita mostrar "$0" falso antes del primer snapshot)
+      _finListenerReady = true;
+      // Actualizar UI: siempre el balance del dashboard, y finanzas si el módulo está montado
+      updateFinancialDisplay();
     }, err => {
       console.error('[Life OS] ❌ Financial onSnapshot error:', err.code, err.message);
       if (err.code === 'permission-denied')
@@ -1608,8 +1611,10 @@ async function addTransaction() {
 }
 
 function updateFinancialDisplay() {
-  document.getElementById('fin-personal-bal').textContent = fmt(personalBalance);
-  document.getElementById('db-personal-bal').textContent = fmt(personalBalance);
+  // Mostrar skeleton mientras el listener de Firestore no ha entregado su primer snapshot
+  const balText = _finListenerReady ? fmt(personalBalance) : '…';
+  document.getElementById('fin-personal-bal').textContent = balText;
+  document.getElementById('db-personal-bal').textContent = balText;
   const pIn  = S.transactions.filter(t=>t.scope==='personal'&&t.type==='entrada').reduce((a,t)=>a+t.amount,0);
   const pOut = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida').reduce((a,t)=>a+t.amount,0);
   document.getElementById('fin-p-in').textContent = fmt(pIn);
@@ -4607,25 +4612,37 @@ function cargarDatos() {
   } catch(e) { console.warn('[Life OS] cargarDatos (caché) error:', e); }
 }
 
-// ── cargarDatosNube: carga autoritativa desde Firestore y refresca UI ──
+// ── Handle del listener del doc principal (para poder desuscribirse al logout) ──
+let _mainDocUnsubscribe = null;
+
+// ── cargarDatosNube: carga autoritativa + activa onSnapshot para sync en tiempo real ──
 async function cargarDatosNube(uid) {
-  try {
-    const snap = await _userRef(uid).get();
-    if (snap.exists) {
-      const d = snap.data();
-      // Eliminar campo de timestamp de Firestore antes de aplicar al estado
-      delete d._updatedAt;
-      _applyData(d);
-      // Actualizar caché local con datos frescos de la nube
-      _cacheLocally();
-    } else {
-      // Primera vez del usuario — no hay datos en nube, usar defaults
-      console.info('[Life OS] Usuario nuevo — sin datos en Firestore aún.');
-    }
-  } catch(e) {
-    console.warn('[Life OS] cargarDatosNube error:', e);
-    showToast('⚠️ Sin conexión — usando datos locales');
-  }
+  // Cancelar listener previo si existiera (cambio de sesión)
+  if (_mainDocUnsubscribe) { _mainDocUnsubscribe(); _mainDocUnsubscribe = null; }
+
+  return new Promise((resolve) => {
+    let firstLoad = true;
+    _mainDocUnsubscribe = _userRef(uid).onSnapshot(snap => {
+      if (snap.exists) {
+        const d = snap.data();
+        delete d._updatedAt; // No aplicar timestamp de Firestore al estado
+        _applyData(d);
+        _cacheLocally();
+        // En cargas posteriores (cambios desde otro dispositivo): refrescar UI silenciosamente
+        if (!firstLoad) {
+          updateXP(); renderHabits(); renderTasks(); renderGoals();
+          updateFinancialDisplay(); updateDashboardTaskCount();
+          updateFisicoWidget(); updateGlobalCore();
+        }
+      } else if (firstLoad) {
+        console.info('[Life OS] Usuario nuevo — sin datos en Firestore aún.');
+      }
+      if (firstLoad) { firstLoad = false; resolve(); }
+    }, e => {
+      console.warn('[Life OS] cargarDatosNube onSnapshot error:', e.message);
+      if (firstLoad) { resolve(); } // No bloquear el boot en caso de error de red
+    });
+  });
 }
 
 // Registrar XP ganado hoy en el historial
@@ -5023,7 +5040,10 @@ async function doLogout() {
   // Forzar guardado final en Firestore antes de cerrar
   if (CLOUD_ENABLED && _auth?.currentUser) {
     _stopPresenceHeartbeat();
-    if (_finUnsubscribe) { _finUnsubscribe(); _finUnsubscribe = null; }
+    if (_finUnsubscribe)  { _finUnsubscribe();  _finUnsubscribe  = null; }
+    if (_mainDocUnsubscribe) { _mainDocUnsubscribe(); _mainDocUnsubscribe = null; }
+    _finListenerReady = false;
+    personalBalance   = 0;
     await _setPresenceOffline().catch(() => {});
     await guardarDatosInmediato().catch(() => {});
     await _auth.signOut().catch(() => {});
