@@ -117,6 +117,8 @@ function _buildSavePayload() {
     ideas:S.ideas||[],
     claudeApiKey:S.claudeApiKey||'',
     gemelo:S.gemelo||{state:'idle',startDate:null,dataPoints:0,lastAnalysis:null,survivalTasks:{}},
+    geminoPotenciado:S.geminoPotenciado||{activado:false,fechaActivacion:null,diasObservacion:0,analisisGenerado:false},
+    onboardingGemeloCompletado:S.onboardingGemeloCompletado||false,
     blackoutOverrideToday:S.blackoutOverrideToday||'',
     bubbleColor:S.bubbleColor||'',
     bubbleEmoji:S.bubbleEmoji||'',
@@ -198,6 +200,8 @@ const S = {
   ideas: [],                     // [{id, text, date}] — Ideas Rápidas desde FAB
   claudeApiKey: '',              // Anthropic API key para NLP semántico
   gemelo: { state:'idle', startDate:null, dataPoints:0, lastAnalysis:null, survivalTasks:{} },
+  geminoPotenciado: { activado:false, fechaActivacion:null, diasObservacion:0, analisisGenerado:false },
+  onboardingGemeloCompletado: false,
   blackoutOverrideToday: '',     // fecha YYYY-MM-DD cuando una acción XP (no check-in/calib) desvaneció el Blackout
   bubbleColor: '',               // color de burbuja guardado en nube (Fix 2.1)
   bubbleEmoji: '',               // emoji de burbuja guardado en nube (Fix 2.1)
@@ -728,6 +732,8 @@ function _addTaskOriginal() {
   ['t-name','t-desc'].forEach(id=>document.getElementById(id).value='');
   guardarDatos();
   renderTasks();
+  updateDashboardTaskCount();
+  updateGlobalCore();
 }
 
 function renderTasks() {
@@ -765,12 +771,13 @@ function toggleTask(id) {
   showToast('🎉 +50 XP ganado!');
   renderTasks();
   updateDashboardTaskCount();
+  updateGlobalCore();
 }
 
 function deleteTask(id) {
   const t = S.tasks.find(x=>x.id===id); if (!t) return;
   t.deleted = true; t.deletedAt = Date.now();
-  guardarDatos(); renderTasks(); updateDashboardTaskCount(); renderUpcomingList && renderUpcomingList();
+  guardarDatos(); renderTasks(); updateDashboardTaskCount(); updateGlobalCore(); renderUpcomingList && renderUpcomingList();
   showToast('🗑 Tarea eliminada');
 }
 
@@ -1617,8 +1624,8 @@ function updateFinancialDisplay() {
   const balText = _finListenerReady ? fmt(personalBalance) : '…';
   document.getElementById('fin-personal-bal').textContent = balText;
   document.getElementById('db-personal-bal').textContent = balText;
-  const pIn  = S.transactions.filter(t=>t.scope==='personal'&&t.type==='entrada').reduce((a,t)=>a+t.amount,0);
-  const pOut = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida').reduce((a,t)=>a+t.amount,0);
+  const pIn  = S.transactions.filter(t=>t.scope==='personal'&&t.type==='entrada'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
+  const pOut = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
   document.getElementById('fin-p-in').textContent = fmt(pIn);
   document.getElementById('fin-p-out').textContent = fmt(pOut);
   updatePieCharts();
@@ -1628,7 +1635,7 @@ function updateFinancialDisplay() {
 }
 
 function updatePieCharts() {
-  const pExp = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida');
+  const pExp = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida'&&!t.deleted);
   buildPie('piePersonal','pie-p-empty','pie-p-legend',pExp);
 }
 
@@ -2335,6 +2342,7 @@ function handleReset() {
     guardarDatos();
     updateXP();
     renderTasks();
+    updateDashboardTaskCount();
     renderHabits();
     updateFinancialDisplay();
     renderExtraSaldos();
@@ -5533,6 +5541,11 @@ function syncCalibrationAndCheckin() {
       }, 600);
     }
   }
+
+  // Primera sesión: mostrar onboarding del Gemelo justo después del check-in
+  if (S.primeraSesion && !S.onboardingGemeloCompletado && S.gemelo?.state !== 'observing') {
+    setTimeout(() => { if (typeof showOnboardingGemelo === 'function') showOnboardingGemelo(); }, 400);
+  }
 }
 
 function triggerCheckinIfNeeded() {
@@ -5679,9 +5692,13 @@ function confirmSeedMissions() {
 }
 
 function checkOnboarding() {
-  // Primera sesión: forzar activación del Gemelo antes del onboarding
-  if (S.primeraSesion && !S.gemelo?.state) {
-    setTimeout(() => openGemeloFirstSessionModal(), 600);
+  // Primera sesión: onboarding obligatorio del Gemelo Potenciado (solo si no está ya activado)
+  if (S.primeraSesion && !S.onboardingGemeloCompletado && S.gemelo?.state !== 'observing') {
+    // Activar solo si el check-in ya fue completado (evita solaparse con modal-calibration)
+    if (S.dailyCheckIn[today()]) {
+      setTimeout(() => { if (typeof showOnboardingGemelo === 'function') showOnboardingGemelo(); }, 600);
+    }
+    // Si el check-in aún no terminó, syncCalibrationAndCheckin lo activará después
     return;
   }
   // Mostrar solo si es la primera vez (no ha hecho onboarding Y no tiene tareas previas)
@@ -6084,9 +6101,16 @@ function _applyFABResult(p) {
   const routed = [];
   for (const mod of (p.modules||[])) {
     if (mod==='financial' && p.financial) {
-      S.transactions.unshift({ id:uid(), type:'salida', scope:'personal',
+      const fabTx = { id:uid(), type:'salida', scope:'personal',
         category:'Otro', amount:p.financial.amount,
-        desc:p.financial.desc, date:today(), cuotas:false });
+        desc:p.financial.desc, date:today(), cuotas:false,
+        deleted:false, createdAt:Date.now() };
+      S.transactions.unshift(fabTx);
+      // Cloud-First: write to sub-collection so onSnapshot keeps it
+      if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+        _txCollRef(_auth.currentUser.uid).doc(fabTx.id).set(fabTx)
+          .catch(e => console.warn('[Life OS] FAB financial save:', e.message));
+      }
       if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
       routed.push({ mod:'financial', detail:`$${(p.financial.amount||0).toLocaleString()}` });
     }
@@ -8100,6 +8124,7 @@ function ideaToTask(id) {
   idea.status = 'task';
   if (typeof renderTasks === 'function') renderTasks();
   if (typeof updateDashboardTaskCount === 'function') updateDashboardTaskCount();
+  if (typeof updateGlobalCore === 'function') updateGlobalCore();
   guardarDatos();
   renderIdeas();
   showToast('✅ Convertida en tarea');
@@ -9583,7 +9608,7 @@ function addTask() {
   S.tasks.unshift({ id:uid(), name:_emo+' '+_cor, desc:document.getElementById('t-desc')&&document.getElementById('t-desc').value||'', date:document.getElementById('t-date')&&document.getElementById('t-date').value||'', time:document.getElementById('t-time')&&document.getElementById('t-time').value||'', done:false, categoria:_cat, originalInput:_raw });
   ['t-name','t-desc'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   showToast(_emo + ' Tarea creada · ' + _cat);
-  renderTasks(); updateDashboardTaskCount && updateDashboardTaskCount(); guardarDatos();
+  renderTasks(); updateDashboardTaskCount && updateDashboardTaskCount(); updateGlobalCore && updateGlobalCore(); guardarDatos();
 }
 
 /* ═══════════════════════════════════════════════════════════════
