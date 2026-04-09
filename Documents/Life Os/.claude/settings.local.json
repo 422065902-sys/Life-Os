@@ -6,7 +6,23 @@
       "Bash(sed -n '6342,6368p' \"c:/Users/wence/Downloads/Nueva carpeta \\(9\\)/index.html\")",
       "Bash(sed -n '7715,7740p' \"c:/Users/wence/Downloads/Nueva carpeta \\(9\\)/index.html\")",
       "Bash(ls \"c:\\\\Users\\\\wence\\\\Downloads\\\\Nueva carpeta \\(9\\)\"\")",
-      "Bash(ls '/c/Users/wence/Downloads/Nueva carpeta \\(9\\)/')"
+      "Bash(ls '/c/Users/wence/Downloads/Nueva carpeta \\(9\\)/')",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\nHeaders:\\\\n\" -X OPTIONS \"https://us-central1-life-os-prod-3a590.cloudfunctions.net/createStripeCheckoutSession\" -H \"Origin: https://mylifeos.lat\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: content-type\" -D -)",
+      "Bash(gcloud functions:*)",
+      "Bash(where gcloud:*)",
+      "Bash(firebase --help)",
+      "Bash(firebase login:ci --no-localhost)",
+      "Bash(firebase auth:export /dev/null)",
+      "Bash(firebase --token)",
+      "Read(//c/Users/wence/.config/configstore/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\)\")",
+      "Read(//c/Users/wence/AppData/Roaming/configstore/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); tokens=d.get\\('tokens',{}\\); print\\('access_token found:', 'access_token' in tokens\\)\")",
+      "Read(//c/Users/wence/AppData/Roaming/**)",
+      "Read(//c/Users/wence/AppData/Local/**)",
+      "Read(//c/Users/wence/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); tokens=d.get\\('tokens',{}\\); print\\('token keys:', list\\(tokens.keys\\(\\)\\)\\); at=tokens.get\\('access_token',''\\); print\\('access_token prefix:', at[:40] if at else 'NOT FOUND'\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const d=JSON.parse\\(fs.readFileSync\\('C:/Users/wence/.config/configstore/firebase-tools.json','utf8'\\)\\); const t=d.tokens||{}; console.log\\('keys:', Object.keys\\(t\\)\\); console.log\\('access_token:', \\(t.access_token||''\\).substring\\(0,40\\)\\)\")"
     ]
   }
 }
