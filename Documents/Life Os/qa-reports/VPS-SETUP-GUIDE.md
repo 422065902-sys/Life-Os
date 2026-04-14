@@ -119,27 +119,28 @@ mkdir -p qa-reports
 cat > /opt/openclaw/.env << 'EOF'
 # ════════════════════════════════════════════
 # LIFE OS — Variables de entorno para STAGING
+# Proyecto: mylifeos-staging
 # NO usar credenciales de producción aquí
 # ════════════════════════════════════════════
 
-# Firebase STAGING (proyecto life-os-staging)
-FIREBASE_API_KEY=AIzaSy_STAGING_KEY_AQUI
-FIREBASE_AUTH_DOMAIN=life-os-staging.firebaseapp.com
-FIREBASE_PROJECT_ID=life-os-staging
-FIREBASE_STORAGE_BUCKET=life-os-staging.appspot.com
-FIREBASE_MESSAGING_SENDER_ID=STAGING_SENDER_ID
-FIREBASE_APP_ID=STAGING_APP_ID
+# Firebase STAGING — credenciales reales del proyecto mylifeos-staging
+FIREBASE_API_KEY=AIzaSyDoSVDHs0dfmttl7vUrp-Qf1Qz2qJ8tF4E
+FIREBASE_AUTH_DOMAIN=mylifeos-staging.firebaseapp.com
+FIREBASE_PROJECT_ID=mylifeos-staging
+FIREBASE_STORAGE_BUCKET=mylifeos-staging.firebasestorage.app
+FIREBASE_MESSAGING_SENDER_ID=955142565160
+FIREBASE_APP_ID=1:955142565160:web:bc240d2d30743f746b741d
 
-# URL de la app en staging
-APP_URL=https://life-os-staging.web.app
+# URL de la app en staging (hosting ya desplegado)
+APP_URL=https://mylifeos-staging.web.app
 
-# Credenciales de usuarios de prueba (creadas en el proyecto STAGING)
-QA_USER_EMAIL=qa-test@life-os-staging.com
+# Credenciales de usuarios de prueba
+QA_USER_EMAIL=qa-test@mylifeos-staging.com
 QA_USER_PASSWORD=QaTestPass2026!
 QA_ADMIN_EMAIL=wencesreal35@gmail.com
-QA_ADMIN_PASSWORD=<ADMIN_PASS_STAGING>
+QA_ADMIN_PASSWORD=<TU_PASSWORD_DE_ADMIN>
 
-# Stripe (usar modo TEST siempre en staging)
+# Stripe — modo TEST (claves de Stripe Dashboard → Developers → Test mode)
 STRIPE_TEST_PRICE_PRO=price_test_XXXXXXXX
 STRIPE_TEST_PRICE_STUDENT=price_test_YYYYYYYY
 
@@ -174,7 +175,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // ── Configuración ──────────────────────────────────────────────
-const APP_URL       = process.env.APP_URL || 'https://life-os-staging.web.app';
+const APP_URL       = process.env.APP_URL || 'https://mylifeos-staging.web.app';
 const REPORTS_DIR   = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/qa-reports';
 const REPO_DIR      = process.env.QA_REPO_DIR    || '/opt/openclaw/repo';
 const QA_EMAIL      = process.env.QA_USER_EMAIL;
@@ -529,49 +530,78 @@ node runner.js
 
 ## ESTRATEGIA DE AISLAMIENTO CON FIREBASE STAGING
 
-### A. Crear el proyecto Firebase "life-os-staging"
+### ✅ Estado actual del proyecto staging (2026-04-13 — ya configurado)
+
+El proyecto `mylifeos-staging` fue creado y configurado por Claude Code:
+
+| Componente | Estado |
+|-----------|--------|
+| Proyecto Firebase `mylifeos-staging` | ✅ Creado |
+| Firestore (default, nam5) | ✅ Creado |
+| Reglas permisivas de Firestore | ✅ Desplegadas |
+| Firebase Hosting | ✅ Desplegado en `https://mylifeos-staging.web.app` |
+| Firebase Auth (Email/Password) | ⚠️ Requiere 1 paso manual — ver §A abajo |
+| Usuario QA | ⚠️ Requiere Auth activo primero |
+
+---
+
+### A. ⚠️ ÚNICO PASO MANUAL — Habilitar Firebase Auth
+
+Firebase no permite activar Auth por primera vez vía API — requiere un clic en la consola:
+
+1. Ir a [console.firebase.google.com/project/mylifeos-staging/authentication](https://console.firebase.google.com/project/mylifeos-staging/authentication)
+2. Click **"Get started"**
+3. Click **"Email/Password"** → activar el primer toggle → **"Save"**
+4. Listo — después de esto el usuario QA se crea automáticamente al correr el setup
+
+### B. Crear usuario QA (después de activar Auth)
 
 ```bash
-# Desde tu máquina local (con firebase-tools instalado)
-npm install -g firebase-tools
-firebase login
-
-# Crear el proyecto (en la consola de Firebase o con CLI)
-firebase projects:create life-os-staging --display-name "Life OS Staging"
-
-# Inicializar Firestore, Auth y Hosting en el proyecto staging
-firebase use life-os-staging
-firebase init firestore hosting
+# Ejecutar desde /opt/openclaw/ después de activar Auth en la consola
+node -e "
+const https = require('https');
+const apiKey = 'AIzaSyDoSVDHs0dfmttl7vUrp-Qf1Qz2qJ8tF4E';
+const data = JSON.stringify({
+  email: 'qa-test@mylifeos-staging.com',
+  password: 'QaTestPass2026!',
+  displayName: 'OpenClaw QA Bot',
+  returnSecureToken: true
+});
+const req = https.request({
+  hostname: 'identitytoolkit.googleapis.com',
+  path: '/v1/accounts:signUp?key=' + apiKey,
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' }
+}, res => {
+  let d = '';
+  res.on('data', c => d += c);
+  res.on('end', () => {
+    const r = JSON.parse(d);
+    if (r.error) console.log('Error:', r.error.message);
+    else console.log('✅ Usuario QA creado! UID:', r.localId);
+  });
+});
+req.write(data); req.end();
+"
 ```
 
-### B. Desplegar las reglas de Firestore en staging
+### C. Datos del proyecto staging (ya configurados en .env)
+
+```
+Project ID:        mylifeos-staging
+API Key:           AIzaSyDoSVDHs0dfmttl7vUrp-Qf1Qz2qJ8tF4E
+Auth Domain:       mylifeos-staging.firebaseapp.com
+Hosting URL:       https://mylifeos-staging.web.app
+Messaging Sender:  955142565160
+App ID:            1:955142565160:web:bc240d2d30743f746b741d
+```
+
+### D. Re-desplegar reglas si es necesario (ya desplegadas)
 
 ```bash
-# Desde el directorio del repo, apuntando a staging
-firebase deploy --only firestore:rules --project life-os-staging
-```
-
-### C. Configurar reglas permisivas en STAGING para pruebas E2E
-
-> ⚠️ SOLO en el proyecto de staging. NUNCA en producción.
-
-Crear `firestore.staging.rules`:
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // STAGING ONLY: Permitir lectura/escritura a usuarios autenticados
-    // Esto facilita la creación de datos de prueba sin restricciones
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
-
-```bash
-# Desplegar reglas permisivas en staging
-firebase deploy --only firestore:rules --project life-os-staging
+# Solo si necesitas volver a desplegar las reglas permisivas
+cd /opt/openclaw/repo
+firebase deploy --only firestore:rules --project mylifeos-staging
 ```
 
 ### D. Variables de entorno en el VPS para apuntar a staging
@@ -598,14 +628,14 @@ const serviceAccount = require('/opt/openclaw/service-account-staging.json');
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 admin.auth().createUser({
-  email: 'qa-test@life-os-staging.com',
+  email: 'qa-test@mylifeos-staging.com',
   password: 'QaTestPass2026!',
   displayName: 'OpenClaw QA Bot'
 }).then(u => {
   console.log('Usuario creado:', u.uid);
   // Crear doc en Firestore con trial activo
   return admin.firestore().collection('users').doc(u.uid).set({
-    email: 'qa-test@life-os-staging.com',
+    email: 'qa-test@mylifeos-staging.com',
     nombre: 'OpenClaw QA Bot',
     is_pro: false,
     role: 'free',
@@ -668,19 +698,28 @@ pm2 restart openclaw-qa 2>/dev/null || true
 
 ## CHECKLIST DE VERIFICACIÓN FINAL
 
-Antes de considerar el VPS como operativo, verificar cada punto:
+### ✅ Ya completado (no repetir)
+- [x] Proyecto Firebase `mylifeos-staging` creado
+- [x] Firestore (default, nam5) creado
+- [x] Reglas permisivas desplegadas en Firestore staging
+- [x] Firebase Hosting desplegado en `https://mylifeos-staging.web.app`
+- [x] `.env` del VPS tiene credenciales reales de staging
+- [x] URL del repo GitHub correcta en el paso de git clone
+- [x] `runner.js` completo con 20 módulos
 
+### ⚠️ 1 paso manual pendiente (tú)
+- [ ] Ir a [console.firebase.google.com/project/mylifeos-staging/authentication](https://console.firebase.google.com/project/mylifeos-staging/authentication) → "Get started" → Email/Password → activar → Save
+
+### 🖥️ Pasos del VPS (cuando tengas SSH)
 - [ ] `node -v` muestra v20.x.x
 - [ ] `npx playwright --version` muestra la versión instalada
 - [ ] `git config --global user.email` muestra `422065902@pcpuma.acatlan.unam.mx`
-- [ ] `/opt/openclaw/.env` contiene las credenciales de STAGING (no producción)
-- [ ] `node /opt/openclaw/runner.js` corre sin errores fatales
-- [ ] El reporte `qa-reports/YYYY-MM-DD_HH-mm.md` se genera correctamente
+- [ ] `cat /opt/openclaw/.env` tiene `FIREBASE_PROJECT_ID=mylifeos-staging`
+- [ ] Ejecutar script de creación de usuario QA (§B arriba) — después de activar Auth
+- [ ] `node /opt/openclaw/runner.js` corre y genera reporte
 - [ ] `git log` en el repo muestra el commit del reporte
 - [ ] `crontab -l` muestra la línea del cron a las 08:00 UTC
-- [ ] Firebase staging tiene reglas permisivas desplegadas
-- [ ] El usuario de prueba `qa-test@life-os-staging.com` existe en Firebase Auth staging
 
 ---
 
-*Guía generada por OpenClaw QA Director · Life OS · 2026-04-06*
+*Guía actualizada 2026-04-13 · Firebase staging configurado por Claude Code*

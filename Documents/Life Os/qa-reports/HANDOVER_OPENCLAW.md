@@ -23,7 +23,7 @@ Contiene todo lo necesario para testear `https://mylifeos.lat` de forma autónom
 |---------|-----|-------------|
 | **Producción** | `https://mylifeos.lat` | Pruebas de humo (smoke tests) — no destruir datos |
 | **Firebase Hosting** | `https://life-os-prod-3a590.web.app` | Alias de producción |
-| **Staging** | `https://life-os-staging.web.app` | Pruebas destructivas, creación de datos de prueba |
+| **Staging** | `https://mylifeos-staging.web.app` | Pruebas destructivas, creación de datos de prueba |
 
 > ⚠️ **REGLA CRÍTICA:** Las pruebas que crean, editan o eliminan datos SIEMPRE deben correr contra **staging**, nunca contra producción. Las pruebas de solo-lectura pueden correr contra producción.
 
@@ -33,7 +33,7 @@ Contiene todo lo necesario para testear `https://mylifeos.lat` de forma autónom
 
 ```
 # Usuario QA (staging)
-QA_USER_EMAIL=qa-test@life-os-staging.com
+QA_USER_EMAIL=qa-test@mylifeos-staging.com
 QA_USER_PASSWORD=QaTestPass2026!
 
 # Usuario demo con 90 días de datos (staging)

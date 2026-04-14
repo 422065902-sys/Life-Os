@@ -23,7 +23,7 @@ const { execSync }  = require('child_process');
 // ══════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 // ══════════════════════════════════════════════════════════════
-const APP_URL      = process.env.APP_URL      || 'https://life-os-staging.web.app';
+const APP_URL      = process.env.APP_URL      || 'https://mylifeos-staging.web.app';
 const REPORTS_DIR  = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/qa-reports';
 const REPO_DIR     = process.env.QA_REPO_DIR    || '/opt/openclaw/repo';
 const QA_EMAIL     = process.env.QA_USER_EMAIL;
