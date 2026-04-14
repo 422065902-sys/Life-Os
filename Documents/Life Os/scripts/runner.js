@@ -24,8 +24,8 @@ const { execSync }  = require('child_process');
 // CONFIGURACIÓN
 // ══════════════════════════════════════════════════════════════
 const APP_URL      = process.env.APP_URL      || 'https://mylifeos-staging.web.app';
-const REPORTS_DIR  = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/qa-reports';
-const REPO_DIR     = process.env.QA_REPO_DIR    || '/opt/openclaw/repo';
+const REPORTS_DIR  = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
+const REPO_DIR     = process.env.QA_REPO_DIR    || '/opt/openclaw/repo/lifeos';
 const QA_EMAIL     = process.env.QA_USER_EMAIL;
 const QA_PASS      = process.env.QA_USER_PASSWORD;
 const ADMIN_EMAIL  = process.env.QA_ADMIN_EMAIL;
@@ -64,6 +64,17 @@ function addUX(module, issue, suggestion = '') {
 }
 
 // ══════════════════════════════════════════════════════════════
+// PER-MODULE WRAPPER — definido a nivel global para evitar problemas de scope
+// ══════════════════════════════════════════════════════════════
+async function runModule(fn, label) {
+  try { await fn(); }
+  catch (e) {
+    log(`[CRASH] ${label}: ${e.message}`);
+    addResult(label, 'Error inesperado en módulo', 'FAIL', e.message.slice(0, 150));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════════
 async function waitFor(selector, timeout = 10000) {
@@ -92,6 +103,31 @@ async function getAttr(selector, attr) {
 async function evalJS(fn) {
   try { return await page.evaluate(fn); }
   catch { return null; }
+}
+
+/** page.click con timeout corto — no cuelga 30s si el elemento está tapado */
+async function safeClick(selector, timeout = 6000) {
+  try { await page.click(selector, { timeout }); return true; }
+  catch { return false; }
+}
+
+/** page.fill con timeout corto */
+async function safeFill(selector, value, timeout = 6000) {
+  try { await page.fill(selector, value, { timeout }); return true; }
+  catch { return false; }
+}
+
+/** Verifica si la sesión sigue activa; si no, re-logea */
+async function ensureLoggedIn() {
+  const authVisible = await evalJS(() => {
+    const a = document.getElementById('auth-screen');
+    return a && window.getComputedStyle(a).display !== 'none';
+  });
+  if (authVisible) {
+    log('[SESSION] auth-screen detectado — re-login automático...');
+    const ok = await doLogin();
+    if (!ok) throw new Error('Re-login falló tras detectar auth-screen');
+  }
 }
 
 /** Espera que la app bootee completamente post-login */
@@ -383,6 +419,7 @@ async function testFinanzas() {
 // ══════════════════════════════════════════════════════════════
 async function testHabitos() {
   log('▶ 07-Habitos');
+  await ensureLoggedIn();
   await goTo('productividad');
   await page.waitForTimeout(1000);
 
@@ -398,8 +435,8 @@ async function testHabitos() {
 
   // Staging: agregar hábito
   if (!SMOKE_ONLY && habitInput) {
-    await page.fill('#new-habit, [id*="new-habit"], input[placeholder*="hábito"]', `Hábito QA ${Date.now()}`);
-    await page.click('[onclick*="addHabit"], button:has-text("Agregar"), [onclick*="saveHabit"]').catch(() => {});
+    await safeFill('#new-habit, [id*="new-habit"], input[placeholder*="hábito"]', `Hábito QA ${Date.now()}`);
+    await safeClick('[onclick*="addHabit"], button:has-text("Agregar"), [onclick*="saveHabit"]');
     await page.waitForTimeout(1500);
     const cards = await page.$$('.habit-card, [class*="habit-card"], [class*="habit-item"]');
     addResult('07-Habitos', 'Hábito de prueba aparece en lista', cards.length > 0 ? 'PASS' : 'WARN', `${cards.length} hábitos`);
@@ -417,6 +454,7 @@ async function testHabitos() {
 // ══════════════════════════════════════════════════════════════
 async function testCuerpo() {
   log('▶ 08-Cuerpo');
+  await ensureLoggedIn();
   await goTo('cuerpo');
   await page.waitForTimeout(1000);
 
@@ -444,6 +482,7 @@ async function testCuerpo() {
 // ══════════════════════════════════════════════════════════════
 async function testGemelo() {
   log('▶ 09-Gemelo');
+  await ensureLoggedIn();
   await goTo('stats');
   await page.waitForTimeout(1200);
 
@@ -484,6 +523,7 @@ async function testGemelo() {
 // ══════════════════════════════════════════════════════════════
 async function testStripe() {
   log('▶ 10-Stripe');
+  await ensureLoggedIn();
   await goTo('settings');
   await page.waitForTimeout(1000);
 
@@ -511,6 +551,7 @@ async function testStripe() {
 // ══════════════════════════════════════════════════════════════
 async function testGamificacion() {
   log('▶ 11-Gamificacion');
+  await ensureLoggedIn();
   await goTo('stats');
   await page.waitForTimeout(1000);
 
@@ -534,6 +575,7 @@ async function testGamificacion() {
 // ══════════════════════════════════════════════════════════════
 async function testTienda() {
   log('▶ 12-Tienda');
+  await ensureLoggedIn();
   await goTo('world');
   await page.waitForTimeout(1200);
 
@@ -574,6 +616,7 @@ async function testTienda() {
 // ══════════════════════════════════════════════════════════════
 async function testCalendario() {
   log('▶ 13-Calendario');
+  await ensureLoggedIn();
   await goTo('calendar');
   await page.waitForTimeout(1200);
 
@@ -607,6 +650,7 @@ async function testCalendario() {
 // ══════════════════════════════════════════════════════════════
 async function testProductividad() {
   log('▶ 14-Productividad');
+  await ensureLoggedIn();
   await goTo('productividad');
   await page.waitForTimeout(1000);
 
@@ -621,8 +665,8 @@ async function testProductividad() {
   // Staging: agregar y completar tarea
   if (!SMOKE_ONLY && taskInput) {
     const xpBefore = await evalJS(() => (window.S && window.S.xp) || 0);
-    await page.fill('#new-task, [id*="new-task"]', `Tarea QA ${Date.now()}`);
-    await page.keyboard.press('Enter');
+    await safeFill('#new-task, [id*="new-task"]', `Tarea QA ${Date.now()}`);
+    await page.keyboard.press('Enter').catch(() => {});
     await page.waitForTimeout(1500);
     const tasks = await page.$$('.task-card, [class*="task-item"], [class*="task-card"]');
     addResult('14-Productividad', 'Tarea QA aparece en lista', tasks.length > 0 ? 'PASS' : 'WARN', `${tasks.length} tareas`);
@@ -657,6 +701,7 @@ async function testProductividad() {
 // ══════════════════════════════════════════════════════════════
 async function testMente() {
   log('▶ 15-Mente');
+  await ensureLoggedIn();
   await goTo('mente');
   await page.waitForTimeout(1000);
 
@@ -680,8 +725,8 @@ async function testMente() {
   if (!SMOKE_ONLY) {
     const victoriaInput = await page.$('#new-victoria, [id*="victoria"], input[placeholder*="victoria"]');
     if (victoriaInput) {
-      await victoriaInput.fill(`Victoria QA: prueba automatizada ${stamp}`);
-      await page.click('[onclick*="addVictoria"], button:has-text("Guardar"), button:has-text("Agregar")').catch(() => {});
+      await safeFill('#new-victoria, [id*="victoria"], input[placeholder*="victoria"]', `Victoria QA: prueba automatizada ${stamp}`);
+      await safeClick('[onclick*="addVictoria"], button:has-text("Guardar"), button:has-text("Agregar")');
       await page.waitForTimeout(1500);
       const victorias = await page.$$('.bitacora-item, [class*="victoria-item"]');
       addResult('15-Mente', 'Victoria QA aparece en bitácora', victorias.length > 0 ? 'PASS' : 'WARN', `${victorias.length} entradas`);
@@ -696,6 +741,7 @@ async function testMente() {
 // ══════════════════════════════════════════════════════════════
 async function testWorld() {
   log('▶ 16-World');
+  await ensureLoggedIn();
   await goTo('world');
   await page.waitForTimeout(1500);
 
@@ -1010,15 +1056,6 @@ async function main() {
 
   page = await context.newPage();
   attachConsoleListeners();
-
-  /** Ejecuta un módulo y atrapa cualquier crash para no matar el pipeline */
-  async function runModule(fn, label) {
-    try { await fn(); }
-    catch (e) {
-      log(`[CRASH] ${label}: ${e.message}`);
-      addResult(label, 'Error inesperado en módulo', 'FAIL', e.message.slice(0, 150));
-    }
-  }
 
   try {
     // ── Orden por riesgo (CRÍTICO primero) ──
