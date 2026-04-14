@@ -1,5 +1,6 @@
 # LIFE OS — MAPA COMPLETO DE MÓDULOS, SUBMÓDULOS Y FUNCIONES
 > Para guion de TikTok. Todo lo que existe hoy en la app.
+> Última actualización: 2026-04-13
 
 ---
 
@@ -24,6 +25,7 @@
 - Pantalla de misiones semilla (el usuario elige sus primeras 3 misiones al registrarse)
 - Sistema de cards de ayuda contextual por módulo (se muestran la primera vez que entras a cada página)
 - Tutorial interactivo
+- **Onboarding obligatorio del Gemelo Potenciado** — modal de 2 pantallas (presentación + confirmación) que aparece entre el check-in matutino y el módulo de tareas, la primera vez. Sin botón de cerrar ni skip. Escribe `geminoPotenciado` y `onboardingGemeloCompletado` en Firestore antes de habilitar "Continuar" (OnboardingGemelo.js)
 
 ### FAB (Botón flotante de acción rápida)
 - Input de lenguaje natural en español: "tarea comprar leche mañana"
@@ -119,6 +121,7 @@
 - Botón Desbloquear (gasta XP) / Equipar / Equipada
 - Badge "★ EXÓTICA" para rooms especiales
 - Display del XP actual del usuario en el shop
+- **Persistencia en Firestore** — `unlockedRooms` y `equippedRoom` se sincronizan en la nube (fix 2026-04-06); antes se perdían al limpiar caché o cambiar dispositivo
 
 ### Presencia Online (Aliados en el mundo)
 - Muestra burbuja de aliados conectados en el mapa
@@ -450,8 +453,9 @@ Ver sección dedicada abajo ↓
 ### Notificaciones Push
 - Toggle para activar/desactivar notificaciones
 - Solicitud de permiso del navegador
-- Soporte PWA (service worker)
-- Notificaciones programadas: Daily Briefing 12pm, Píldora Motivacional 4pm, Re-engagement
+- Soporte PWA (service worker — `firebase-messaging-sw.js`)
+- **FCM token real** — usa `firebase.messaging().getToken()` (fix 2026-04-05); antes usaba Web Push endpoint URL incompatible con Admin SDK
+- Notificaciones programadas: Daily Briefing 8am, Píldora Motivacional 3pm, Evening Wind Down 8pm, Re-engagement
 
 ### API Key de Claude (NLP)
 - Campo para ingresar Anthropic API Key personal
@@ -571,16 +575,21 @@ Ver sección dedicada abajo ↓
 - `generateGemeloAnalysis` — llama a Gemini AI
 - `notifyGemeloReady` — push notification cuando el análisis está listo
 - `notifyTrialExpiring` — avisa antes de que expire el trial
-- `dailyBriefing` — push diario 12pm
-- `motivationalPill` — push 4pm
+- `dailyBriefing` — push diario 8am CDMX
+- `motivationalPill` — push 3pm CDMX
+- `afternoonGoalReview` — push 4pm CDMX
+- `eveningWindDown` — push 8pm CDMX para usuarios activos en las últimas 12h (nuevo 2026-04-05)
 - `reengagementNotif` — reactiva usuarios inactivos
+- **Crons corregidos** — los schedules anteriores corrían 6h tarde por zona horaria; ahora usan `timeZone('America/Mexico_City')` correctamente
 
 ### Sincronización
 - Persistencia offline (Firestore IndexedDB) — la app funciona sin internet
 - Sincronización automática al reconectar
 - Debounce de 2s en guardado del estado monolítico
 - Escritura inmediata para transacciones financieras
+- **onSnapshot en tiempo real para el doc principal** — sincroniza entre dispositivos/pestañas automáticamente (fix 2026-04-06)
 - onSnapshot en tiempo real para finanzas
+- `_finListenerReady` flag — el dashboard muestra `…` en lugar de `$0.00` mientras el listener de transacciones no ha completado su primer snapshot
 
 ### Sistema de Actividad
 - Cada acción importante (tarea, hábito, gym, finanza) registra un documento en `user_activity`
@@ -593,15 +602,32 @@ Ver sección dedicada abajo ↓
 | Categoría | Cantidad |
 |-----------|----------|
 | Módulos principales | 10 + 1 admin |
-| Funciones JS totales | ~350 |
-| Líneas de código (main.js) | ~10,992 |
-| Líneas de CSS (styles.css) | ~3,631 |
-| Cloud Functions | 9 |
-| Colecciones Firestore | 7 |
-| Campos en estado global S | ~60+ |
+| Funciones JS totales | ~350+ |
+| Líneas de código (main.js) | ~11,082 |
+| Líneas de CSS (styles.css) | ~3,643 |
+| OnboardingGemelo.js | 398 |
+| Cloud Functions | 10 |
+| Colecciones Firestore | 8 (+ analytics/{uid}/eventos) |
+| Campos en estado global S | ~65+ |
 | Modos de la app | Free / Trial / Pro / Consulta / Admin |
 | Modos del núcleo | Idle / Activo / Flujo / Completo / Blackout / Recuperación |
 
 ---
 
-*Generado el 2026-04-04 desde escaneo directo de main.js (~10,992 líneas)*
+## 📁 ARCHIVOS DEL PROYECTO
+
+| Archivo | Descripción |
+|---------|-------------|
+| `main.js` | ~11,082 líneas — TODO el JS de la app |
+| `styles.css` | ~3,643 líneas — estilos completos |
+| `index.html` | SPA shell, carga main.js y OnboardingGemelo.js |
+| `OnboardingGemelo.js` | Componente onboarding obligatorio del Gemelo (nuevo 2026-04-09) |
+| `functions/index.js` | 10 Cloud Functions de Firebase |
+| `firestore.rules` | Reglas de seguridad Firestore (incluye friendRequests y analytics) |
+| `scripts/seedDemoUser.js` | Script seed de usuario demo Alejandro Torres (90 días de datos) |
+| `qa-reports/QA-MASTER-PLAN.md` | Plan maestro de QA |
+| `qa-reports/VPS-SETUP-GUIDE.md` | Guía de setup VPS para OpenClaw/Hostinger |
+
+---
+
+*Actualizado el 2026-04-13 — refleja commits hasta eec1d7b*
