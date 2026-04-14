@@ -962,9 +962,12 @@ async function testResponsive() {
   await goTo('dashboard');
   await page.waitForTimeout(1000);
 
-  // Nav inferior (drawer)
-  const mobNav = await isVisible('#mob-drawer-nav, .mob-drawer-nav, #desktop-nav');
-  addResult('RESPONSIVE', 'Nav visible en mobile (375px)', mobNav ? 'PASS' : 'FAIL');
+  // Drawer mobile — existe en DOM (se abre con gesto, no siempre visible)
+  const mobDrawer = await page.$('#mob-drawer, #mob-drawer-nav, .mob-drawer-nav');
+  addResult('RESPONSIVE', 'Drawer mobile existe en DOM (375px)', mobDrawer ? 'PASS' : 'FAIL');
+  // FAB siempre visible en mobile
+  const fabMobile = await isVisible('#fab-btn, .fab-btn');
+  addResult('RESPONSIVE', 'FAB visible en mobile (375px)', fabMobile ? 'PASS' : 'WARN');
 
   // Sidebar desktop oculta en mobile
   const sidebar = await evalJS(() => {
