@@ -513,7 +513,7 @@ async function testGemelo() {
   await goTo('mente');
   await page.waitForTimeout(1000);
   // Hacer click en la pestaña Gemelo
-  await safeClick('[onclick*="brain"], .inner-tab:has-text("Gemelo")');
+  await safeClick('[onclick="switchInnerTab(\'mente\',\'brain\')"]');
   await page.waitForTimeout(800);
 
   const gemeloSection = await isVisible('#gemelo-container, #panel-brain');
