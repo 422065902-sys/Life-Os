@@ -509,12 +509,15 @@ async function testCuerpo() {
 async function testGemelo() {
   log('▶ 09-Gemelo');
   await ensureLoggedIn();
-  await goTo('stats');
-  await page.waitForTimeout(1200);
+  // Gemelo está en Mente → pestaña "Gemelo" (panel-brain)
+  await goTo('mente');
+  await page.waitForTimeout(1000);
+  // Hacer click en la pestaña Gemelo
+  await safeClick('[onclick*="brain"], .inner-tab:has-text("Gemelo")');
+  await page.waitForTimeout(800);
 
-  // Sección Gemelo
-  const gemeloSection = await isVisible('#gemelo-container, #gemelo-progress-wrap, .gemelo-wrap');
-  addResult('09-Gemelo', 'Sección del Gemelo visible en Análisis', gemeloSection ? 'PASS' : 'FAIL');
+  const gemeloSection = await isVisible('#gemelo-container, #panel-brain');
+  addResult('09-Gemelo', 'Sección del Gemelo visible en Mente', gemeloSection ? 'PASS' : 'FAIL');
 
   // Progress bar
   const progressBar = await isVisible('#gemelo-progress-bar, [id*="gemelo-progress"]');
@@ -619,10 +622,10 @@ async function testTienda() {
   // REGLA CRÍTICA: shop-exp-display debe mostrar XP, no coins
   const shopExpDisplay = await getText('#shop-exp-display, [id*="shop-exp"]');
   const shopCoinsDisplay = await getText('#shop-coins-display, [id*="shop-coins"]');
-  const xpVal = await evalJS(() => window.S && window.S.xp);
+  const xpVal = await evalJS(() => window.S ? (window.S.xp || 0) : 0);
   if (shopExpDisplay) {
-    const displayNum = parseInt(shopExpDisplay.replace(/\D/g, ''));
-    addResult('12-Tienda', 'Shop muestra XP (no coins) — REGLA CRÍTICA', String(displayNum) === String(xpVal) ? 'PASS' : 'FAIL',
+    const displayNum = parseInt(shopExpDisplay.replace(/\D/g, '')) || 0;
+    addResult('12-Tienda', 'Shop muestra XP (no coins) — REGLA CRÍTICA', displayNum === xpVal ? 'PASS' : 'FAIL',
       `display="${shopExpDisplay}", S.xp=${xpVal}`);
   } else {
     addResult('12-Tienda', 'Shop exp display accesible', 'INFO', 'No se encontró #shop-exp-display — puede requerir abrir tienda');
@@ -677,28 +680,27 @@ async function testCalendario() {
 async function testProductividad() {
   log('▶ 14-Productividad');
   await ensureLoggedIn();
-  await goTo('productividad');
-  await page.waitForTimeout(1000);
 
-  // Lista de tareas
+  // Tareas están en el DASHBOARD (page-dashboard), no en page-productividad
+  await goTo('dashboard');
+  await page.waitForTimeout(1500);
+
   const taskList = await isVisible('#task-list');
-  addResult('14-Productividad', '#task-list visible', taskList ? 'PASS' : 'FAIL');
+  addResult('14-Productividad', '#task-list visible en Dashboard', taskList ? 'PASS' : 'FAIL');
 
-  // Input nueva tarea (id real: #t-name)
-  const taskInput = await isVisible('#t-name, #new-task, input[placeholder*="tarea"]');
-  addResult('14-Productividad', 'Input nueva tarea existe', taskInput ? 'PASS' : 'FAIL');
+  const taskInput = await isVisible('#t-name');
+  addResult('14-Productividad', 'Input nueva tarea (#t-name) existe', taskInput ? 'PASS' : 'FAIL');
 
-  // Staging: agregar y completar tarea
+  // Staging: agregar tarea desde dashboard
   if (!SMOKE_ONLY && taskInput) {
     const xpBefore = await evalJS(() => (window.S && window.S.xp) || 0);
-    await safeFill('#t-name, #new-task', `Tarea QA ${Date.now()}`);
-    await safeClick('[onclick="addTask()"], button:has-text("Agregar Tarea")');
+    await safeFill('#t-name', `Tarea QA ${Date.now()}`);
+    await safeClick('[onclick="addTask()"]');
     await page.waitForTimeout(1500);
-    const tasks = await page.$$('#task-list > *, .task-card, [class*="task-item"]');
+    const tasks = await page.$$('#task-list > *');
     addResult('14-Productividad', 'Tarea QA aparece en lista', tasks.length > 0 ? 'PASS' : 'WARN', `${tasks.length} tareas`);
 
-    // Completar la primera tarea visible
-    const firstToggle = await page.$('#task-list input[type="checkbox"], [onclick*="toggleTask"], .task-toggle');
+    const firstToggle = await page.$('#task-list input[type="checkbox"], [onclick*="toggleTask"]');
     if (firstToggle) {
       await firstToggle.click().catch(() => {});
       await page.waitForTimeout(1500);
@@ -706,6 +708,10 @@ async function testProductividad() {
       addResult('14-Productividad', 'Completar tarea suma XP', xpAfter > xpBefore ? 'PASS' : 'WARN', `XP: ${xpBefore} → ${xpAfter}`);
     }
   }
+
+  // Módulo Productividad: hábitos, metas, ideas
+  await goTo('productividad');
+  await page.waitForTimeout(1000);
 
   // Pomodoro timer básico
   const pomBtn = await isVisible('[onclick*="pomodoro"], [onclick*="startTimer"], #pom-btn');
