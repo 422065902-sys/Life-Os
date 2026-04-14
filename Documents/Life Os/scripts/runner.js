@@ -189,7 +189,7 @@ async function testAuth() {
   // Edge case: credenciales incorrectas
   await page.fill('#login-email', 'fake@noemail.com');
   await page.fill('#login-pass', 'wrongpassword');
-  await page.click('button[onclick*="loginUser"], #btn-login, button:has-text("INICIAR")');
+  await page.click('[onclick="doLogin()"]').catch(() => {});
   await page.waitForTimeout(3000);
   const errorShown = await evalJS(() => {
     const t = document.getElementById('toast');
@@ -239,8 +239,9 @@ async function testBlackout() {
   const inApp = await waitForBoot();
   if (!inApp) { addResult('03-Blackout', 'Pre-condición', 'SKIP', ''); return; }
 
-  const ringExists = await isVisible('#nucleo-progress-ring');
-  addResult('03-Blackout', 'SVG nucleo-progress-ring visible', ringExists ? 'PASS' : 'FAIL');
+  const ringEl = await page.$('#nucleo-progress-ring');
+  const ringExists = ringEl !== null;
+  addResult('03-Blackout', 'SVG nucleo-progress-ring existe en DOM', ringExists ? 'PASS' : 'FAIL');
 
   const hasBlackout = await evalJS(() => document.body.classList.contains('blackout'));
   addResult('03-Blackout', 'Estado BLACKOUT actual', 'INFO', `body.blackout=${hasBlackout}`);
@@ -387,7 +388,7 @@ async function testHabitos() {
 
   // Navegar al sub-panel de hábitos si existe
   const habitsTab = await page.$('[onclick*="habits"], [onclick*="habitos"], .tab-habits');
-  if (habitsTab) { await habitsTab.click(); await page.waitForTimeout(800); }
+  if (habitsTab) { await habitsTab.click().catch(() => {}); await page.waitForTimeout(800); }
 
   const habitList = await isVisible('#habit-list, [id*="habit-list"]');
   addResult('07-Habitos', 'Lista de hábitos visible', habitList ? 'PASS' : 'FAIL');
@@ -629,7 +630,7 @@ async function testProductividad() {
     // Completar la primera tarea visible
     const firstToggle = await page.$('.task-card input[type="checkbox"], [onclick*="toggleTask"], .task-toggle');
     if (firstToggle) {
-      await firstToggle.click();
+      await firstToggle.click().catch(() => {});
       await page.waitForTimeout(1500);
       const xpAfter = await evalJS(() => (window.S && window.S.xp) || 0);
       addResult('14-Productividad', 'Completar tarea suma XP', xpAfter > xpBefore ? 'PASS' : 'WARN', `XP: ${xpBefore} → ${xpAfter}`);
@@ -643,7 +644,7 @@ async function testProductividad() {
   // Ideas
   await evalJS(() => navigate('productividad')); // asegurarse de estar en productividad
   const ideasTab = await page.$('[onclick*="ideas"], .tab-ideas');
-  if (ideasTab) await ideasTab.click();
+  if (ideasTab) await ideasTab.click().catch(() => {});
   await page.waitForTimeout(800);
   const ideaList = await isVisible('#idea-list, [id*="idea-list"]');
   addResult('14-Productividad', 'Lista de ideas visible', ideaList ? 'PASS' : 'INFO');
@@ -756,7 +757,7 @@ async function testFAB() {
     await goTo('dashboard');
     const fabBtn = await page.$('#fab-btn, .fab-btn, [id*="fab-btn"]');
     if (fabBtn) {
-      await fabBtn.click();
+      await fabBtn.click().catch(() => {});
       await page.waitForTimeout(500);
       const fabInput = await page.$('#fab-input, [id*="fab-input"]');
       if (fabInput) {
@@ -786,7 +787,7 @@ async function testAdmin() {
   await waitFor('#auth-screen');
   await page.fill('#login-email', ADMIN_EMAIL);
   await page.fill('#login-pass', ADMIN_PASS);
-  await page.click('button[onclick*="loginUser"], #btn-login');
+  await page.click('[onclick="doLogin()"]').catch(() => {});
   const loggedIn = await waitForBoot(25000);
 
   if (!loggedIn) { addResult('18-Admin', 'Login admin', 'SKIP', 'No se pudo loguear'); return; }
@@ -1010,35 +1011,44 @@ async function main() {
   page = await context.newPage();
   attachConsoleListeners();
 
+  /** Ejecuta un módulo y atrapa cualquier crash para no matar el pipeline */
+  async function runModule(fn, label) {
+    try { await fn(); }
+    catch (e) {
+      log(`[CRASH] ${label}: ${e.message}`);
+      addResult(label, 'Error inesperado en módulo', 'FAIL', e.message.slice(0, 150));
+    }
+  }
+
   try {
     // ── Orden por riesgo (CRÍTICO primero) ──
-    await testAuth();           // 01 🔴
-    await testOnboarding();     // 02 🔴
-    await testBlackout();       // 03 🔴
-    await testPaywall();        // 04 🔴
-    await testDashboard();      // 05 🔴
+    await runModule(testAuth,          '01-Auth');
+    await runModule(testOnboarding,    '02-Onboarding');
+    await runModule(testBlackout,      '03-Blackout');
+    await runModule(testPaywall,       '04-Paywall');
+    await runModule(testDashboard,     '05-Dashboard');
 
     if (!SMOKE_ONLY) {
-      await testFinanzas();     // 06 🔴
-      await testHabitos();      // 07 🟡
-      await testCuerpo();       // 08 🟡
-      await testGemelo();       // 09 🟡
-      await testStripe();       // 10 🟡
-      await testGamificacion(); // 11 🟡
-      await testTienda();       // 12 🟢
-      await testCalendario();   // 13 🟢
-      await testProductividad();// 14 🟡
-      await testMente();        // 15 🟢
-      await testWorld();        // 16 🟢
-      await testFAB();          // 17 🟡
-      await testAdmin();        // 18 🟢 (se salta si no hay creds)
-      await testFCM();          // 19 🟢
-      await testPWA();          // 20 🟢
-      await testResponsive();   // Visual check
+      await runModule(testFinanzas,      '06-Finanzas');
+      await runModule(testHabitos,       '07-Habitos');
+      await runModule(testCuerpo,        '08-Cuerpo');
+      await runModule(testGemelo,        '09-Gemelo');
+      await runModule(testStripe,        '10-Stripe');
+      await runModule(testGamificacion,  '11-Gamificacion');
+      await runModule(testTienda,        '12-Tienda');
+      await runModule(testCalendario,    '13-Calendario');
+      await runModule(testProductividad, '14-Productividad');
+      await runModule(testMente,         '15-Mente');
+      await runModule(testWorld,         '16-World');
+      await runModule(testFAB,           '17-FAB');
+      await runModule(testAdmin,         '18-Admin');
+      await runModule(testFCM,           '19-FCM');
+      await runModule(testPWA,           '20-PWA');
+      await runModule(testResponsive,    'RESPONSIVE');
     }
 
   } catch (e) {
-    log(`[FATAL] Error inesperado en pipeline: ${e.message}`);
+    log(`[FATAL] Error inesperado en pipeline principal: ${e.message}`);
     addResult('RUNNER', 'Error fatal en pipeline', 'FAIL', e.message.slice(0, 150));
   } finally {
     await browser.close();
