@@ -100,7 +100,7 @@ git config --global credential.helper store
 cd /opt/openclaw
 
 # Clonar (reemplaza con tu URL real del repo)
-git clone https://github.com/<TU_USUARIO>/life-os.git repo
+git clone https://github.com/422065902-sys/Life-Os.git repo
 cd repo
 
 # Verificar que los archivos principales existen
