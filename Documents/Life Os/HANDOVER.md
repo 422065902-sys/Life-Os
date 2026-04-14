@@ -1,7 +1,7 @@
 # LIFE OS — HANDOVER DE EMERGENCIA
-**Fecha de generación:** 2026-04-03 · **Última actualización:** 2026-04-05  
+**Fecha de generación:** 2026-04-03 · **Última actualización:** 2026-04-13  
 **Generado por:** Claude Code (Staff Engineer mode)  
-**Estado:** LIMPIO — todo commiteado y deployado en producción (commit `046e787`)
+**Estado:** LIMPIO — todo commiteado y deployado en producción (commit `d429680`)
 
 ---
 
@@ -45,24 +45,35 @@ Cualquier PR o sugerencia que conecte `S.coins` al sistema de decoración del ap
 ```
 C:\Users\wence\Documents\Life Os\          ← root del proyecto (Vercel root dir)
 │
-├── main.js                   ← TODO el JS (~10,992 líneas). Script global, NO module.
-├── index.html                ← Solo carga main.js. app.js ESTÁ COMENTADO (no reactivar).
-├── styles.css                ← CSS global (~3,631 líneas)
+├── main.js                   ← TODO el JS (~11,082 líneas). Script global, NO module.
+├── index.html                ← Carga main.js + OnboardingGemelo.js. app.js COMENTADO.
+├── styles.css                ← CSS global (~3,643 líneas)
+├── OnboardingGemelo.js       ← ★ NUEVO — componente onboarding del Gemelo (398 líneas)
 ├── manifest.json             ← PWA manifest, apunta a https://mylifeos.lat/manifest.json
-├── firebase-messaging-sw.js  ← Service Worker de Firebase Cloud Messaging
+├── firebase-messaging-sw.js  ← Service Worker de Firebase Cloud Messaging (FCM)
 ├── sw.js                     ← Service Worker principal de la PWA
 ├── favicon.ico
 │
 ├── icons/                    ← PWA icons (120, 152, 167, 180, 192, 512 px)
 │
 ├── functions/
-│   ├── index.js              ← Cloud Functions Node 20 (~962 líneas)
+│   ├── index.js              ← 10 Cloud Functions Node 20
 │   └── package.json          ← deps: firebase-admin^11, firebase-functions^4, stripe^14, @google/generative-ai^0.21
 │
+├── scripts/
+│   └── seedDemoUser.js       ← ★ NUEVO — seed 90 días de datos para usuario demo (Alejandro Torres)
+│
+├── qa-reports/
+│   ├── QA-MASTER-PLAN.md     ← ★ NUEVO — plan maestro de QA
+│   └── VPS-SETUP-GUIDE.md    ← ★ NUEVO — guía de setup VPS/OpenClaw en Hostinger
+│
 ├── firebase.json             ← Config hosting + firestore + functions
-├── firestore.rules           ← Reglas de seguridad Firestore (RECIENTEMENTE ACTUALIZADO)
+├── firestore.rules           ← Reglas Firestore (friendRequests + analytics + todas las colecciones)
 ├── firestore.indexes.json    ← Índices Firestore
 ├── .firebaserc               ← Proyecto: life-os-prod-3a590
+│
+├── MAPA_FUNCIONES.md         ← Mapa completo de módulos y funciones (para TikTok). Act. 2026-04-13
+├── HANDOVER.md               ← Este archivo
 │
 ├── app.js                    ← DESACTIVADO. Script tag comentado en index.html.
 │                               Si se activa → doble Firebase init = bug grave.
@@ -91,10 +102,11 @@ C:\Users\wence\Documents\Life Os\          ← root del proyecto (Vercel root di
 ```
 users/{uid}                          ← doc raíz: is_pro, role, trial_ends_at, stripe_customer_id, fcm_token
   ├── /data/main                     ← estado monolítico completo de la app (S serializado)
+  │                                    ★ ahora escuchado con onSnapshot (sincronización en tiempo real)
   ├── /data/profile                  ← perfil público del usuario
   ├── /connections/{connectionId}    ← aliados/conexiones
   ├── /user_activity/{activityId}    ← historial XP (tipo, xp_earned, completed_at, label)
-  ├── /transactions/{txId}           ← ★ NUEVA arquitectura Cloud-First (ver §WIP)
+  ├── /transactions/{txId}           ← arquitectura Cloud-First activa en producción
   └── /entrenamientos/{entId}        ← sesiones de gym
 
 gemelo_data/{uid}                    ← análisis del Gemelo. LECTURA BLOQUEADA para clientes.
@@ -107,7 +119,11 @@ leaderboard/{uid}                    ← ranking semanal público. Cada usuario 
 userDirectory/{uid}                  ← directorio público para búsqueda de aliados.
 
 friendRequests/{reqId}               ← solicitudes de amistad. reqId = "{fromUid}_{toUid}"
-                                       Reglas implementadas en firestore.rules (Fix 4.1).
+                                       Regla update: hasOnly(['status','acceptedAt']) — fix 2026-04-06
+
+analytics/{uid}/eventos/{eventId}    ← ★ NUEVA — telemetría silenciosa del Gemelo.
+                                       Solo create desde el cliente (no read, no update, no delete).
+                                       Lectura solo vía Admin SDK / Cloud Function.
 ```
 
 ### firebase.json — Restricciones Críticas
@@ -116,18 +132,21 @@ friendRequests/{reqId}               ← solicitudes de amistad. reqId = "{fromU
 ```
 **NUNCA cambiar a `true`.** Si se cambia, `functions.config()` deja de funcionar → Stripe lanza error interno. Las funciones leen sus secrets vía `functions.config().stripe.secret`.
 
-### Cloud Functions desplegadas
+### Cloud Functions desplegadas (10 total)
 | Nombre | Tipo | Descripción |
 |--------|------|-------------|
 | `createStripeCheckoutSession` | `onCall` | Crea sesión Stripe Checkout |
 | `stripeWebhook` | `onRequest` | Webhook Stripe → activa/revoca Pro en Firestore |
 | `getGemelo` | `onCall` | Sirve análisis Gemelo (verifica acceso, usa Admin SDK) |
-| `generateGemeloAnalysis` | — | Genera análisis con Gemini AI |
-| `notifyGemeloReady` | — | Push notification cuando análisis listo |
-| `notifyTrialExpiring` | — | Push cuando trial expira |
-| `dailyBriefing` | — | Notificación diaria 12pm |
-| `motivationalPill` | — | Píldora motivacional 4pm |
-| `reengagementNotif` | — | Re-engagement para usuarios inactivos |
+| `generateGemeloAnalysis` | `onSchedule` | Genera análisis con Gemini AI |
+| `notifyGemeloReady` | `onSchedule` | Push notification cuando análisis listo |
+| `notifyTrialExpiring` | `onSchedule` | Push cuando trial expira |
+| `dailyBriefing` | `onSchedule` | Notificación diaria **8am CDMX** |
+| `motivationalPill` | `onSchedule` | Píldora motivacional **3pm CDMX** |
+| `eveningWindDown` | `onSchedule` | ★ NUEVA — Wind down **8pm CDMX** para usuarios activos en las últimas 12h |
+| `reengagementNotif` | `onSchedule` | Re-engagement para usuarios inactivos |
+
+> **⚠️ Crons usan `timeZone('America/Mexico_City')`** — fix 2026-04-05. Los crons anteriores corrían 6h tarde porque el runtime interpretaba en UTC.
 
 ### IAM — Punto de Falla Conocido
 Todas las Cloud Functions necesitan `roles/cloudfunctions.invoker` para `allUsers`. **PUEDE PERDERSE al redesplegar.** Si aparece error CORS o 403 en preflight:
@@ -218,44 +237,47 @@ La boot screen es un guardia real de UI: nada se muestra hasta que tanto la anim
 
 ---
 
-## 5. ESTADO ACTUAL — PRODUCCIÓN LIMPIA (2026-04-05)
+## 5. ESTADO ACTUAL — PRODUCCIÓN LIMPIA (2026-04-13)
 
-### Último commit deployado: `046e787`
+### Último commit deployado: `d429680`
 ```
-Feat: financial Cloud-First, iconos v3, reglas friendRequests, handover doc
+Docs: actualizar mapa de funciones a 2026-04-13
 ```
 
-### Qué se completó y está en producción
+### Historial de cambios desde el último handover (2026-04-05 → 2026-04-13)
+
+| Commit | Fecha | Cambio |
+|--------|-------|--------|
+| `b7c203d` | 2026-04-05 | FCM token real + crons CDMX fix + `eveningWindDown` + analytics Firestore rules |
+| `a44666d` | 2026-04-06 | Auditoría completa: bug `acceptFriendRequest` + 8 funciones sin `guardarDatos()` |
+| `028e45b` | 2026-04-06 | `cargarDatosNube` → onSnapshot + flag `_finListenerReady` + fix saldo $0 falso |
+| `13da4c5` | 2026-04-06 | `unlockedRooms` + `equippedRoom` persisten en Firestore |
+| `20ab191` | 2026-04-09 | iOS PWA safe area — elimina espacio muerto en parte inferior |
+| `4f76457` | 2026-04-09 | Onboarding obligatorio del Gemelo (OnboardingGemelo.js) |
+| `c7489b4` | 2026-04-09 | Scripts + QA reports (seedDemoUser.js, QA-MASTER-PLAN.md, VPS-SETUP-GUIDE.md) |
+| `c5bb66d` | 2026-04-10 | Seed usuario demo: Alejandro Torres, 90 días de datos coherentes |
+| `b711913` | 2026-04-11 | Fix CSS: drawer móvil + blackout banner no tapaba el FAB |
+| `eec1d7b` | 2026-04-13 | Placeholder email registro → "Tu mejor correo *" |
+
+### Qué está en producción
 ✅ **Sistema Financiero Cloud-First** — `users/{uid}/transactions` subcollection activa  
-✅ **`_startFinancialListener(uid)`** — onSnapshot en tiempo real operativo  
-✅ **Migración automática** — doc monolítico → subcollection al primer login  
-✅ **Reglas Firestore** `friendRequests` (Fix 4.1) — compiladas y en producción  
-✅ **Iconos PWA** — todos los tamaños actualizados  
-✅ **Firestore rules** `transactions` subcollection — con validaciones de type, amount, soft-delete  
-
-### Componentes financieros en producción (`main.js`)
-| Función | Línea | Rol |
-|---------|-------|-----|
-| `_txCollRef(uid)` | 67 | Helper ref a subcollección |
-| `_startFinancialListener(uid)` | 1465 | onSnapshot + migración automática |
-| `addTransaction()` | 1540 | async, Cloud-First + optimista |
-| `deleteTx(id)` | 1661 | Soft-delete local + Firestore |
-| `saveTxEdit()` | 1687 | Edit + saldoObj fix + Firestore |
+✅ **onSnapshot doc principal** — sincronización en tiempo real entre dispositivos/pestañas  
+✅ **`_finListenerReady` flag** — dashboard muestra `…` en lugar de `$0.00` al arrancar  
+✅ **Reglas Firestore `analytics`** — telemetría del Gemelo protegida (solo create desde cliente)  
+✅ **FCM token real** — `firebase.messaging().getToken()` operativo  
+✅ **10 Cloud Functions** con crons corregidos en timezone CDMX  
+✅ **OnboardingGemelo.js** — modal obligatorio entre check-in y tareas en primer uso  
+✅ **`unlockedRooms` + `equippedRoom`** persisten en Firestore (no se pierden al cambiar dispositivo)  
+✅ **iOS PWA safe area** — sin espacio muerto en parte inferior  
+✅ **8 funciones de edición** corregidas para llamar `guardarDatos()` tras modificar estado  
 
 ### Bugs conocidos no críticos
 - `NotFoundError: insertBefore on Node` en `showModuleCard()` — race condition DOM, no bloquea features.
 - `email-decode.min.js 404` — script de Cloudflare/Vercel, no es código nuestro.
 - `enableMultiTabIndexedDbPersistence() deprecated` — advertencia de Firebase SDK.
 
-### Próxima tarea sugerida
-**Verificar migración de transacciones en producción (primera vez que un usuario real abre la app)**
-1. Login → DevTools Console → buscar `[Life OS] 💸 Migrando`
-2. Agregar transacción → verificar en Firestore Console bajo `users/{uid}/transactions/`
-3. Saldo debe actualizarse en tiempo real sin refresh
-
-### Pendiente de sesiones anteriores (carry-over)
-- **OpenClaw en Hostinger:** quiere configurar pruebas automatizadas para `mylifeos.lat`. Preguntar qué tiene ya en Hostinger y qué falta conectar.
-- **MAPA_FUNCIONES.md** — creado para guion de TikTok. Ver `MAPA_FUNCIONES.md` en la raíz del proyecto.
+### Pendiente (carry-over)
+- **OpenClaw en Hostinger:** el usuario tiene un VPS-SETUP-GUIDE.md generado. Falta configurar efectivamente la conexión con `mylifeos.lat`. Preguntar qué tiene ya instalado en el VPS antes de continuar.
 
 ---
 
@@ -281,15 +303,17 @@ Feat: financial Cloud-First, iconos v3, reglas friendRequests, handover doc
 - **Boot-defer:** UI actions que pueden dispararse antes del boot van en `_schedulePostBoot(fn)`
 - **gainXP signature:** `gainXP(amount, skipBlackout = false)` — check-in y calibración usan `skipBlackout: true`
 
-### Campos de S añadidos en la última sesión
+### Campos de S relevantes (acumulados)
 ```js
-S.blackoutOverrideToday  // string 'YYYY-MM-DD' — día en que una acción real superó el Blackout
-S.bubbleColor            // string — color del bubble del Gemelo (persiste en Firestore)
-S.bubbleEmoji            // string — emoji del bubble del Gemelo (persiste en Firestore)
-S.friendRequests         // array — solicitudes de amistad pendientes recibidas
-S.physWeight             // number — peso físico del usuario (kg)
-S.unlockedRooms          // array<string> — IDs de rooms desbloqueadas en el apartamento
-S.equippedRoom           // string — ID de la room actualmente equipada
+S.blackoutOverrideToday       // string 'YYYY-MM-DD' — día en que una acción real superó el Blackout
+S.bubbleColor                 // string — color del bubble del Gemelo (persiste en Firestore)
+S.bubbleEmoji                 // string — emoji del bubble del Gemelo (persiste en Firestore)
+S.friendRequests              // array — solicitudes de amistad pendientes recibidas
+S.physWeight                  // number — peso físico del usuario (kg)
+S.unlockedRooms               // array<string> — IDs de rooms desbloqueadas (persiste en Firestore)
+S.equippedRoom                // string — ID de la room actualmente equipada (persiste en Firestore)
+S.geminoPotenciado            // bool — si el Gemelo está activado
+S.onboardingGemeloCompletado  // bool — si el usuario completó el onboarding del Gemelo
 ```
 
 ### Errores ignorables en consola
@@ -297,9 +321,6 @@ S.equippedRoom           // string — ID de la room actualmente equipada
 - `enableMultiTabIndexedDbPersistence() deprecated` — Firebase SDK
 - `SyntaxError: export en webpage_content_reporter.js` — extensión Chrome del usuario
 
-### Pendiente de sesiones anteriores
-- **OpenClaw en Hostinger:** el usuario quiere configurar herramienta de pruebas automatizadas en Hostinger para mylifeos.lat. Está a medias. Preguntar qué tiene ya configurado antes de continuar.
-
 ---
 
-*Generado 2026-04-03 · Actualizado 2026-04-05. Para regenerar: pedirle a Claude Code "handover de emergencia".*
+*Generado 2026-04-03 · Actualizado 2026-04-13. Para regenerar: pedirle a Claude Code "actualiza el handover".*
