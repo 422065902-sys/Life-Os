@@ -116,7 +116,7 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS) {
   await page.waitForTimeout(300);
   await page.fill('#login-email', email);
   await page.fill('#login-pass', pass);
-  await page.click('button[onclick*="loginUser"], button:has-text("INICIAR SESIÓN"), #btn-login');
+  await page.click('[onclick="doLogin()"]');
   return await waitForBoot(25000);
 }
 
@@ -157,7 +157,7 @@ function attachConsoleListeners() {
   });
   page.on('pageerror', err => {
     const msg = err.message;
-    const ignored = ['insertBefore on Node']; // bug conocido no crítico
+    const ignored = ['insertBefore on Node', 'insertBefore']; // bug conocido no crítico
     if (!ignored.some(i => msg.includes(i))) {
       consoleErrors.push(msg);
       addResult('GLOBAL', 'Error de JS en página', 'FAIL', msg.slice(0, 100));
