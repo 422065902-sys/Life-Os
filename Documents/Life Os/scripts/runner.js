@@ -117,13 +117,39 @@ async function safeFill(selector, value, timeout = 6000) {
   catch { return false; }
 }
 
-/** Verifica si la sesión sigue activa; si no, re-logea */
+/** Verifica si la sesión sigue activa; si no, re-logea.
+ *  Si la página está cerrada, la recrea desde el contexto existente. */
 async function ensureLoggedIn() {
+  // Verificar si la página sigue viva
+  let pageAlive = false;
+  try { await page.evaluate(() => true); pageAlive = true; } catch { pageAlive = false; }
+
+  if (!pageAlive) {
+    log('[SESSION] Página cerrada — recreando...');
+    try { page = await context.newPage(); attachConsoleListeners(); }
+    catch {
+      // contexto también muerto — recrear todo
+      log('[SESSION] Contexto muerto — recreando browser...');
+      try { await browser.close(); } catch {}
+      browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      });
+      context = await browser.newContext({
+        viewport: { width: 1280, height: 800 },
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) OpenClaw-QA-Bot/2.0',
+        locale: 'es-MX', timezoneId: 'America/Mexico_City',
+      });
+      page = await context.newPage();
+      attachConsoleListeners();
+    }
+  }
+
   const authVisible = await evalJS(() => {
     const a = document.getElementById('auth-screen');
     return a && window.getComputedStyle(a).display !== 'none';
   });
-  if (authVisible) {
+  if (authVisible || !pageAlive) {
     log('[SESSION] auth-screen detectado — re-login automático...');
     const ok = await doLogin();
     if (!ok) throw new Error('Re-login falló tras detectar auth-screen');
@@ -586,7 +612,7 @@ async function testTienda() {
   // Navegar al apartamento / tienda
   const shopBtn = await page.$('[onclick*="openShop"], [onclick*="shop"], button:has-text("Tienda")');
   if (shopBtn) {
-    await shopBtn.click();
+    await shopBtn.click().catch(() => {});
     await page.waitForTimeout(1000);
   }
 
@@ -632,7 +658,7 @@ async function testCalendario() {
   // Navegación al mes siguiente
   if (nextBtn) {
     const headerBefore = await getText('[id*="cal-month"], [id*="cal-header"], .cal-month-title');
-    await page.click('[onclick*="calNext"], [onclick*="nextMonth"], .cal-next');
+    await safeClick('[onclick*="calNext"], [onclick*="nextMonth"], .cal-next');
     await page.waitForTimeout(800);
     const headerAfter = await getText('[id*="cal-month"], [id*="cal-header"], .cal-month-title');
     addResult('13-Calendario', 'Navegar al mes siguiente cambia header', headerBefore !== headerAfter ? 'PASS' : 'WARN', `"${headerBefore}" → "${headerAfter}"`);
