@@ -805,10 +805,11 @@ async function testFAB() {
     if (fabBtn) {
       await fabBtn.click().catch(() => {});
       await page.waitForTimeout(500);
+      await page.waitForTimeout(600);
       const fabInput = await page.$('#fab-input, [id*="fab-input"]');
       if (fabInput) {
-        await fabInput.fill('tarea comprar leche mañana');
-        await page.keyboard.press('Enter');
+        await safeFill('#fab-input, [id*="fab-input"]', 'tarea comprar leche mañana');
+        await page.keyboard.press('Enter').catch(() => {});
         await page.waitForTimeout(1500);
         const chip = await isVisible('[id*="fab-chip"], [class*="confirm-chip"], [id*="chip"]');
         addResult('17-FAB', 'NLP FAB genera chip de confirmación', chip ? 'PASS' : 'WARN', '"tarea comprar leche mañana"');
@@ -935,9 +936,9 @@ async function testResponsive() {
   await goTo('dashboard');
   await page.waitForTimeout(1000);
 
-  // Nav inferior
-  const mobNav = await isVisible('#mob-nav, .mob-nav, .bottom-nav');
-  addResult('RESPONSIVE', 'Nav inferior visible en mobile (375px)', mobNav ? 'PASS' : 'FAIL');
+  // Nav inferior (drawer)
+  const mobNav = await isVisible('#mob-drawer-nav, .mob-drawer-nav, #desktop-nav');
+  addResult('RESPONSIVE', 'Nav visible en mobile (375px)', mobNav ? 'PASS' : 'FAIL');
 
   // Sidebar desktop oculta en mobile
   const sidebar = await evalJS(() => {
@@ -1098,17 +1099,23 @@ async function main() {
   log(`Reporte guardado: ${reportPath}`);
 
   // Commit y push automático
+  const GH_TOKEN = process.env.GH_TOKEN;
   try {
     process.chdir(REPO_DIR);
-    execSync('git pull origin main --quiet');
-    execSync('git add qa-reports/');
+    const reportsRelPath = path.relative(REPO_DIR, REPORTS_DIR);
+    if (GH_TOKEN) {
+      // Configurar remote con token para push sin contraseña
+      execSync(`git remote set-url origin https://${GH_TOKEN}@github.com/422065902-sys/Life-Os.git`, { stdio: 'pipe' });
+    }
+    execSync('git pull origin main --quiet', { stdio: 'pipe' });
+    execSync(`git add "${reportsRelPath}/"`, { stdio: 'pipe' });
     const passCnt = results.filter(r => r.status === 'PASS').length;
     const failCnt = results.filter(r => r.status === 'FAIL').length;
-    execSync(`git commit -m "QA ${stamp} — ✅${passCnt} ❌${failCnt} [${SMOKE_ONLY ? 'smoke' : 'full'}]"`);
-    execSync('git push origin main');
+    execSync(`git commit -m "QA ${stamp} — ✅${passCnt} ❌${failCnt} [${SMOKE_ONLY ? 'smoke' : 'full'}]"`, { stdio: 'pipe' });
+    execSync('git push origin main', { stdio: 'pipe' });
     log('Reporte commiteado y pusheado ✓');
   } catch (e) {
-    log(`[WARN] Error al hacer commit/push: ${e.message}`);
+    log(`[WARN] Error al hacer commit/push: ${e.message.split('\n')[0]}`);
   }
 
   log('═══ OpenClaw QA Suite completado ═══');
