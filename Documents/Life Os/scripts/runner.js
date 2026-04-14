@@ -513,7 +513,7 @@ async function testGemelo() {
   await page.waitForTimeout(1200);
 
   // Sección Gemelo
-  const gemeloSection = await isVisible('#gemelo-section, [id*="gemelo"]');
+  const gemeloSection = await isVisible('#gemelo-container, #gemelo-progress-wrap, .gemelo-wrap');
   addResult('09-Gemelo', 'Sección del Gemelo visible en Análisis', gemeloSection ? 'PASS' : 'FAIL');
 
   // Progress bar
@@ -657,10 +657,10 @@ async function testCalendario() {
 
   // Navegación al mes siguiente
   if (nextBtn) {
-    const headerBefore = await getText('[id*="cal-month"], [id*="cal-header"], .cal-month-title');
-    await safeClick('[onclick*="calNext"], [onclick*="nextMonth"], .cal-next');
+    const headerBefore = await getText('#cal-title, [id*="cal-month"], [id*="cal-header"]');
+    await safeClick('[onclick="calNext()"], [onclick*="calNext"], .cal-next');
     await page.waitForTimeout(800);
-    const headerAfter = await getText('[id*="cal-month"], [id*="cal-header"], .cal-month-title');
+    const headerAfter = await getText('#cal-title, [id*="cal-month"], [id*="cal-header"]');
     addResult('13-Calendario', 'Navegar al mes siguiente cambia header', headerBefore !== headerAfter ? 'PASS' : 'WARN', `"${headerBefore}" → "${headerAfter}"`);
   }
 
@@ -681,24 +681,24 @@ async function testProductividad() {
   await page.waitForTimeout(1000);
 
   // Lista de tareas
-  const taskList = await isVisible('#task-list, [id*="task-list"]');
+  const taskList = await isVisible('#task-list');
   addResult('14-Productividad', '#task-list visible', taskList ? 'PASS' : 'FAIL');
 
-  // Input nueva tarea
-  const taskInput = await isVisible('#new-task, [id*="new-task"], input[placeholder*="tarea"]');
+  // Input nueva tarea (id real: #t-name)
+  const taskInput = await isVisible('#t-name, #new-task, input[placeholder*="tarea"]');
   addResult('14-Productividad', 'Input nueva tarea existe', taskInput ? 'PASS' : 'FAIL');
 
   // Staging: agregar y completar tarea
   if (!SMOKE_ONLY && taskInput) {
     const xpBefore = await evalJS(() => (window.S && window.S.xp) || 0);
-    await safeFill('#new-task, [id*="new-task"]', `Tarea QA ${Date.now()}`);
-    await page.keyboard.press('Enter').catch(() => {});
+    await safeFill('#t-name, #new-task', `Tarea QA ${Date.now()}`);
+    await safeClick('[onclick="addTask()"], button:has-text("Agregar Tarea")');
     await page.waitForTimeout(1500);
-    const tasks = await page.$$('.task-card, [class*="task-item"], [class*="task-card"]');
+    const tasks = await page.$$('#task-list > *, .task-card, [class*="task-item"]');
     addResult('14-Productividad', 'Tarea QA aparece en lista', tasks.length > 0 ? 'PASS' : 'WARN', `${tasks.length} tareas`);
 
     // Completar la primera tarea visible
-    const firstToggle = await page.$('.task-card input[type="checkbox"], [onclick*="toggleTask"], .task-toggle');
+    const firstToggle = await page.$('#task-list input[type="checkbox"], [onclick*="toggleTask"], .task-toggle');
     if (firstToggle) {
       await firstToggle.click().catch(() => {});
       await page.waitForTimeout(1500);
