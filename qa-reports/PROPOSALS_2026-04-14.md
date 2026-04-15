@@ -35,3 +35,20 @@
 
 ---
 
+## Run: 2026-04-14_22-14.md
+
+- [ ] [BUG] AUTH: #app visible antes del login | SOLUCIÓN: Añadir `display: none;` al `#app` en `index.html` y removerlo con JS solo después de que Firebase Auth haya inicializado y confirmado el estado de autenticación (`firebase.auth().onAuthStateChanged`). | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [UX] AUTH: Feedback de error de credenciales | SOLUCIÓN: Reemplazar el mensaje de error inline estático con un `Toast` animado (usando `react-hot-toast` o similar) que desaparezca automáticamente tras 3-5 segundos, o que el usuario pueda descartar. Esto mejora la fluidez y el diseño. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] AUTH: Profundidad del glassmorphism en el card de login | SOLUCIÓN: Aumentar el `backdrop-filter: blur()` y ajustar la opacidad del color de fondo (`background-color: rgba(X, Y, Z, 0.15)`) para un efecto de vidrio más pronunciado y premium, acorde a 2026. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ANIMACIÓN] AUTH: Estados de foco en campos de entrada | SOLUCIÓN: Implementar micro-animaciones con `spring physics` (ej. `framer-motion`) en los `input` de correo y contraseña al recibir foco, con un ligero `scale` o `border-glow` que se expanda y contraiga suavemente. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [MOBILE] AUTH: Visibilidad del botón "Entrar a Life OS" en mobile | SOLUCIÓN: Asegurar que el botón `Entrar a Life OS` sea siempre visible y no quede oculto por el teclado virtual en dispositivos móviles pequeños (375px). Implementar `scrollIntoView` o `viewport-fit=cover` para ajustar el layout. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [RETENCIÓN] AUTH: Botón "Pruebe 30 días - Gratis" | SOLUCIÓN: Añadir un sutil `pulse` o `glow` animado al botón "Pruebe 30 días - Gratis" para atraer la atención y comunicar una oportunidad valiosa, incrementando la tasa de prueba. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [BUG] CALENDARIO: Header de navegación de mes | SOLUCIÓN: Corregir la lógica en `CalendarComponent.js` para que el `header` del calendario se actualice correctamente al navegar al mes siguiente. Probablemente un error en la variable de estado que guarda el mes actual. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] HÁBITOS/MENTE: Placeholder "0 entradas/hábitos" | SOLUCIÓN: En `HabitsList.js` y `JournalEntries.js`, implementar un `EmptyStateComponent` con un mensaje amigable y una ilustración, en lugar de mostrar "0 hábitos" o "0 entradas" cuando no hay datos. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] IDENTIDAD-VISUAL: Implementación de firmas visuales por módulo | SOLUCIÓN: Definir y aplicar rigurosamente las identidades visuales únicas (colores, tipografías, fondos, animaciones) para cada uno de los 7 módulos objetivo *después* del login. El login actual es genérico y no prepara al usuario para la diversidad visual prometida. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] FUSIÓN: Reducción de módulos a 7 | SOLUCIÓN: Proceder con la fusión de módulos según la visión objetivo (ej. Productividad + Hábitos + Calendario en "Flow"). Esto es crítico para reducir la carga cognitiva del usuario nuevo y mejorar la retención. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] GEMELO: Integración como tab en Mente | SOLUCIÓN: Confirmar la implementación del Gemelo como la tercera tab dentro del módulo "Mente", aprovechando el contexto de Bitácora y Biblioteca para generar insights, en lugar de un módulo independiente. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] DASHBOARD: Toggle "Dashboard Inteligente" en Settings | SOLUCIÓN: Añadir un `toggle switch` en la sección "Preferencias" de "Tú" (Settings) para que el usuario pueda activar/desactivar el "Dashboard Inteligente". La preferencia se guardará en Firestore en la colección `users/{userId}/settings`. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+
+---
+
