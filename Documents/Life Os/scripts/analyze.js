@@ -242,9 +242,15 @@ ${historyText}
 
 ${hasScreenshots ? `## SCREENSHOTS EN VIVO (${screenshots.length} capturas del run de hoy)
 
+⚠️ CONTEXTO CRÍTICO DE CAPTURA:
+- Los screenshots son del viewport inicial (parte superior de la pantalla). El contenido que requiere scroll NO aparece en la captura aunque SÍ existe en el DOM.
+- Si ves un módulo "vacío" o con poco contenido, NO concluyas que está roto — puede haber contenido debajo del fold.
+- El bot de QA sí hace scroll y reporta por texto si encuentra elementos. Cruza los screenshots con el reporte de texto para diagnósticos completos.
+- Módulos con tabs (Flow, Cuerpo, Mente, Stats): el screenshot solo muestra el tab activo al navegar; los demás tabs tienen contenido aunque no aparezcan en captura.
+
 Analiza cada screenshot desde TODOS tus roles:
 
-**Como QA:** ¿Hay datos incorrectos, estados rotos, elementos que no cargan?
+**Como QA:** ¿Hay datos incorrectos, estados rotos, elementos que no cargan? Considera el contexto de scroll antes de marcar algo como vacío.
 **Como Designer 2026:** ¿Se ve esto como una app premium o como 2019? ¿El spacing es correcto? ¿La tipografía tiene jerarquía? ¿Los colores son coherentes? ¿Hay suficiente profundidad visual?
 **Como Game Designer:** ¿Se siente satisfactorio? ¿El progreso es visible y motivador? ¿El XP y nivel están en lugares prominentes?
 **Como Mobile UX:** ¿Los touch targets son suficientes? ¿El contenido respira en 375px? ¿El FAB tapa algo importante?
