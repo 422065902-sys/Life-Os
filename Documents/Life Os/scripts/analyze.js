@@ -91,7 +91,7 @@ function loadScreenshots(shotsDir) {
   );
 
   const ordered = [...foldShots, ...responsiveShots, ...scrollShots, ...otherShots, ...authShots];
-  const files = ordered.slice(0, 40); // hasta 40 imágenes para cobertura total de módulos
+  const files = ordered; // sin límite — se envían TODOS los screenshots (Gemini 2.5 Flash soporta hasta 3600 imágenes)
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
