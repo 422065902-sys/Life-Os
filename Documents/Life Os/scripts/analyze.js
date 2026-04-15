@@ -120,34 +120,28 @@ Analiza cada screenshot buscando activamente:
 7. Estados vacíos sin mensaje apropiado
 8. Cualquier anomalía visual
 
-` : ''}## INSTRUCCIONES DE RESPUESTA — CRÍTICO
+` : ''}## FORMATO DE RESPUESTA OBLIGATORIO
 
-Tu respuesta DEBE tener EXACTAMENTE DOS BLOQUES separados por la línea "---PROPOSALS---".
-NO omitas ningún bloque. NO cambies el separador. NO expliques tu razonamiento.
-
-BLOQUE 1 — análisis (antes del separador):
-🔍 DIAGNÓSTICO DEL DÍA
-[Qué falló o llamó la atención. ${hasScreenshots ? 'Menciona screenshots específicos.' : ''} Máx 80 palabras.]
-
-📈 TENDENCIAS
-[Patrones de los últimos días. Máx 60 palabras.]
-
-💊 SALUD GENERAL: X/10
-[Una frase concisa de diagnóstico]
+Escribe tu respuesta en DOS secciones separadas por "---PROPOSALS---". Sigue este template exacto:
 
 ---PROPOSALS---
+- [BUG] MÓDULO: descripción del problema | SOLUCIÓN: qué cambiar exactamente | PRIORIDAD: ALTA
+- [UX] MÓDULO: descripción del problema | SOLUCIÓN: qué cambiar exactamente | PRIORIDAD: MEDIA
+- [DISEÑO] MÓDULO: descripción del problema | SOLUCIÓN: qué cambiar exactamente | PRIORIDAD: BAJA
+(genera entre 4 y 8 propuestas reales basadas en lo que encontraste)
 
-BLOQUE 2 — propuestas (después del separador):
-Genera ENTRE 3 Y 8 propuestas accionables. Cada línea empieza con "- [TIPO]".
-TIPOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD
+---ANALYSIS---
+🔍 DIAGNÓSTICO DEL DÍA
+[máx 80 palabras sobre qué falló hoy${hasScreenshots ? ', menciona screenshots' : ''}]
 
-FORMATO EXACTO DE CADA LÍNEA:
-- [TIPO] MÓDULO: problema específico | SOLUCIÓN: cómo arreglarlo | PRIORIDAD: ALTA/MEDIA/BAJA
+📈 TENDENCIAS
+[máx 60 palabras sobre patrones de los últimos días]
 
-EJEMPLOS (usa este formato exacto):
-- [BUG] Dashboard: El anillo núcleo muestra 68% fijo | SOLUCIÓN: Verificar renderDashboard() actualiza strokeDashoffset con S.nucleoProgress | PRIORIDAD: ALTA
-- [UX] Mobile: FAB tapa el último ítem de la lista | SOLUCIÓN: Añadir padding-bottom:80px al contenedor | PRIORIDAD: MEDIA
-- [DISEÑO] Calendario: Header truncado en 375px | SOLUCIÓN: Reducir font-size o usar ellipsis | PRIORIDAD: BAJA`;
+💊 SALUD GENERAL: X/10
+[una frase de diagnóstico]
+
+TIPOS VÁLIDOS para propuestas: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD
+IMPORTANTE: Las propuestas van ANTES de ---ANALYSIS---. No omitas ninguna sección.`;
 
   const parts = [{ text: textPrompt }];
 
@@ -169,7 +163,7 @@ function callGemini(parts) {
       contents: [{ parts }],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 8000,
       }
     });
 
@@ -208,20 +202,33 @@ function callGemini(parts) {
 // PARSEAR Y SEPARAR ANÁLISIS DE PROPUESTAS
 // ══════════════════════════════════════════════════════════════
 function parseResponse(raw) {
-  const dividerIdx = raw.indexOf('---PROPOSALS---');
-  if (dividerIdx === -1) {
-    return { analysis: raw.trim(), proposals: [] };
+  const propStart  = raw.indexOf('---PROPOSALS---');
+  const analStart  = raw.indexOf('---ANALYSIS---');
+
+  // Formato nuevo: PROPOSALS primero, luego ANALYSIS
+  if (propStart !== -1 && analStart !== -1 && propStart < analStart) {
+    const proposalsPart = raw.slice(propStart + 15, analStart).trim();
+    const analysisPart  = raw.slice(analStart + 14).trim();
+    const proposals = proposalsPart
+      .split('\n')
+      .filter(l => l.trim().match(/^-\s*\[/))
+      .map(l => l.trim());
+    return { analysis: analysisPart, proposals };
   }
 
-  const analysisPart  = raw.slice(0, dividerIdx).trim();
-  const proposalsPart = raw.slice(dividerIdx + 15).trim();
+  // Fallback: formato antiguo (ANALYSIS primero, PROPOSALS después)
+  if (propStart !== -1) {
+    const analysisPart  = raw.slice(0, propStart).trim();
+    const proposalsPart = raw.slice(propStart + 15).trim();
+    const proposals = proposalsPart
+      .split('\n')
+      .filter(l => l.trim().match(/^-\s*\[/))
+      .map(l => l.trim());
+    return { analysis: analysisPart, proposals };
+  }
 
-  const proposals = proposalsPart
-    .split('\n')
-    .filter(l => l.trim().startsWith('-'))
-    .map(l => l.trim());
-
-  return { analysis: analysisPart, proposals };
+  // Sin separadores — todo es análisis
+  return { analysis: raw.trim(), proposals: [] };
 }
 
 // ══════════════════════════════════════════════════════════════
