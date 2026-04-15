@@ -1036,42 +1036,103 @@ async function testPWA() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// REVISIÓN VISUAL RESPONSIVE
+// REVISIÓN VISUAL RESPONSIVE — Android + iOS
 // ══════════════════════════════════════════════════════════════
-async function testResponsive() {
-  log('▶ RESPONSIVE — Mobile 375px');
 
-  // Cambiar a mobile
-  await page.setViewportSize({ width: 375, height: 812 });
+/**
+ * Toma screenshots de los módulos principales en un viewport mobile dado.
+ * prefix: 'android' | 'ios'
+ */
+async function takeMobileModuleShots(prefix) {
+  const modules = [
+    { id: 'dashboard',    slug: '05-dashboard'   },
+    { id: 'productividad',slug: '07-flow'         },
+    { id: 'financial',    slug: '06-finanzas'     },
+    { id: 'cuerpo',       slug: '08-cuerpo'       },
+    { id: 'mente',        slug: '15-mente'        },
+    { id: 'world',        slug: '16-world'        },
+  ];
+  for (const mod of modules) {
+    await goTo(mod.id);
+    await page.waitForTimeout(800);
+    await takeShot(`responsive-${prefix}-${mod.slug}`);
+  }
+}
+
+async function testResponsive() {
+  log('▶ RESPONSIVE — Android 360×800 + iOS 390×844');
+
+  // ─── ANDROID (Pixel 6a normalizado) ────────────────────────
+  await page.setViewportSize({ width: 360, height: 800 });
   await goTo('dashboard');
   await page.waitForTimeout(1000);
 
-  // Drawer mobile — existe en DOM (se abre con gesto, no siempre visible)
-  const mobDrawer = await page.$('#mob-drawer, #mob-drawer-nav, .mob-drawer-nav');
-  addResult('RESPONSIVE', 'Drawer mobile existe en DOM (375px)', mobDrawer ? 'PASS' : 'FAIL');
-  // FAB siempre visible en mobile
-  const fabMobile = await isVisible('#fab-btn, .fab-btn');
-  addResult('RESPONSIVE', 'FAB visible en mobile (375px)', fabMobile ? 'PASS' : 'WARN');
+  const mobDrawerAndroid = await page.$('#mob-drawer, #mob-drawer-nav, .mob-drawer-nav');
+  addResult('RESPONSIVE-Android', 'Drawer mobile existe en DOM (360px)', mobDrawerAndroid ? 'PASS' : 'FAIL');
 
-  // Sidebar desktop oculta en mobile
-  const sidebar = await evalJS(() => {
+  const fabAndroid = await isVisible('#fab-btn, .fab-btn');
+  addResult('RESPONSIVE-Android', 'FAB visible (360px)', fabAndroid ? 'PASS' : 'WARN');
+
+  const sidebarAndroid = await evalJS(() => {
     const el = document.getElementById('sidebar');
     if (!el) return 'no existe';
     return window.getComputedStyle(el).display;
   });
-  addResult('RESPONSIVE', 'Sidebar desktop oculta en mobile', sidebar === 'none' || sidebar === 'no existe' ? 'PASS' : 'WARN', `display=${sidebar}`);
+  addResult('RESPONSIVE-Android', 'Sidebar desktop oculta (360px)',
+    sidebarAndroid === 'none' || sidebarAndroid === 'no existe' ? 'PASS' : 'WARN',
+    `display=${sidebarAndroid}`);
 
-  // Overflow horizontal (scroll lateral)
-  const hasHScroll = await evalJS(() => document.body.scrollWidth > window.innerWidth + 5);
-  addResult('RESPONSIVE', 'Sin scroll horizontal en mobile (375px)', !hasHScroll ? 'PASS' : 'WARN',
-    hasHScroll ? `scrollWidth=${document.body ? document.body.scrollWidth : '?'}` : '');
-  if (hasHScroll) addUX('RESPONSIVE', 'Scroll horizontal en mobile 375px', 'Revisar elementos con width fijo o overflow visible');
+  const hScrollAndroid = await evalJS(() => document.body.scrollWidth > window.innerWidth + 5);
+  addResult('RESPONSIVE-Android', 'Sin scroll horizontal (360px)', !hScrollAndroid ? 'PASS' : 'WARN');
+  if (hScrollAndroid) addUX('RESPONSIVE-Android', 'Scroll horizontal en 360px', 'Revisar elementos con width fijo');
 
-  // Screenshot mobile antes de restaurar
-  await takeShot('responsive-mobile-375');
+  // Nav inferior no tapada por FAB en Android
+  const navFabOverlapAndroid = await evalJS(() => {
+    const fab = document.querySelector('#fab-btn, .fab-btn');
+    const nav = document.querySelector('#mob-nav, .mob-nav, nav');
+    if (!fab || !nav) return false;
+    const fabBox = fab.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    return fabBox.bottom > navBox.top && fabBox.top < navBox.bottom;
+  });
+  addResult('RESPONSIVE-Android', 'FAB no tapa nav inferior (360px)', !navFabOverlapAndroid ? 'PASS' : 'FAIL');
 
-  // Restaurar viewport desktop
+  await takeMobileModuleShots('android');
+
+  // ─── iOS (iPhone 14/15 normalizado) ────────────────────────
+  await page.setViewportSize({ width: 390, height: 844 });
+  await goTo('dashboard');
+  await page.waitForTimeout(1000);
+
+  const fabIOS = await isVisible('#fab-btn, .fab-btn');
+  addResult('RESPONSIVE-iOS', 'FAB visible (390px)', fabIOS ? 'PASS' : 'WARN');
+
+  const hScrollIOS = await evalJS(() => document.body.scrollWidth > window.innerWidth + 5);
+  addResult('RESPONSIVE-iOS', 'Sin scroll horizontal (390px)', !hScrollIOS ? 'PASS' : 'WARN');
+  if (hScrollIOS) addUX('RESPONSIVE-iOS', 'Scroll horizontal en 390px', 'Revisar elementos con width fijo');
+
+  // Texto no se corta (overflow: hidden con texto truncado involuntario)
+  const textOverflow = await evalJS(() => {
+    const titles = Array.from(document.querySelectorAll('.page-title, .card-title, h1, h2'));
+    return titles.some(el => el.scrollWidth > el.clientWidth + 2);
+  });
+  addResult('RESPONSIVE-iOS', 'Títulos sin overflow de texto (390px)', !textOverflow ? 'PASS' : 'WARN',
+    textOverflow ? 'Algún título se trunca horizontalmente' : '');
+
+  // Safe area / notch — verificar que el nav no quede detrás del notch
+  const navTopIOS = await evalJS(() => {
+    const nav = document.querySelector('#mob-nav, .mob-nav, nav, #sidebar');
+    if (!nav) return -1;
+    return nav.getBoundingClientRect().top;
+  });
+  addResult('RESPONSIVE-iOS', 'Nav no oculta detrás del notch (top ≥ 0)', navTopIOS >= 0 ? 'PASS' : 'WARN',
+    `nav.top=${navTopIOS}`);
+
+  await takeMobileModuleShots('ios');
+
+  // ─── Restaurar viewport desktop ─────────────────────────────
   await page.setViewportSize({ width: 1280, height: 800 });
+  await goTo('dashboard');
 }
 
 // ══════════════════════════════════════════════════════════════
