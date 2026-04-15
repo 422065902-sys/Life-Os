@@ -91,7 +91,7 @@ function loadScreenshots(shotsDir) {
   );
 
   const ordered = [...foldShots, ...responsiveShots, ...scrollShots, ...otherShots, ...authShots];
-  const files = ordered.slice(0, 20); // hasta 20 imágenes para análisis completo
+  const files = ordered.slice(0, 40); // hasta 40 imágenes para cobertura total de módulos
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),

@@ -152,7 +152,12 @@ async function ensureNotOnAuth(moduleLabel) {
   // Navegar al módulo correcto basado en el nombre del screenshot (ej: "08-cuerpo" → "cuerpo")
   const moduleMap = {
     'dashboard': 'dashboard', 'finanzas': 'financial', 'flow': 'productividad',
-    'flow-agenda': 'productividad', 'cuerpo': 'cuerpo', 'mente': 'mente', 'world': 'world'
+    'flow-agenda': 'productividad', 'flow-ideas': 'productividad', 'flow-metas': 'productividad',
+    'habitos': 'productividad', 'cuerpo': 'cuerpo', 'gemelo': 'mente',
+    'mente': 'mente', 'world': 'world', 'tienda': 'world', 'apartamento': 'world',
+    'gamificacion': 'stats', 'stripe': 'settings', 'fcm': 'settings', 'settings': 'settings',
+    'calendar': 'calendar', 'admin': 'dashboard', 'onboarding': 'dashboard',
+    'blackout': 'dashboard', 'paywall': 'dashboard',
   };
   const key = Object.keys(moduleMap).find(k => moduleLabel.toLowerCase().includes(k));
   if (key) {
@@ -533,6 +538,8 @@ async function testOnboarding() {
   // Verificar que el Gemelo onboarding NO bloquea al usuario que ya lo completó
   const gemeloOnboardingActive = await isVisible('#gemelo-onboarding-overlay');
   addResult('02-Onboarding', 'Onboarding Gemelo no bloquea usuario existente', !gemeloOnboardingActive ? 'PASS' : 'WARN', gemeloOnboardingActive ? 'Modal activo — puede ser primer uso' : '');
+
+  await takeShotWithScroll('02-onboarding', '02-Onboarding');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -567,6 +574,8 @@ async function testBlackout() {
   // Verificar modo recuperación (día difícil)
   const hasRecovery = await evalJS(() => document.body.classList.contains('recovery'));
   addResult('03-Blackout', 'Estado RECOVERY actual', 'INFO', `body.recovery=${hasRecovery}`);
+
+  await takeShotWithScroll('03-blackout', '03-Blackout');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -588,6 +597,8 @@ async function testPaywall() {
   // Consulta mode banner
   const consultaBanner = await isVisible('[id*="consulta-banner"], [class*="consulta"]');
   addResult('04-Paywall', 'Estado consulta mode actual', 'INFO', `visible=${consultaBanner}`);
+
+  await takeShotWithScroll('04-paywall', '04-Paywall');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -717,6 +728,7 @@ async function testHabitos() {
   addResult('07-Habitos', 'Sistema de batería presente en hábitos', battery ? 'PASS' : 'INFO', battery ? '' : 'Sin hábitos o sin batería visible');
 
   await checkNoNaN('07-Habitos');
+  await takeShotWithScroll('07-habitos', '07-Habitos');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -791,6 +803,7 @@ async function testGemelo() {
   addResult('09-Gemelo', 'Estado del Gemelo en S', 'INFO', gemeloState);
 
   await checkNoNaN('09-Gemelo');
+  await takeShotWithScroll('09-gemelo', '09-Gemelo');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -819,6 +832,8 @@ async function testStripe() {
   // Plan actual visible
   const planBadge = await getText('[id*="plan-badge"], [class*="plan-badge"], [id*="current-plan"]');
   addResult('10-Stripe', 'Badge del plan actual visible', planBadge.length > 0 ? 'PASS' : 'INFO', planBadge);
+
+  await takeShotWithScroll('10-stripe', '10-Stripe');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -843,6 +858,11 @@ async function testGamificacion() {
   // Level
   const levelText = await getText('#sb-level, #tb-level');
   addResult('11-Gamificacion', 'Level es número válido >= 1', levelText.length > 0 && !levelText.includes('NaN') ? 'PASS' : 'FAIL', levelText);
+
+  // Shot del módulo stats/gamificación
+  await goTo('stats');
+  await page.waitForTimeout(800);
+  await takeShotWithScroll('11-gamificacion', '11-Gamificacion');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -884,6 +904,8 @@ async function testTienda() {
   // Rooms equipadas persisten (verificar S)
   const equippedRoom = await evalJS(() => window.S && window.S.equippedRoom);
   addResult('12-Tienda', 'equippedRoom en estado S', 'INFO', `equippedRoom="${equippedRoom}"`);
+
+  await takeShotWithScroll('12-tienda', '12-Tienda');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -972,6 +994,12 @@ async function testProductividad() {
   await page.waitForTimeout(800);
   const ideaList = await isVisible('#idea-list, [id*="idea-list"]');
   addResult('14-Productividad', 'Lista de ideas visible', ideaList ? 'PASS' : 'INFO');
+  await takeShotWithScroll('14-flow-ideas', '14-Flow-Ideas');
+
+  // Metas tab
+  const metasTab = await page.$('[onclick*="metas"], .tab-metas');
+  if (metasTab) { await metasTab.click().catch(() => {}); await page.waitForTimeout(800); }
+  await takeShotWithScroll('14-flow-metas', '14-Flow-Metas');
 
   await checkNoNaN('14-Productividad');
 }
@@ -1013,8 +1041,22 @@ async function testMente() {
     }
   }
 
+  // Screenshot tab principal (biblioteca — estado por defecto al abrir mente)
+  await goTo('mente');
+  await page.waitForTimeout(800);
+  await takeShotWithScroll('15-mente-biblioteca', '15-Mente');
+
+  // Tab bitácora de victorias
+  const bitacoraTab = await page.$('[onclick*="bitacora"], [onclick*="victorias"], .tab-bitacora');
+  if (bitacoraTab) { await bitacoraTab.click().catch(() => {}); await page.waitForTimeout(800); }
+  await takeShotWithScroll('15-mente-bitacora', '15-Mente');
+
+  // Tab aliados
+  const aliadosTab = await page.$('[onclick*="aliados"], .tab-aliados');
+  if (aliadosTab) { await aliadosTab.click().catch(() => {}); await page.waitForTimeout(800); }
+  await takeShotWithScroll('15-mente-aliados', '15-Mente');
+
   await checkNoNaN('15-Mente');
-  await takeShotWithScroll('15-mente', '15-Mente');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1043,7 +1085,16 @@ async function testWorld() {
   // Apartamento accesible
   const aptBtn = await isVisible('[onclick*="openApartment"], [onclick*="apartment"], .apt-zone');
   addResult('16-World', 'Acceso al apartamento visible', aptBtn ? 'PASS' : 'WARN');
+
+  // Shot del mapa de ciudad
   await takeShotWithScroll('16-world', '16-World');
+
+  // Abrir apartamento y capturar
+  if (aptBtn) {
+    await safeClick('[onclick*="openApartment"], [onclick*="apartment"], .apt-zone');
+    await page.waitForTimeout(1200);
+    await takeShotWithScroll('16-world-apartamento', '16-World');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1088,6 +1139,8 @@ async function testFAB() {
       await fabBtn.click().catch(() => {});
       await page.waitForTimeout(500);
       await page.waitForTimeout(600);
+      // Screenshot con FAB abierto
+      await takeShot('17-fab-abierto');
       const fabInput = await page.$('#fab-input, [id*="fab-input"]');
       if (fabInput) {
         await safeFill('#fab-input, [id*="fab-input"]', 'tarea comprar leche mañana');
@@ -1095,6 +1148,8 @@ async function testFAB() {
         await page.waitForTimeout(1500);
         const chip = await isVisible('[id*="fab-chip"], [class*="confirm-chip"], [id*="chip"]');
         addResult('17-FAB', 'NLP FAB genera chip de confirmación', chip ? 'PASS' : 'WARN', '"tarea comprar leche mañana"');
+        // Screenshot con chip de confirmación
+        if (chip) await takeShot('17-fab-chip');
       }
     }
   }
@@ -1134,6 +1189,9 @@ async function testAdmin() {
   });
   addResult('18-Admin', 'Admin puede navegar a /agencies', inAgencies ? 'PASS' : 'FAIL');
 
+  // Screenshot del panel admin
+  await takeShotWithScroll('18-admin', '18-Admin');
+
   // Volver a logear con usuario QA para el resto de pruebas
   await doLogin();
 }
@@ -1164,6 +1222,8 @@ async function testFCM() {
   // Verificar que el fcm_token fue guardado en S si el usuario tiene notificaciones activas
   const fcmToken = await evalJS(() => window.S && window.S.fcmToken);
   addResult('19-FCM', 'FCM token en estado S', 'INFO', fcmToken ? `token presente (${String(fcmToken).slice(0,20)}…)` : 'token ausente — notificaciones no activadas');
+
+  await takeShotWithScroll('19-settings', '19-FCM');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1191,9 +1251,10 @@ async function testPWA() {
   addResult('20-PWA', 'sw.js accesible', swRes && swRes.status() === 200 ? 'PASS' : 'FAIL',
     swRes ? `HTTP ${swRes.status()}` : 'No accesible');
 
-  // Volver a la app
+  // Volver a la app y capturar
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
   await waitForBoot();
+  await takeShot('20-pwa-manifest');
 
   // Verificar offline básico (interceptar red y recargar)
   if (!SMOKE_ONLY) {
@@ -1204,10 +1265,12 @@ async function testPWA() {
     const crashedOffline = bodyOffline.includes('ERR_INTERNET_DISCONNECTED') || bodyOffline.includes('No internet');
     addResult('20-PWA', 'App no crashea en offline (service worker activo)', !crashedOffline ? 'PASS' : 'FAIL',
       crashedOffline ? 'App no disponible offline' : 'App renderiza contenido offline');
+    await takeShot('20-pwa-offline');
     await page.context().setOffline(false);
     // Reconectar
     await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
     await waitForBoot();
+    await takeShot('20-pwa-online');
   }
 }
 
@@ -1222,11 +1285,14 @@ async function testPWA() {
 async function takeMobileModuleShots(prefix) {
   const modules = [
     { id: 'dashboard',    slug: '05-dashboard'   },
-    { id: 'productividad',slug: '07-flow'         },
     { id: 'financial',    slug: '06-finanzas'     },
+    { id: 'productividad',slug: '07-flow'         },
     { id: 'cuerpo',       slug: '08-cuerpo'       },
     { id: 'mente',        slug: '15-mente'        },
     { id: 'world',        slug: '16-world'        },
+    { id: 'stats',        slug: '11-gamificacion' },
+    { id: 'settings',     slug: '10-settings'    },
+    { id: 'calendar',     slug: '13-calendar'    },
   ];
   for (const mod of modules) {
     await goTo(mod.id);
