@@ -1154,6 +1154,14 @@ async function main() {
     log(`[WARN] Error al hacer commit/push: ${e.message.split('\n')[0]}`);
   }
 
+  // Análisis IA con Gemini
+  try {
+    log('Ejecutando análisis IA con Gemini...');
+    execSync(`node "${path.join(__dirname, 'analyze.js')}"`, { stdio: 'inherit' });
+  } catch (e) {
+    log(`[WARN] Análisis IA falló: ${e.message.split('\n')[0]}`);
+  }
+
   log('═══ OpenClaw QA Suite completado ═══');
 
   const hasFails = results.some(r => r.status === 'FAIL');
