@@ -272,15 +272,15 @@ La landing NO es una página corporativa genérica. Es la pantalla de título de
 
 **Animaciones obligatorias:**
 - Entrada del hero: fade + translate-Y en cascada (logo → headline → sub → botón → texto legal)
-- Scroll reveal: Intersection Observer con clase `.reveal` que agrega `opacity:1, translateY(0)`
+- Scroll reveal: Intersection Observer con clase '.reveal' que agrega 'opacity:1, translateY(0)'
 - Partículas o gradiente animado en el hero (CSS @keyframes o canvas ligero)
 - Botón CTA: glow pulse en el color acento (box-shadow animado en loop)
 - Cards de módulos: hover levitación + border-glow con accent del módulo
 - Transición al hacer clic en CTA: fade out landing → fade in auth screen (no hard redirect)
 
 **Implementación técnica:**
-- Todo dentro de `index.html` como una nueva `<section id="landing-page">` que se muestra cuando `!user` (no logueado) y se oculta al loguearse
-- CSS en `styles.css` bajo `/* === LANDING PAGE === */`
+- Todo dentro de index.html como una nueva section#landing-page que se muestra cuando el usuario no está logueado y se oculta al loguearse
+- CSS en styles.css bajo el bloque "=== LANDING PAGE ==="
 - JS mínimo: Intersection Observer para animaciones de scroll, lógica de mostrar/ocultar
 - NO frameworks externos — vanilla JS + CSS animations
 - La pantalla de login actual pasa a ser un modal o un panel secundario dentro de la landing
