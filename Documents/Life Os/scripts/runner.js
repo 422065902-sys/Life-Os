@@ -478,6 +478,208 @@ function attachConsoleListeners() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// SEED — Datos de demostración (una vez por día, antes de los módulos)
+// ══════════════════════════════════════════════════════════════
+async function seedUserData() {
+  log('[SEED] Verificando si se necesita sembrar datos de demostración...');
+
+  // Idempotente: solo una vez por día en esta cuenta
+  const today = new Date().toISOString().slice(0, 10);
+  const alreadySeeded = await evalJS(() => {
+    const d = new Date().toISOString().slice(0, 10);
+    return localStorage.getItem('qa-seeded-' + d) === '1';
+  });
+  if (alreadySeeded) { log('[SEED] Datos ya sembrados hoy — omitiendo'); return; }
+
+  // ── FINANZAS — 5 transacciones variadas ──────────────────────────────────
+  log('[SEED] Sembrando finanzas...');
+  await goTo('financial');
+  await page.waitForTimeout(1500);
+
+  const txCount = await evalJS(() => {
+    const l = document.querySelector('#tx-list');
+    return l ? l.children.length : 0;
+  });
+
+  if (txCount < 4) {
+    const txs = [
+      { monto: '15000', tipo: 'entrada', desc: 'Sueldo mensual' },
+      { monto: '3500',  tipo: 'gasto',   desc: 'Renta'          },
+      { monto: '850',   tipo: 'gasto',   desc: 'Despensa'       },
+      { monto: '2200',  tipo: 'entrada', desc: 'Proyecto freelance' },
+      { monto: '450',   tipo: 'gasto',   desc: 'Membresía gym'  },
+    ];
+    for (const tx of txs) {
+      // Abrir modal si existe botón
+      const addBtn = await page.$('[onclick*="openTxModal"], #add-tx-btn, button:has-text("+ Transacción")');
+      if (addBtn) { await addBtn.click().catch(() => {}); await page.waitForTimeout(700); }
+
+      const montoEl = await page.$('[id*="tx-amount"], [id*="monto"], input[type="number"]');
+      if (!montoEl) break;
+      await montoEl.fill(tx.monto);
+
+      await page.evaluate((tipo) => {
+        const sel = document.querySelector('select[id*="tipo"], [id*="tx-type"], select[id*="category"]');
+        if (sel) sel.value = tipo;
+      }, tx.tipo);
+
+      const descEl = await page.$('[id*="tx-desc"], [id*="descripcion"], input[placeholder*="escr"], input[placeholder*="desc"]');
+      if (descEl) await descEl.fill(tx.desc);
+
+      await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], button:has-text("Guardar"), button:has-text("Agregar")');
+      await page.waitForTimeout(1000);
+    }
+    log('[SEED] ✅ Transacciones sembradas');
+  } else {
+    log(`[SEED] Finanzas ya tiene ${txCount} transacciones — ok`);
+  }
+
+  // ── HÁBITOS — 3 hábitos en productividad ─────────────────────────────────
+  log('[SEED] Sembrando hábitos...');
+  await goTo('productividad');
+  await page.waitForTimeout(1000);
+  const habitsTab = await page.$('[onclick*="habits"], [onclick*="habitos"], .tab-habits');
+  if (habitsTab) { await habitsTab.click().catch(() => {}); await page.waitForTimeout(700); }
+
+  const habitCount = await evalJS(() => {
+    const l = document.querySelector('#habit-list');
+    return l ? l.children.length : 0;
+  });
+
+  if (habitCount < 2) {
+    for (const h of ['Ejercicio diario 💪', 'Leer 30 minutos 📚', 'Meditar 10 min 🧘']) {
+      await safeFill('#new-habit, [id*="new-habit"], input[placeholder*="hábito"]', h);
+      await safeClick('[onclick*="addHabit"], [onclick*="saveHabit"], button:has-text("Agregar")');
+      await page.waitForTimeout(900);
+    }
+    log('[SEED] ✅ Hábitos sembrados');
+  } else {
+    log(`[SEED] Hábitos ya tiene ${habitCount} — ok`);
+  }
+
+  // ── TAREAS — 4 tareas (2 completadas) en dashboard ───────────────────────
+  log('[SEED] Sembrando tareas...');
+  await goTo('dashboard');
+  await page.waitForTimeout(1200);
+
+  const taskCount = await evalJS(() => {
+    const l = document.querySelector('#task-list');
+    return l ? l.children.length : 0;
+  });
+
+  if (taskCount < 3) {
+    for (const t of [
+      'Revisar finanzas del mes 💰',
+      'Planear objetivos semanales 🎯',
+      'Llamar al banco 📞',
+      'Preparar presentación del proyecto',
+    ]) {
+      await safeFill('#t-name', t);
+      await safeClick('[onclick="addTask()"], [onclick*="addTask"]');
+      await page.waitForTimeout(700);
+    }
+    // Completar las 2 primeras
+    await page.waitForTimeout(500);
+    const checkboxes = await page.$$('#task-list input[type="checkbox"], [onclick*="toggleTask"], [onclick*="completeTask"]');
+    for (let i = 0; i < Math.min(2, checkboxes.length); i++) {
+      await checkboxes[i].click().catch(() => {});
+      await page.waitForTimeout(800);
+    }
+    log('[SEED] ✅ Tareas sembradas');
+  } else {
+    log(`[SEED] Tareas ya tiene ${taskCount} — ok`);
+  }
+
+  // ── CUERPO — 1 registro de entreno ───────────────────────────────────────
+  log('[SEED] Sembrando registro de cuerpo...');
+  await goTo('cuerpo');
+  await page.waitForTimeout(1200);
+
+  const gymBtn = await page.$('#bio-main-btn, [onclick*="abrirModalEntreno"], [onclick*="openGym"]');
+  if (gymBtn) {
+    await gymBtn.click().catch(() => {});
+    await page.waitForTimeout(800);
+    // Intentar guardar el entreno con valores por defecto
+    const saveGymBtn = await page.$('button:has-text("Guardar"), button:has-text("Registrar"), [onclick*="guardarEntreno"]');
+    if (saveGymBtn) { await saveGymBtn.click().catch(() => {}); await page.waitForTimeout(1000); }
+    // Cerrar modal si sigue abierto
+    const closeBtn = await page.$('[onclick*="cerrar"], [onclick*="close"], .modal-close, button:has-text("Cerrar")');
+    if (closeBtn) await closeBtn.click().catch(() => {});
+    log('[SEED] ✅ Entreno registrado');
+  }
+
+  // ── MENTE — 3 victorias en bitácora + 1 libro ────────────────────────────
+  log('[SEED] Sembrando bitácora y biblioteca...');
+  await goTo('mente');
+  await page.waitForTimeout(1000);
+
+  // Bitácora de victorias
+  const bitacoraTab = await page.$('[onclick*="bitacora"], [onclick*="victorias"], .tab-bitacora');
+  if (bitacoraTab) { await bitacoraTab.click().catch(() => {}); await page.waitForTimeout(600); }
+
+  const victoriaCount = await evalJS(() => {
+    const l = document.querySelector('#bitacora-list');
+    return l ? l.children.length : 0;
+  });
+
+  if (victoriaCount < 2) {
+    for (const v of [
+      'Completé mi primera semana consecutiva de hábitos',
+      'Ahorré el 20% de mi sueldo este mes',
+      'Terminé el proyecto freelance antes del deadline 🚀',
+    ]) {
+      const inp = await page.$('#bit-victoria, [id*="victoria-input"], textarea[placeholder*="victoria"]');
+      if (!inp) break;
+      await inp.fill(v);
+      await safeClick('[onclick*="guardarBitacora"], [onclick*="saveVictoria"], button:has-text("Guardar")');
+      await page.waitForTimeout(900);
+    }
+    log('[SEED] ✅ Victorias sembradas');
+  } else {
+    log(`[SEED] Bitácora ya tiene ${victoriaCount} entradas — ok`);
+  }
+
+  // Biblioteca — agregar un libro si está vacía
+  const bibliotecaTab = await page.$('[onclick*="biblioteca"], .tab-biblioteca');
+  if (bibliotecaTab) { await bibliotecaTab.click().catch(() => {}); await page.waitForTimeout(600); }
+  const bookCount = await evalJS(() => {
+    const l = document.querySelector('#biblioteca-list');
+    return l ? l.children.length : 0;
+  });
+  if (bookCount < 1) {
+    const bookInput = await page.$('#book-title, [id*="book-title"], input[placeholder*="libro"], input[placeholder*="título"]');
+    if (bookInput) {
+      await bookInput.fill('Atomic Habits — James Clear');
+      await safeClick('[onclick*="addBook"], [onclick*="guardarLibro"], button:has-text("Agregar")');
+      await page.waitForTimeout(900);
+      log('[SEED] ✅ Libro agregado');
+    }
+  }
+
+  // ── CHECK-IN del día ─────────────────────────────────────────────────────
+  log('[SEED] Realizando check-in del día...');
+  await goTo('dashboard');
+  await page.waitForTimeout(1000);
+  const checkinDone = await evalJS(() => {
+    const btn = document.querySelector('#checkin-btn, [onclick*="checkIn"], [onclick*="checkin"]');
+    if (!btn) return true;
+    const txt = (btn.textContent || '').toLowerCase();
+    return btn.disabled || txt.includes('✅') || txt.includes('hecho') || txt.includes('listo');
+  });
+  if (!checkinDone) {
+    await safeClick('#checkin-btn, [onclick*="checkIn"], [onclick*="checkin"]');
+    await page.waitForTimeout(800);
+    log('[SEED] ✅ Check-in realizado');
+  } else {
+    log('[SEED] Check-in ya completado hoy');
+  }
+
+  // Marcar como sembrado hoy
+  await page.evaluate((d) => { localStorage.setItem('qa-seeded-' + d, '1'); }, today);
+  log('[SEED] ✅ Seed completado — la app tiene datos de demostración reales');
+}
+
+// ══════════════════════════════════════════════════════════════
 // 01 — AUTH
 // ══════════════════════════════════════════════════════════════
 async function testAuth() {
@@ -1493,6 +1695,11 @@ async function main() {
     process.exit(1);
   }
   log('[PRE-CHECK] ✅ Sesión activa confirmada — iniciando módulos');
+
+  // ── Seed de datos de demostración (idempotente — solo corre si la cuenta está vacía) ──
+  if (!SMOKE_ONLY) {
+    await runModule(seedUserData, 'SEED');
+  }
 
   try {
     // ── Orden por riesgo (CRÍTICO primero) ──
