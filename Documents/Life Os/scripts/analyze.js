@@ -188,6 +188,30 @@ Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
 
 ---
 
+## BACKLOG DE FEATURES — ANALIZA Y PROPÓN CUANDO EL MÓDULO APAREZCA EN SCREENSHOTS
+
+Estas son features aprobadas por el owner para desarrollar. Cuando veas el módulo relevante en screenshots, genera propuestas concretas de implementación.
+
+### 🧠 DASHBOARD DINÁMICO (ALTA PRIORIDAD)
+La app debe aprender del comportamiento del usuario y reorganizar el dashboard según sus hábitos reales.
+
+**Visión completa:**
+- Opt-in explícito: el usuario activa "Dashboard Inteligente" en Settings
+- Sin opt-in → dashboard estático como ahora
+- Con opt-in → la app analiza frecuencia de uso por módulo, hora del día y día de la semana
+- Los widgets del dashboard se reordenan automáticamente por relevancia real del usuario
+- El Gemelo actúa como cerebro: a las 7am muestra check-in + tareas, a las 8pm muestra resumen + hábitos pendientes, los lunes muestra metas semanales
+- Infraestructura ya existe: `registrarEvento()` en Firebase + Gemelo analizando patrones
+- Lo que falta: lógica de reordenamiento, preferencia opt-in en S (estado global), contexto horario/día en el Gemelo
+
+**Cuando veas el Dashboard en screenshots, propón:**
+1. Dónde colocar el toggle de opt-in en Settings
+2. Qué estructura de datos usar en Firestore para guardar frecuencia por módulo
+3. El algoritmo de scoring para reordenar widgets (frecuencia × recencia × hora del día)
+4. Cómo el Gemelo comunica al dashboard qué mostrar según contexto temporal
+
+---
+
 ## REPORTE DE HOY
 ### ${today.name}
 ${today.content}
