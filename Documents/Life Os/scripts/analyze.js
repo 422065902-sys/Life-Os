@@ -145,29 +145,28 @@ Life OS es una PWA de productividad gamificada — la intersección entre **Noti
 
 ---
 
-## ARQUITECTURA ACTUAL vs VISIÓN OBJETIVO
+## ARQUITECTURA ACTUAL (estado implementado)
 
-### Estado actual (problema)
-La app tiene 12+ módulos en sidebar: Dashboard, World, Productividad, Hábitos, Cuerpo, Finanzas, Mente, Calendario, Stats, Aprende, Tienda, Gemelo, Settings. **Demasiado para un usuario nuevo.** Cognitively overwhelming. El usuario no sabe por dónde empezar.
+La app ya fue reorganizada. Esta es la estructura **real y actual**:
 
-### Visión objetivo (hacia donde vamos)
-Reducir a **7 módulos con propósito claro**, organizados por contexto de uso:
+| Nav | Módulo | Tabs internas | Identidad visual |
+|-----|--------|--------------|-----------------|
+| ⚡ Tablero | Dashboard | — | Cyan #00e5ff — datos en tiempo real |
+| 🗺️ Life OS World | World Map | — | Teal #06b6d4 — inmersivo |
+| 🌊 Flow | Ex-Productividad | 🔥 Hábitos · 🎯 Metas · 💡 Ideas · 📅 Agenda | Verde neón #00ff88 |
+| 💪 Cuerpo | Físico | Físico · Salud | Naranja #ff6b35 |
+| 💰 Financiero | Finanzas | — | Dorado #fbbf24 |
+| 🧠 Mente & Poder | Mente | Bitácora · Gemelo · Poder | Púrpura #a855f7 |
+| 📊 Análisis | Stats | Análisis · SaaS | Índigo #6366f1 |
+| 📖 Aprende | Biblioteca | — | Ámbar #f59e0b |
+| ⚙️ Ajustes | Settings | — | Accent global |
 
-| Módulo | Fusiona | Identidad visual | Contexto de uso |
-|--------|---------|-----------------|-----------------|
-| **Centro** | Dashboard | Denso, técnico, datos en tiempo real, anillo glowing | "¿Cómo estoy?" al despertar |
-| **Flow** | Productividad + Hábitos + Calendario | Limpio, minimalista, blanco/gris, acción-first | "¿Qué hago hoy?" durante el día |
-| **Cuerpo** | Gym + muscle map | Oscuro, muscular, rojo/naranja energético | En el gym o al entrenar |
-| **Finanzas** | Finanzas | Preciso, verde/rojo semántico, números prominentes | Al revisar dinero |
-| **Mente** | Biblioteca + Bitácora + **Gemelo Potenciado** | Suave, editorial, tipografía serif, como diario premium | Al reflexionar o aprender |
-| **World** | Mapa + Apartamento + Tienda + Gamificación | Cinematográfico, inmersivo, como videojuego | Al explorar/celebrar logros |
-| **Tú** | Stats + Aprende + Settings | Personal, cálido, perfil-first | Al configurar o revisar progreso |
+**Decisiones arquitecturales ya tomadas (NO reversar):**
+- **Flow absorbe Calendario:** el tab "📅 Agenda" dentro de Flow ES el calendario. No hay módulo Calendario separado.
+- **Gemelo es STANDALONE dentro de Mente:** el Gemelo vive en el tab "Gemelo" de Mente & Poder. NO moverlo fuera de Mente, NO convertirlo en módulo separado. El flujo correcto es: Bitácora → Gemelo → insights.
+- **Identidad visual por módulo implementada:** CSS `data-module` scope en cada página. Cada módulo tiene su accent color propio, tabs activas con ese color, botones primarios coloreados.
 
-### El Gemelo Potenciado — decisión arquitectural crítica
-El Gemelo NO debe ser un módulo standalone. Su poder viene de analizar la bitácora, la biblioteca y los patrones del usuario. **Debe vivir dentro de Mente como la tercera tab**, creando el flujo natural:
-Escribes en bitácora → lees en biblioteca → Gemelo analiza todo → insights personalizados
-
-### Identidad visual única por módulo — ESTO ES CRÍTICO
+### Identidad visual única por módulo — VERIFICAR EN SCREENSHOTS
 Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
 - **Centro:** gradiente azul-cyan, tipografía Orbitron, datos en tiempo real con pulsaciones
 - **Flow:** espacio en blanco, tipografía Syne ligera, checks con spring animation satisfactoria
@@ -184,7 +183,9 @@ Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
 - NaN, undefined, 0 donde deberían haber valores reales
 - Elementos rotos en mobile 375px
 - Inconsistencias visual desktop vs mobile
-- Módulos que visualmente se ven idénticos entre sí (mismo fondo, mismo spacing, misma tipografía) — sin identidad propia
+- **Layout bug detectado:** algunos módulos muestran el fold inicial vacío (fondo negro) aunque el contenido existe abajo. Busca este patrón en los _fold screenshots y genera fix de CSS/posicionamiento.
+- **Tab Agenda en Flow:** debe mostrar el calendario completo con grid de días. Si aparece vacío, es bug de inicialización (debe llamar renderCalendar() al activar el tab).
+- Módulos que visualmente se ven idénticos entre sí — sin identidad propia (deberían tener accent colors distintos por CSS data-module scope)
 
 ---
 
@@ -242,11 +243,24 @@ ${historyText}
 
 ${hasScreenshots ? `## SCREENSHOTS EN VIVO (${screenshots.length} capturas del run de hoy)
 
-⚠️ CONTEXTO CRÍTICO DE CAPTURA:
-- Los screenshots son del viewport inicial (parte superior de la pantalla). El contenido que requiere scroll NO aparece en la captura aunque SÍ existe en el DOM.
-- Si ves un módulo "vacío" o con poco contenido, NO concluyas que está roto — puede haber contenido debajo del fold.
-- El bot de QA sí hace scroll y reporta por texto si encuentra elementos. Cruza los screenshots con el reporte de texto para diagnósticos completos.
-- Módulos con tabs (Flow, Cuerpo, Mente, Stats): el screenshot solo muestra el tab activo al navegar; los demás tabs tienen contenido aunque no aparezcan en captura.
+⚠️ CONVENCIÓN DE CAPTURAS — LEE ANTES DE ANALIZAR:
+
+El bot captura **DOS screenshots por módulo**:
+- \`*_fold.jpg\`   → viewport inicial (arriba del fold, lo que el usuario ve al abrir)
+- \`*_scroll.jpg\` → mismo módulo después de hacer scroll 500px (contenido debajo del fold)
+
+**Cómo analizar correctamente:**
+1. Si el \`_fold\` de un módulo aparece VACÍO (solo fondo oscuro, sin tarjetas ni texto), es un **bug de layout** — el contenido está fuera del viewport inicial. El bot ya lo reporta como UX issue.
+2. Si el \`_fold\` tiene ALGO visible (aunque sea solo el header del módulo), el módulo está bien posicionado aunque el contenido principal esté abajo.
+3. Cruza siempre el \`_fold\` con el \`_scroll\` para diagnosticar: ¿hay contenido total? ¿O el módulo está genuinamente vacío incluso al hacer scroll?
+4. Módulos con tabs (Flow, Cuerpo, Mente, Stats): el screenshot muestra solo el tab activo al navegar. Los otros tabs tienen contenido pero no aparecen en captura — NO los marques como vacíos.
+
+**Análisis de identidad visual (NUEVO — verificar esto activamente):**
+Para cada módulo que aparezca en screenshots, verifica:
+- ¿El título del módulo tiene un COLOR DISTINTO al de los otros módulos? (cada uno debe tener su propio accent)
+- ¿Los botones primarios del módulo tienen el color del módulo (no cyan genérico)?
+- ¿El tab activo usa el color del módulo?
+- Si todos los módulos se ven idénticos visualmente → bug de identidad visual, genera propuesta concreta.
 
 Analiza cada screenshot desde TODOS tus roles:
 

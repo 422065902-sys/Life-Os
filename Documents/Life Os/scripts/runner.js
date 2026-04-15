@@ -117,6 +117,63 @@ async function takeShot(name) {
   } catch(e) { log(`[WARN] Screenshot ${name} falló: ${e.message}`); }
 }
 
+/**
+ * Captura dos screenshots de un módulo:
+ *   <name>_fold.jpg  — viewport inicial (arriba del fold)
+ *   <name>_scroll.jpg — después de hacer scroll 500px (contenido debajo del fold)
+ * También verifica si el fold inicial está vacío (posible bug de layout).
+ */
+async function takeShotWithScroll(name, moduleLabel) {
+  try {
+    fs.mkdirSync(SHOTS_DIR, { recursive: true });
+    // Asegurar que el scroll esté en top antes de capturar
+    await evalJS(() => {
+      const c = document.getElementById('content');
+      if (c) c.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(300);
+
+    // Screenshot 1 — fold inicial
+    await page.screenshot({
+      path: path.join(SHOTS_DIR, `${name}_fold.jpg`),
+      type: 'jpeg', quality: 55, fullPage: false
+    });
+
+    // Detectar si el fold está vacío (fondo sin contenido visible)
+    const foldEmpty = await evalJS(() => {
+      const activePage = document.querySelector('.page.active');
+      if (!activePage) return true;
+      // Si el activePanel existe y tiene height, hay contenido
+      const activePanel = activePage.querySelector('.inner-panel.active') || activePage;
+      return activePanel.getBoundingClientRect().height < 50;
+    });
+    if (foldEmpty) {
+      addUX(moduleLabel, 'Fold inicial vacío — contenido puede estar fuera del viewport',
+        'Revisar margin-top, padding o posicionamiento del .page.active');
+    }
+
+    // Screenshot 2 — scroll 500px para capturar contenido below-fold
+    await evalJS(() => {
+      const c = document.getElementById('content');
+      if (c) c.scrollTop = 500;
+      else window.scrollTo(0, 500);
+    });
+    await page.waitForTimeout(200);
+    await page.screenshot({
+      path: path.join(SHOTS_DIR, `${name}_scroll.jpg`),
+      type: 'jpeg', quality: 55, fullPage: false
+    });
+
+    // Volver al top para que el siguiente test empiece limpio
+    await evalJS(() => {
+      const c = document.getElementById('content');
+      if (c) c.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+  } catch(e) { log(`[WARN] takeShotWithScroll ${name} falló: ${e.message}`); }
+}
+
 /** page.click con timeout corto — no cuelga 30s si el elemento está tapado */
 async function safeClick(selector, timeout = 6000) {
   try { await page.click(selector, { timeout }); return true; }
@@ -401,7 +458,7 @@ async function testDashboard() {
   addResult('05-Dashboard', 'Focus bars visibles', focusBars ? 'PASS' : 'WARN');
 
   await checkNoNaN('05-Dashboard');
-  await takeShot('05-dashboard');
+  await takeShotWithScroll('05-dashboard', '05-Dashboard');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -448,7 +505,7 @@ async function testFinanzas() {
   }
 
   await checkNoNaN('06-Finanzas');
-  await takeShot('06-finanzas');
+  await takeShotWithScroll('06-finanzas', '06-Finanzas');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -512,7 +569,7 @@ async function testCuerpo() {
   addResult('08-Cuerpo', 'Botón de registro gym visible', gymBtn ? 'PASS' : 'WARN');
 
   await checkNoNaN('08-Cuerpo');
-  await takeShot('08-cuerpo');
+  await takeShotWithScroll('08-cuerpo', '08-Cuerpo');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -685,7 +742,7 @@ async function testCalendario() {
   addResult('13-Calendario', 'Botón export ICS visible', exportBtn ? 'PASS' : 'WARN');
 
   await checkNoNaN('13-Calendario');
-  await takeShot('13-calendario');
+  await takeShotWithScroll('13-flow-agenda', '13-Flow-Agenda');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -726,6 +783,7 @@ async function testProductividad() {
   // Módulo Productividad: hábitos, metas, ideas
   await goTo('productividad');
   await page.waitForTimeout(1000);
+  await takeShotWithScroll('14-flow', '14-Flow');
 
   // Pomodoro timer básico
   const pomBtn = await isVisible('[onclick*="pomodoro"], [onclick*="startTimer"], #pom-btn');
@@ -780,7 +838,7 @@ async function testMente() {
   }
 
   await checkNoNaN('15-Mente');
-  await takeShot('15-mente');
+  await takeShotWithScroll('15-mente', '15-Mente');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -809,7 +867,7 @@ async function testWorld() {
   // Apartamento accesible
   const aptBtn = await isVisible('[onclick*="openApartment"], [onclick*="apartment"], .apt-zone');
   addResult('16-World', 'Acceso al apartamento visible', aptBtn ? 'PASS' : 'WARN');
-  await takeShot('16-world');
+  await takeShotWithScroll('16-world', '16-World');
 }
 
 // ══════════════════════════════════════════════════════════════
