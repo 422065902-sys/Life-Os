@@ -212,6 +212,86 @@ El modo claro (light mode) debe verse igual de premium y cómodo que el modo osc
 4. ¿Las sombras son suficientes para dar profundidad sin fondo oscuro?
 5. ¿La identidad visual del módulo sobrevive al cambio de modo?
 
+### 🚀 LANDING PAGE — PRESENTACIÓN DE LIFE OS (ALTA PRIORIDAD)
+
+Life OS actualmente va directo al formulario de login. No existe ninguna página que explique qué es la app a un visitante nuevo. Necesitamos una landing page de alto impacto que convierta visitantes en usuarios.
+
+**Restricción de negocio inamovible — visible en hero y en CTA:**
+> **"Sin tarjeta de crédito. 30 días gratis. Cancela cuando quieras."**
+Este mensaje debe aparecer en texto grande debajo del botón principal, en el hero Y en la sección de pricing. Es la principal fricción que elimina para que un usuario se registre.
+
+**Visión de la landing:**
+La landing NO es una página corporativa genérica. Es la pantalla de título de un videojuego de vida real. Cuando alguien llega a mylifeos.lat sin sesión, debe sentir que entró a algo que nunca ha visto — una app que toma su vida en serio y la convierte en una aventura.
+
+**Secciones requeridas (en orden):**
+
+**1. HERO — El gancho en 3 segundos**
+- Fondo: partículas animadas o gradiente en movimiento (no estático)
+- Logo Life OS grande con animación de entrada (fade + scale desde 0.8)
+- Headline principal: potente, corto, orientado al beneficio emocional
+  - Ejemplo: *"Tu vida tiene un nivel. Súbelo."* o *"El sistema operativo de tu vida."*
+- Subheadline: 1 línea explicando el valor — *"Hábitos, finanzas, cuerpo y mente. Todo en un solo lugar, gamificado."*
+- Botón CTA primario: **"Empezar gratis →"** (color acento, animación hover con glow pulse)
+- Botón CTA secundario: **"Ya tengo cuenta"** (outline, abre login)
+- Texto bajo el botón: *"Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras"*
+- Scroll indicator animado (chevron rebotando hacia abajo)
+
+**2. MÓDULOS — El universo de Life OS**
+- Título de sección: *"Todo lo que necesitas para ser mejor, en un solo lugar"*
+- Grid de cards para cada módulo (Flow, Cuerpo, Finanzas, Mente, World, Gemelo, Stats, Aprende)
+- Cada card: ícono del módulo con su accent color, nombre, descripción 1 línea
+- Animación: las cards entran con stagger (una tras otra con delay 100ms cada una) al hacer scroll
+- Hover: card levita con box-shadow del color del módulo
+
+**3. CÓMO FUNCIONA — 3 pasos**
+- Paso 1: *"Crea tu cuenta gratis"* — ícono de usuario
+- Paso 2: *"Configura tus módulos"* — ícono de sliders
+- Paso 3: *"Sube de nivel cada día"* — ícono de XP/estrella
+- Animación: línea conectora que se dibuja conforme el usuario hace scroll (stroke-dashoffset animado)
+
+**4. DEMO VISUAL — Muestra la app**
+- Mockup de la app en un dispositivo (teléfono o laptop con marco)
+- Las screenshots reales de los módulos rotan o hacen slideshow
+- Fondo con gradiente del color del módulo activo (transiciona suavemente entre módulos)
+- Texto al lado: beneficio específico de ese módulo
+
+**5. SOCIAL PROOF / STAT BAR**
+- Números impactantes: *"X usuarios activos · Y hábitos completados hoy · Z% mejoran su bienestar en 30 días"*
+- Si no hay datos reales, usar placeholders aspiracionales para día de launch
+
+**6. PRICING — Simple y honesto**
+- Plan Free: qué incluye
+- Plan Pro: qué incluye + precio/mes
+- **Ambos planes muestran claramente: "Sin tarjeta de crédito para empezar"**
+- Botón de cada plan lleva directo al registro
+
+**7. FOOTER CTA — El último empuje**
+- Headline emocional: *"¿Cuándo fue la última vez que realmente trabajaste en tu vida?"*
+- Botón grande: **"Empezar mi transformación →"**
+- Sub-texto: *"Gratis. Sin compromisos. Sin tarjeta."*
+
+**Animaciones obligatorias:**
+- Entrada del hero: fade + translate-Y en cascada (logo → headline → sub → botón → texto legal)
+- Scroll reveal: Intersection Observer con clase `.reveal` que agrega `opacity:1, translateY(0)`
+- Partículas o gradiente animado en el hero (CSS @keyframes o canvas ligero)
+- Botón CTA: glow pulse en el color acento (box-shadow animado en loop)
+- Cards de módulos: hover levitación + border-glow con accent del módulo
+- Transición al hacer clic en CTA: fade out landing → fade in auth screen (no hard redirect)
+
+**Implementación técnica:**
+- Todo dentro de `index.html` como una nueva `<section id="landing-page">` que se muestra cuando `!user` (no logueado) y se oculta al loguearse
+- CSS en `styles.css` bajo `/* === LANDING PAGE === */`
+- JS mínimo: Intersection Observer para animaciones de scroll, lógica de mostrar/ocultar
+- NO frameworks externos — vanilla JS + CSS animations
+- La pantalla de login actual pasa a ser un modal o un panel secundario dentro de la landing
+- Mobile-first: la landing debe verse igual de impresionante en 360px que en 1280px
+
+**Cuando veas la app en screenshots, propón:**
+1. Qué headline específico recomiendas basándote en los módulos que viste en acción
+2. Qué 3 screenshots de módulos usarías en la sección Demo Visual (los más impresionantes visualmente)
+3. Si el diseño actual de la app tiene elementos suficientemente premium para la landing, o qué habría que pulir primero
+4. El orden de implementación: qué construir primero para lanzar rápido con impacto máximo
+
 ### 🧠 DASHBOARD DINÁMICO (ALTA PRIORIDAD)
 La app debe aprender del comportamiento del usuario y reorganizar el dashboard según sus hábitos reales.
 
