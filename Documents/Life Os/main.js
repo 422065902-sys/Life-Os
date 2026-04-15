@@ -4781,12 +4781,15 @@ async function doLogin() {
     } catch(err) {
       _setLoginLoading(false);
       const msg = {
-        'auth/user-not-found':    '❌ No existe una cuenta con ese correo.',
-        'auth/wrong-password':    '❌ Contraseña incorrecta.',
-        'auth/invalid-email':     '⚠️ El correo no es válido.',
-        'auth/too-many-requests': '⚠️ Demasiados intentos. Espera unos minutos.',
-        'auth/network-request-failed': '⚠️ Sin conexión a internet.',
-      }[err.code] || ('❌ ' + (err.message || 'Error al iniciar sesión.'));
+        'auth/user-not-found':         '❌ No existe una cuenta con ese correo.',
+        'auth/wrong-password':         '❌ Contraseña incorrecta. Verifica e intenta de nuevo.',
+        'auth/invalid-credential':     '❌ Correo o contraseña incorrectos. Verifica tus datos.',
+        'auth/invalid-email':          '⚠️ El formato del correo no es válido.',
+        'auth/user-disabled':          '❌ Esta cuenta ha sido desactivada.',
+        'auth/too-many-requests':      '⚠️ Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.',
+        'auth/network-request-failed': '⚠️ Sin conexión a internet. Verifica tu red.',
+        'auth/popup-closed-by-user':   '⚠️ Inicio de sesión cancelado.',
+      }[err.code] || '❌ No pudimos iniciar sesión. Verifica tus datos e intenta de nuevo.';
       showAuthErr(msg);
     }
   } else {

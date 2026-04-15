@@ -42,10 +42,24 @@ function loadReports(dir, days) {
     .sort()
     .reverse()
     .slice(0, days);
-  return files.map(f => ({
-    name: f,
-    content: fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 2000)
-  }));
+  return files.map(f => {
+    const full = fs.readFileSync(path.join(dir, f), 'utf8');
+    // Extraer secciones clave: RESUMEN + FALLOS + ADVERTENCIAS (sin tablas detalladas)
+    const sections = [];
+    const addSection = (header) => {
+      const idx = full.indexOf(header);
+      if (idx === -1) return;
+      const end = full.indexOf('\n## ', idx + header.length);
+      sections.push(full.slice(idx, end === -1 ? idx + 800 : end).slice(0, 800));
+    };
+    addSection('## RESUMEN');
+    addSection('## FALLOS CRÍTICOS');
+    addSection('## ADVERTENCIAS');
+    const content = sections.length > 0
+      ? sections.join('\n\n')
+      : full.slice(0, 1500);
+    return { name: f, content };
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
