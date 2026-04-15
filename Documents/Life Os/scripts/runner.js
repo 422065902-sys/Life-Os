@@ -219,9 +219,9 @@ async function ensureLoggedIn() {
     return a && window.getComputedStyle(a).display !== 'none';
   });
   if (authVisible || !pageAlive) {
-    log('[SESSION] auth-screen detectado — re-login automático...');
-    const ok = await doLogin();
-    if (!ok) throw new Error('Re-login falló tras detectar auth-screen');
+    log('[SESSION] auth-screen detectado — re-login automático (con reintentos)...');
+    const ok = await doLogin(); // doLogin ya maneja rate limit y reintentos internamente
+    if (!ok) throw new Error('Re-login falló después de todos los reintentos — ver logs [AUTH]');
   }
 }
 
@@ -237,18 +237,137 @@ async function waitForBoot(timeout = 25000) {
   return true;
 }
 
-/** Login estándar con el usuario QA */
-async function doLogin(email = QA_EMAIL, pass = QA_PASS) {
-  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
-  await waitFor('#auth-screen', 10000);
-  // Asegurar que estamos en la pestaña de login
+/**
+ * Login estándar con usuario QA.
+ * Detecta rate limiting de Firebase y espera antes de reintentar.
+ *
+ * Política de reintentos:
+ *   - Rate limit ("demasiados intentos") → espera 90s × intento, máx 3 veces
+ *   - Error genérico (credenciales, red) → espera 15s × intento, máx 3 veces
+ *   - Sin respuesta (timeout) → espera 20s × intento, máx 3 veces
+ */
+async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
+  const MAX_ATTEMPTS = 3;
+
+  log(`[AUTH] Login intento ${attempt}/${MAX_ATTEMPTS} — ${email}`);
+
+  try {
+    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  } catch (e) {
+    log(`[AUTH] Error cargando APP_URL: ${e.message}`);
+    if (attempt < MAX_ATTEMPTS) {
+      await page.waitForTimeout(20000 * attempt);
+      return doLogin(email, pass, attempt + 1);
+    }
+    return false;
+  }
+
+  const authReady = await waitFor('#auth-screen', 12000);
+  if (!authReady) {
+    // Puede que ya esté logueado (sesión persistente)
+    const alreadyIn = await waitForBoot(8000);
+    if (alreadyIn) { log('[AUTH] Sesión persistente activa — sin necesidad de login'); return true; }
+    log('[AUTH] auth-screen no apareció ni hay sesión activa');
+    if (attempt < MAX_ATTEMPTS) {
+      await page.waitForTimeout(15000 * attempt);
+      return doLogin(email, pass, attempt + 1);
+    }
+    return false;
+  }
+
+  // Asegurar pestaña de login
   const loginTab = await page.$('[onclick*="showLogin"], .tab-login, #tab-login');
   if (loginTab) await loginTab.click();
   await page.waitForTimeout(300);
+
+  // Limpiar campos antes de llenar (evitar acumulación en reintentos)
+  await page.fill('#login-email', '');
+  await page.fill('#login-pass', '');
   await page.fill('#login-email', email);
   await page.fill('#login-pass', pass);
   await page.click('[onclick="doLogin()"]');
-  return await waitForBoot(25000);
+
+  // Esperar resultado: boot OK o mensaje de error — polling cada 500ms
+  const POLL_TIMEOUT = 25000;
+  const POLL_INTERVAL = 500;
+  const start = Date.now();
+
+  while (Date.now() - start < POLL_TIMEOUT) {
+    // Éxito: app visible y boot-screen oculto
+    const success = await evalJS(() => {
+      const app  = document.getElementById('app');
+      const boot = document.getElementById('boot-screen');
+      if (!app) return false;
+      const st = window.getComputedStyle(app);
+      const appOk  = st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
+      const bootOk = !boot || window.getComputedStyle(boot).display === 'none';
+      return appOk && bootOk;
+    });
+    if (success) { log('[AUTH] Login exitoso'); return true; }
+
+    // Detectar mensaje de error en pantalla
+    const errorMsg = await evalJS(() => {
+      const selectors = [
+        '#login-error', '#auth-error', '.auth-error', '.login-error',
+        '[id*="error"]', '[class*="error-msg"]', '[class*="auth-msg"]'
+      ];
+      for (const sel of selectors) {
+        try {
+          const el = document.querySelector(sel);
+          if (el) {
+            const txt = (el.textContent || '').trim();
+            const style = window.getComputedStyle(el);
+            if (txt.length > 3 && style.display !== 'none' && style.visibility !== 'hidden') return txt;
+          }
+        } catch {}
+      }
+      return '';
+    });
+
+    if (errorMsg) {
+      const lower = errorMsg.toLowerCase();
+      const isRateLimit = lower.includes('demasiados') || lower.includes('too-many') ||
+                          lower.includes('espera') || lower.includes('bloqueado') ||
+                          lower.includes('many requests');
+
+      if (isRateLimit) {
+        const waitSecs = 90 * attempt; // 90s, 180s, 270s
+        log(`[AUTH] ⛔ Rate limit Firebase: "${errorMsg.slice(0, 80)}" — esperando ${waitSecs}s...`);
+        addResult('01-Auth', `Login — rate limit (intento ${attempt})`, 'WARN',
+          `Firebase bloqueó temporalmente. Esperando ${waitSecs}s.`);
+        if (attempt >= MAX_ATTEMPTS) {
+          addResult('01-Auth', 'Login — rate limit máx reintentos', 'FAIL',
+            'Bloqueado por Firebase. Ejecutar el runner nuevamente en ~5 minutos.');
+          return false;
+        }
+        await page.waitForTimeout(waitSecs * 1000);
+        return doLogin(email, pass, attempt + 1);
+      }
+
+      // Error genérico (credenciales incorrectas, usuario no existe, etc.)
+      log(`[AUTH] Error de login: "${errorMsg.slice(0, 100)}"`);
+      if (attempt < MAX_ATTEMPTS) {
+        const waitSecs = 15 * attempt;
+        log(`[AUTH] Reintentando en ${waitSecs}s...`);
+        await page.waitForTimeout(waitSecs * 1000);
+        return doLogin(email, pass, attempt + 1);
+      }
+      addResult('01-Auth', 'Login — error persistente', 'FAIL', errorMsg.slice(0, 120));
+      return false;
+    }
+
+    await page.waitForTimeout(POLL_INTERVAL);
+  }
+
+  // Timeout sin éxito ni error
+  log('[AUTH] Timeout esperando respuesta de login');
+  if (attempt < MAX_ATTEMPTS) {
+    const waitSecs = 20 * attempt;
+    log(`[AUTH] Reintentando en ${waitSecs}s...`);
+    await page.waitForTimeout(waitSecs * 1000);
+    return doLogin(email, pass, attempt + 1);
+  }
+  return false;
 }
 
 /** Navegar a un módulo via JS directo */
@@ -1232,8 +1351,23 @@ async function main() {
     timezoneId: 'America/Mexico_City',
   });
 
+  // ── Pre-check: verificar que podemos hacer login antes de correr 20 módulos ──
+  log('[PRE-CHECK] Verificando credenciales y acceso...');
   page = await context.newPage();
   attachConsoleListeners();
+  const preLoginOk = await doLogin();
+  if (!preLoginOk) {
+    log('[PRE-CHECK] ❌ Login inicial falló. Abortando suite para no quemar rate limits.');
+    addResult('RUNNER', 'Pre-check login', 'FAIL',
+      'No fue posible iniciar sesión. Posible rate limit de Firebase. Intentar en 5+ minutos.');
+    await browser.close();
+    const report = generateReport();
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+    fs.writeFileSync(reportPath, report, 'utf8');
+    log(`Reporte de fallo guardado: ${reportPath}`);
+    process.exit(1);
+  }
+  log('[PRE-CHECK] ✅ Sesión activa confirmada — iniciando módulos');
 
   try {
     // ── Orden por riesgo (CRÍTICO primero) ──
