@@ -113,10 +113,11 @@
         <!-- Mantener sesión 30 días -->
         <div class="consent-wrap" style="margin-bottom:14px;padding:10px 12px">
           <input type="checkbox" id="login-remember" checked style="display:none"/>
-          <label for="login-remember" style="cursor:pointer;display:flex;align-items:center;gap:10px">
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            <span class="consent-label" style="cursor:pointer">Mantener sesión iniciada</span>
-          </label>
+          <div onclick="var c=document.getElementById('login-remember');c.checked=!c.checked;this.querySelector('.toggle-track').classList.toggle('on',c.checked)"
+               style="cursor:pointer;display:flex;align-items:center;gap:10px">
+            <span class="toggle-track on"><span class="toggle-thumb"></span></span>
+            <span class="consent-label">Mantener sesión iniciada</span>
+          </div>
         </div>
         <button class="btn btn-a" onclick="doLogin()"
           style="width:100%;padding:12px;font-size:14px;margin-bottom:10px">
