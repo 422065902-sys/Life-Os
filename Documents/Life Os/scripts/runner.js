@@ -311,7 +311,12 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
       }
       return false;
     });
-    if (success) { log('[AUTH] Login exitoso'); return true; }
+    if (success) {
+      log('[AUTH] Login exitoso');
+      // Esperar a que las transiciones CSS del auth-screen terminen
+      await page.waitForTimeout(1200);
+      return true;
+    }
 
     // Detectar mensaje de error en pantalla
     const errorMsg = await evalJS(() => {
@@ -1188,6 +1193,8 @@ async function takeMobileModuleShots(prefix) {
 
 async function testResponsive() {
   log('▶ RESPONSIVE — Android 360×800 + iOS 390×844');
+  // Asegurar sesión activa — el test de PWA (offline/online) puede haberla cerrado
+  await ensureLoggedIn();
 
   // ─── ANDROID (Pixel 6a normalizado) ────────────────────────
   await page.setViewportSize({ width: 360, height: 800 });
