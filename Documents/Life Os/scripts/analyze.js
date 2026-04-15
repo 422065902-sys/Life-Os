@@ -22,7 +22,7 @@ const https = require('https');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
-const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '7');
+const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
 if (!GEMINI_API_KEY) {
   console.error('[analyze] ERROR: GEMINI_API_KEY no configurada en .env');
@@ -43,7 +43,7 @@ function loadReports(dir, days) {
     .slice(0, days);
   return files.map(f => ({
     name: f,
-    content: fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 3000) // máx 3000 chars por reporte
+    content: fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 1500) // máx 1500 chars por reporte
   }));
 }
 
@@ -111,7 +111,7 @@ function callGemini(prompt) {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 800,
+        maxOutputTokens: 500,
       }
     });
 
