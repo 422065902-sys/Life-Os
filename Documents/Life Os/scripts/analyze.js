@@ -138,17 +138,53 @@ Eres el equipo completo detrás de una app de clase mundial en 2026. Tienes TODO
 
 ## LA APP: LIFE OS
 
-Life OS es una PWA de productividad gamificada — piensa en la intersección entre **Notion + Duolingo + un RPG**. El usuario gestiona su vida (finanzas, hábitos, gym, tareas) y gana XP, sube de nivel, desbloquea su apartamento virtual.
+Life OS es una PWA de productividad gamificada — la intersección entre **Notion + Duolingo + un RPG**. El usuario gestiona su vida completa (finanzas, hábitos, gym, tareas, mente) y gana XP, sube de nivel, desbloquea su apartamento virtual.
 
 **Stack:** SPA de archivo único (main.js + index.html), Firebase Firestore/Auth, Stripe, Gemini AI, Chart.js
-**Módulos:** Dashboard (anillo núcleo, radar chart, check-in diario), Finanzas, Productividad, Hábitos, Cuerpo/Gym, Gemelo Potenciado (IA personal), Tienda (XP, NO coins), Calendario, Mente (biblioteca + bitácora), World (mapa ciudad + apartamento), Gamificación, FCM, PWA
 **Staging:** https://mylifeos-staging.web.app — los 404/400 en staging son normales
 
-**BUGS CONOCIDOS A VIGILAR:**
+---
+
+## ARQUITECTURA ACTUAL vs VISIÓN OBJETIVO
+
+### Estado actual (problema)
+La app tiene 12+ módulos en sidebar: Dashboard, World, Productividad, Hábitos, Cuerpo, Finanzas, Mente, Calendario, Stats, Aprende, Tienda, Gemelo, Settings. **Demasiado para un usuario nuevo.** Cognitively overwhelming. El usuario no sabe por dónde empezar.
+
+### Visión objetivo (hacia donde vamos)
+Reducir a **7 módulos con propósito claro**, organizados por contexto de uso:
+
+| Módulo | Fusiona | Identidad visual | Contexto de uso |
+|--------|---------|-----------------|-----------------|
+| **Centro** | Dashboard | Denso, técnico, datos en tiempo real, anillo glowing | "¿Cómo estoy?" al despertar |
+| **Flow** | Productividad + Hábitos + Calendario | Limpio, minimalista, blanco/gris, acción-first | "¿Qué hago hoy?" durante el día |
+| **Cuerpo** | Gym + muscle map | Oscuro, muscular, rojo/naranja energético | En el gym o al entrenar |
+| **Finanzas** | Finanzas | Preciso, verde/rojo semántico, números prominentes | Al revisar dinero |
+| **Mente** | Biblioteca + Bitácora + **Gemelo Potenciado** | Suave, editorial, tipografía serif, como diario premium | Al reflexionar o aprender |
+| **World** | Mapa + Apartamento + Tienda + Gamificación | Cinematográfico, inmersivo, como videojuego | Al explorar/celebrar logros |
+| **Tú** | Stats + Aprende + Settings | Personal, cálido, perfil-first | Al configurar o revisar progreso |
+
+### El Gemelo Potenciado — decisión arquitectural crítica
+El Gemelo NO debe ser un módulo standalone. Su poder viene de analizar la bitácora, la biblioteca y los patrones del usuario. **Debe vivir dentro de Mente como la tercera tab**, creando el flujo natural:
+`Escribes en bitácora → lees en biblioteca → Gemelo analiza todo → insights personalizados`
+
+### Identidad visual única por módulo — ESTO ES CRÍTICO
+Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
+- **Centro:** gradiente azul-cyan, tipografía Orbitron, datos en tiempo real con pulsaciones
+- **Flow:** espacio en blanco, tipografía Syne ligera, checks con spring animation satisfactoria
+- **Cuerpo:** fondo casi negro, acentos naranja/rojo, fuente pesada, sensación de fuerza
+- **Finanzas:** verde #00C851 para positivo, rojo para negativo, monospace para números
+- **Mente:** modo editorial, fondo cálido sutil, serif para contenido, cursor de escritura
+- **World:** full-screen inmersivo, parallax, iluminación dinámica, sonido opcional
+- **Tú:** gradiente suave, avatar prominente, estadísticas de vida como infografía
+
+---
+
+## BUGS CONOCIDOS A VIGILAR
 - Anillo del núcleo puede mostrar 68% fijo en lugar de datos reales
 - NaN, undefined, 0 donde deberían haber valores reales
 - Elementos rotos en mobile 375px
 - Inconsistencias visual desktop vs mobile
+- Módulos que visualmente se ven idénticos entre sí (mismo fondo, mismo spacing, misma tipografía) — sin identidad propia
 
 ---
 
@@ -176,39 +212,59 @@ Analiza cada screenshot desde TODOS tus roles:
 
 ## FORMATO DE RESPUESTA — SIGUE ESTO EXACTO
 
-Genera entre 6 y 10 propuestas. Mezcla bugs críticos CON mejoras de diseño/UX ambiciosas. No te limites solo a bugs — una app de 2026 necesita también evolución visual constante.
+Genera entre 8 y 12 propuestas divididas en DOS categorías:
+
+**CATEGORÍA A — Micro-mejoras implementables (menos de 2h cada una):**
+Bugs, diseño específico, UX, animaciones, mobile. Cambios concretos en CSS/JS/HTML.
+
+**CATEGORÍA B — Propuestas arquitecturales (decisiones que el owner debe aprobar):**
+Fusiones de módulos, cambios de estructura de navegación, identidad visual de módulo, reubicación del Gemelo. Estas NO se implementan sin aprobación explícita.
 
 ---PROPOSALS---
-- [TIPO] MÓDULO: descripción precisa del problema o mejora | SOLUCIÓN: qué cambiar exactamente, sé específico (CSS, comportamiento, copy, lógica) | PRIORIDAD: ALTA/MEDIA/BAJA
+- [TIPO] MÓDULO: descripción precisa | SOLUCIÓN: qué cambiar exactamente (CSS property, función JS, elemento HTML) | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO/ARQUITECTURA
 
 ---ANALYSIS---
 🔍 DIAGNÓSTICO DEL DÍA
-[máx 80 palabras — qué falló, qué se ve bien, qué sorprendió${hasScreenshots ? '. Menciona screenshots específicos' : ''}]
+[máx 80 palabras${hasScreenshots ? ' — menciona screenshots específicos' : ''}]
 
 📈 TENDENCIAS
-[máx 60 palabras — patrones de los últimos días, ¿mejora o empeora?]
+[máx 60 palabras — patrones de días anteriores]
+
+🏗️ VEREDICTO ARQUITECTURAL
+[Basándote en lo que ves hoy: ¿qué módulos se sienten redundantes o confusos? ¿Qué módulo tiene identidad visual propia y cuál parece clonado de otro? ¿El Gemelo tiene suficiente contexto standalone o necesita estar en Mente? Sé directo — máx 80 palabras]
 
 🎯 OPORTUNIDAD MAYOR
-[1 mejora ambiciosa que transformaría la experiencia — algo que ningún usuario esperaría pero que los haría quedarse]
+[1 cambio que transformaría la retención — algo inesperado pero poderoso]
 
 💊 SALUD GENERAL: X/10
-[una frase de diagnóstico honesta]
+[una frase honesta]
 
 ---
 
-TIPOS VÁLIDOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD
+TIPOS VÁLIDOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN
 
 <reasoning_rules>
-ANTES de escribir ---PROPOSALS--- haz esto mentalmente:
-- Para cada problema que detectes, escribe internamente: SÍNTOMA → CAUSA RAÍZ → IMPACTO REAL → SOLUCIÓN PRECISA
-- No propongas lo obvio. Busca lo que un desarrollador promedio no vería.
-- Cada propuesta debe poder implementarse en menos de 2 horas de desarrollo. Nada de "rediseñar toda la app".
-- Si algo visualmente se ve bien pero el dato es incorrecto, es BUG ALTA aunque se vea bonito.
-- Si algo funciona pero se siente lento, torpe o confuso — es RETENCIÓN ALTA aunque no esté "roto".
-- Piensa como usuario nuevo que abre la app por primera vez. ¿Qué lo haría quedarse? ¿Qué lo haría irse?
+ANTES de escribir ---PROPOSALS--- ejecuta este razonamiento:
+
+MICRO-MEJORAS:
+- Síntoma → Causa raíz (pregunta ¿por qué? 3 veces) → Impacto → Solución con archivo/componente específico
+- No propongas lo obvio. Busca lo que un dev promedio no vería.
+- Si funciona pero se siente lento o confuso → RETENCIÓN ALTA
+
+ARQUITECTURA:
+- ¿Qué módulos comparten el mismo "momento de uso" del usuario? → candidatos a fusión
+- ¿Qué módulo visualmente se confunde con otro? → necesita identidad propia
+- ¿El Gemelo tiene suficiente valor standalone o extrae su poder del contexto de Mente?
+- ¿Hay módulos que un usuario nuevo ignoraría completamente en su primera semana?
+- Piensa en términos de "jobs to be done": ¿qué trabajo está haciendo el usuario en cada módulo?
+
+IDENTIDAD VISUAL:
+- ¿Este módulo tiene una firma visual que lo hace inconfundible?
+- ¿El color, tipografía y layout comunican el propósito del módulo antes de leer el título?
+- ¿Se siente igual que otros módulos? Si sí → problema de identidad
 </reasoning_rules>
 
-REGLA ABSOLUTA: Las propuestas van SIEMPRE antes de ---ANALYSIS---. Nunca omitas ninguna sección. Sé específico y quirúrgico, nunca genérico.`;
+REGLA ABSOLUTA: Propuestas SIEMPRE antes de ---ANALYSIS---. Nunca omitas ninguna sección. Sé específico y quirúrgico. Las propuestas ARQUITECTURA son para que el owner las revise y apruebe — propónlas con confianza aunque sean cambios grandes.`;
 
   const parts = [{ text: textPrompt }];
 
