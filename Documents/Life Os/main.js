@@ -153,6 +153,7 @@ const S = {
   calMonth: new Date().getMonth(),
   calSelectedDay: null,
   resetConfirm: false,
+  dynamicDashboard: false,
   charts: {},
   // Check-in
   dailyCheckIn: {},
@@ -268,11 +269,10 @@ const PIE_COLORS = ['#00e5ff','#a855f7','#ffd700','#4ade80','#ff6b35','#f472b6',
 const NAV = [
   {id:'dashboard',    icon:'⚡', label:'Tablero'},
   {id:'world',        icon:'🗺️', label:'Life OS World'},
-  {id:'productividad',icon:'✅', label:'Productividad'},
+  {id:'productividad',icon:'🌊', label:'Flow'},
   {id:'cuerpo',       icon:'💪', label:'Cuerpo'},
   {id:'financial',    icon:'💰', label:'Financiero'},
   {id:'mente',        icon:'🧠', label:'Mente & Poder'},
-  {id:'calendar',     icon:'📅', label:'Calendario'},
   {id:'stats',        icon:'📊', label:'Análisis'},
   {id:'aprende',      icon:'📖', label:'Aprende'},
   {id:'settings',     icon:'⚙️', label:'Ajustes'},
@@ -318,6 +318,8 @@ function navigate(id) {
   if (id === 'agencies' && !_isAdmin()) { return; }
   // Modo Consulta: bloquear módulos restringidos
   if (_consultaNavGuard(id)) return;
+  // Calendario absorbido por Flow → redirigir a tab Agenda
+  if (id === 'calendar') { navigate('productividad'); switchInnerTab('productividad','agenda'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
   S.currentPage = id;
@@ -339,7 +341,6 @@ function navigate(id) {
   worldTrackNavigation(id);
   if (id==='financial')     { updatePieCharts(); renderTransactions(); renderDebts(); renderCards(); }
   if (id==='agencies')      { renderAgencyTable(); }
-  if (id==='calendar')      { renderCalendar(); initSocialPlans(); }
   if (id==='settings')      { updateSettingsDisplay(); }
   if (id==='aprende')       { initAprende(); }
   // Merged pages — init active tab on navigation
@@ -366,6 +367,18 @@ function navigate(id) {
 /* ═══════════════════════════════════════════
    THEME & ACCENT
 ═══════════════════════════════════════════ */
+function toggleDynamicDashboard(val) {
+  S.dynamicDashboard = !!val;
+  const ddTrack = document.getElementById('dynamic-dashboard-track');
+  const ddLabel = document.getElementById('dynamic-dashboard-label');
+  const ddInfo  = document.getElementById('dynamic-dashboard-info');
+  if (ddTrack) ddTrack.classList.toggle('on', S.dynamicDashboard);
+  if (ddLabel) ddLabel.textContent = S.dynamicDashboard ? 'Activado' : 'Desactivado';
+  if (ddInfo)  ddInfo.style.display = S.dynamicDashboard ? 'block' : 'none';
+  guardarDatos();
+  showToast(S.dynamicDashboard ? '🧠 Dashboard Inteligente activado — Life OS está aprendiendo de ti' : '⚙️ Dashboard estático activado');
+}
+
 function toggleTheme() {
   S.dark = !S.dark;
   document.body.classList.toggle('light', !S.dark);
@@ -898,7 +911,11 @@ function renderHabits() {
   document.getElementById('h-streak') && (document.getElementById('h-streak').textContent = maxStreak + ' días');
   document.getElementById('h-count')  && (document.getElementById('h-count').textContent  = active.length);
   if (!active.length) {
-    el.innerHTML = '<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Agrega tu primer hábito arriba</div>';
+    el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div style="font-size:36px;animation:float-empty 3s ease-in-out infinite">🌱</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text2)">Sin hábitos aún</div>
+      <div style="font-size:12px;color:var(--text3);max-width:200px;line-height:1.5">Los grandes logros empiezan con un hábito. Agrega el primero arriba.</div>
+    </div>`;
     return;
   }
   el.innerHTML = active.map(h => {
@@ -2132,8 +2149,18 @@ function deleteCalEvent(id) {
   renderCalEvents(); renderCalendar();
 }
 
-function calPrev() { if(S.calMonth===0){S.calMonth=11;S.calYear--;}else S.calMonth--; renderCalendar(); }
-function calNext() { if(S.calMonth===11){S.calMonth=0;S.calYear++;}else S.calMonth++; renderCalendar(); }
+function calPrev() {
+  const m = typeof S.calMonth==='number' && !isNaN(S.calMonth) ? S.calMonth : new Date().getMonth();
+  const y = typeof S.calYear==='number'  && !isNaN(S.calYear)  ? S.calYear  : new Date().getFullYear();
+  if(m===0){S.calMonth=11;S.calYear=y-1;}else S.calMonth=m-1;
+  renderCalendar();
+}
+function calNext() {
+  const m = typeof S.calMonth==='number' && !isNaN(S.calMonth) ? S.calMonth : new Date().getMonth();
+  const y = typeof S.calYear==='number'  && !isNaN(S.calYear)  ? S.calYear  : new Date().getFullYear();
+  if(m===11){S.calMonth=0;S.calYear=y+1;}else S.calMonth=m+1;
+  renderCalendar();
+}
 
 /* ── Toggle del menú de exportación ── */
 function toggleCalExportMenu(e) {
@@ -2272,6 +2299,17 @@ function updateSettingsDisplay() {
   document.getElementById('set-level') && (document.getElementById('set-level').textContent='Nv. '+S.level);
   document.getElementById('set-xp') && (document.getElementById('set-xp').textContent=S.xp+' XP');
   document.getElementById('set-coins') && (document.getElementById('set-coins').textContent='🪙 '+S.coins);
+  // — Dashboard Inteligente
+  const ddToggle = document.getElementById('dynamic-dashboard-toggle');
+  const ddTrack  = document.getElementById('dynamic-dashboard-track');
+  const ddLabel  = document.getElementById('dynamic-dashboard-label');
+  const ddInfo   = document.getElementById('dynamic-dashboard-info');
+  if (ddToggle) {
+    ddToggle.checked = !!S.dynamicDashboard;
+    ddTrack && ddTrack.classList.toggle('on', !!S.dynamicDashboard);
+    if (ddLabel) ddLabel.textContent = S.dynamicDashboard ? 'Activado' : 'Desactivado';
+    if (ddInfo)  ddInfo.style.display = S.dynamicDashboard ? 'block' : 'none';
+  }
   // — Nombre / email
   const _sess = JSON.parse(localStorage.getItem('lifeos_session')||'{}');
   const _nomEl = document.getElementById('settings-nombre');
@@ -2857,7 +2895,11 @@ function guardarBitacora() {
 
 function renderBitacoraList() {
   const el = document.getElementById('bitacora-list'); if(!el) return;
-  if(!S.bitacora.length){ el.innerHTML=''; return; }
+  if(!S.bitacora.length){ el.innerHTML=`<div style="text-align:center;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div style="font-size:32px;animation:float-empty 3s ease-in-out infinite">📓</div>
+    <div style="font-size:13px;font-weight:700;color:var(--text2)">Tu bitácora está en blanco</div>
+    <div style="font-size:12px;color:var(--text3);max-width:220px;line-height:1.5">Cada victoria que registres aquí construye tu historia. ¿Cuál fue tu logro de hoy?</div>
+  </div>`; return; }
   el.innerHTML = S.bitacora.slice(0,5).map(b=>`
     <div style="padding:10px 12px;border-radius:10px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.08);margin-bottom:6px">
       <div style="font-size:10px;color:var(--text3);font-family:'Orbitron',monospace;margin-bottom:4px">${b.fecha}</div>
@@ -8184,6 +8226,7 @@ function switchInnerTab(pageId, tabId) {
 
 function _fireTabInit(pageId, tabId) {
   if (tabId === 'habits')   { buildHeatmap(); renderHabits(); }
+  if (tabId === 'agenda')   { renderCalendar(); initSocialPlans(); }
   if (tabId === 'goals')    { renderGoals(); }
   if (tabId === 'ideas')    { renderIdeas(); }
   if (tabId === 'physical') { initVolumeChart(); updateBioVol(); buildMuscleMap(); buildFreqHeatmap(); _applyNPCVisibility(); applyMuscleHighlights(); updateBioMainBtn(); renderRutinasFrecuentes(); renderRoutines(); }

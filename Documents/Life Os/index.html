@@ -450,7 +450,7 @@
   <div class="page" id="page-routines" style="display:none!important"></div>
 
   <!-- ── PAGE: FINANCIERO — Finance module ── -->
-  <div class="page" id="page-financial">
+  <div class="page" id="page-financial" data-module="financial">
     <div class="page-header">
       <div class="page-title">FINANCIERO</div>
       <div class="page-sub">Control total de tus finanzas</div>
@@ -525,15 +525,15 @@
   <!-- Redirect placeholder — content lives in page-productividad -->
   <div class="page" id="page-goals"></div>
 
-  <!-- ── PAGE: PRODUCTIVIDAD — Habits & Goals unified ── -->
-  <div class="page" id="page-productividad">
+  <!-- ── PAGE: FLOW — Hábitos, Metas, Ideas + Agenda unificados ── -->
+  <div class="page" id="page-productividad" data-module="flow">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
       <div>
-        <div class="page-title">PRODUCTIVIDAD</div>
-        <div class="page-sub">Hábitos y metas unificados</div>
+        <div class="page-title">FLOW</div>
+        <div class="page-sub">Hábitos, metas, ideas y agenda</div>
       </div>
       <div class="inner-tabs" id="inner-tabs-productividad">
-        <button class="inner-tab active" onclick="switchInnerTab('productividad','habits')">🔥 Hábitos</button><button class="inner-tab" onclick="switchInnerTab('productividad','goals')">🎯 Metas</button><button class="inner-tab" onclick="switchInnerTab('productividad','ideas')" id="ideas-tab-btn">💡 Ideas <span id="ideas-tab-dot" style="display:none;width:7px;height:7px;border-radius:50%;background:#ff6450;box-shadow:0 0 6px rgba(255,100,80,.7);margin-left:2px;flex-shrink:0;vertical-align:middle;display:none"></span></button>
+        <button class="inner-tab active" onclick="switchInnerTab('productividad','habits')">🔥 Hábitos</button><button class="inner-tab" onclick="switchInnerTab('productividad','goals')">🎯 Metas</button><button class="inner-tab" onclick="switchInnerTab('productividad','ideas')" id="ideas-tab-btn">💡 Ideas <span id="ideas-tab-dot" style="display:none;width:7px;height:7px;border-radius:50%;background:#ff6450;box-shadow:0 0 6px rgba(255,100,80,.7);margin-left:2px;flex-shrink:0;vertical-align:middle;display:none"></span></button><button class="inner-tab" onclick="switchInnerTab('productividad','agenda')">📅 Agenda</button>
       </div>
     </div>
 
@@ -661,8 +661,79 @@
       </div>
   </div>
 
+      <!-- ── PANEL: AGENDA (Calendario absorbido en Flow) ── -->
+      <div class="inner-panel" id="panel-agenda">
+        <div class="page-header">
+          <div class="page-title">AGENDA</div>
+          <div class="page-sub">Eventos, recordatorios y planes</div>
+        </div>
+        <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div>
+          <div style="position:relative;flex-shrink:0" id="cal-export-wrap">
+            <button class="btn btn-g btn-sm" onclick="toggleCalExportMenu(event)" style="white-space:nowrap" title="Exportar calendario">📤 Exportar ▾</button>
+            <div id="cal-export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg2);border:1px solid rgba(0,229,255,.18);border-radius:10px;overflow:hidden;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+              <button onclick="exportarDiaActual();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📅 Exportar día actual</button>
+              <button onclick="exportCalendarICS();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📆 Exportar calendario completo</button>
+            </div>
+          </div>
+        </div>
+        <div class="card mb14">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px">
+            <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px">‹</button>
+            <div class="f-display c-accent" style="font-size:16px;font-weight:900" id="cal-title"></div>
+            <button class="btn btn-g" onclick="calNext()" style="padding:7px 18px;font-size:16px">›</button>
+          </div>
+          <div class="row mb14" style="justify-content:space-around">
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Dom</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Lun</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Mar</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Mié</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Jue</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Vie</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text3)">Sáb</span>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        <div class="card" id="cal-event-panel" style="display:none">
+          <div class="card-title" id="cal-event-title">EVENTOS</div>
+          <div class="row mb12" style="gap:10px">
+            <input class="inp f1" id="cal-event-input" placeholder="Agregar evento o recordatorio..." onkeydown="if(event.key==='Enter')addCalEvent()"/>
+            <button class="btn btn-a" onclick="addCalEvent()">+</button>
+          </div>
+          <div id="cal-events-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📋 PRÓXIMAS ACTIVIDADES</div>
+          <div id="upcoming-list"></div>
+        </div>
+        <div class="card" style="border-color:rgba(168,85,247,.25)">
+          <div class="card-title" style="color:#a855f7;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span>🤝 PLANES SOCIALES</span>
+            <button class="btn btn-sm" onclick="openModalNuevoPlan()" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4)!important;color:#a855f7;font-size:11px">+ Crear Plan</button>
+          </div>
+          <div id="aliados-tip" class="aliados-tip-card">
+            <div class="aliados-tip-body">
+              <div class="aliados-tip-icon">🤝</div>
+              <div>
+                <div class="aliados-tip-title">¿Qué son los Planes Aliados?</div>
+                <div class="aliados-tip-desc">Comprométete con alguien más a cumplir un objetivo o plan. Ambos hacen check-in, ganan XP juntos y el plan solo se marca como completado cuando los dos cumplen. La responsabilidad compartida multiplica los resultados.</div>
+                <div class="aliados-tip-pills">
+                  <span class="aliados-pill">⚡ XP compartido</span>
+                  <span class="aliados-pill">📅 Fecha límite</span>
+                  <span class="aliados-pill">✅ Check-in mutuo</span>
+                </div>
+              </div>
+            </div>
+            <button class="aliados-tip-dismiss" onclick="dismissAliadosTip()">✓ Entendido</button>
+          </div>
+          <div id="social-plans-list">
+            <div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Crea tu primer plan social para comprometer a tus aliados 🤝</div>
+          </div>
+        </div>
+      </div><!-- /panel-agenda -->
+  </div><!-- /page-productividad -->
+
   <!-- ── PAGE: CUERPO — Physical, routines & wellness ── -->
-  <div class="page" id="page-cuerpo">
+  <div class="page" id="page-cuerpo" data-module="cuerpo">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
       <div>
         <div class="page-title">CUERPO</div>
@@ -1111,7 +1182,7 @@
   </div>
 
   <!-- ── PAGE: MENTE & PODER — Brain, journal, allies ── -->
-  <div class="page" id="page-mente">
+  <div class="page" id="page-mente" data-module="mente">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
       <div>
         <div class="page-title">MENTE & PODER</div>
@@ -1153,7 +1224,7 @@
   </div>
 
   <!-- ── PAGE: ANÁLISIS — Stats & gamification ── -->
-  <div class="page" id="page-stats">
+  <div class="page" id="page-stats" data-module="stats">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
       <div>
         <div class="page-title">ANÁLISIS</div>
@@ -1496,84 +1567,11 @@
   </div>
 
   <!-- ── PAGE: CALENDARIO — Schedule & events ── -->
-  <div class="page" id="page-calendar">
-    <div class="page-header">
-      <div class="page-title">CALENDARIO</div>
-      <div class="page-sub">Agenda y eventos interactivos</div>
-    </div>
-    <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div>
-      <div style="position:relative;flex-shrink:0" id="cal-export-wrap">
-        <button class="btn btn-g btn-sm" onclick="toggleCalExportMenu(event)" style="white-space:nowrap" title="Exportar calendario">📤 Exportar ▾</button>
-        <div id="cal-export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg2);border:1px solid rgba(0,229,255,.18);border-radius:10px;overflow:hidden;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
-          <button onclick="exportarDiaActual();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📅 Exportar día actual</button>
-          <button onclick="exportCalendarICS();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📆 Exportar calendario completo</button>
-        </div>
-      </div>
-    </div>
-    <div class="card mb14">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px">
-        <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px">‹</button>
-        <div class="f-display c-accent" style="font-size:16px;font-weight:900" id="cal-title"></div>
-        <button class="btn btn-g" onclick="calNext()" style="padding:7px 18px;font-size:16px">›</button>
-      </div>
-      <div class="row mb14" style="justify-content:space-around">
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Dom</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Lun</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Mar</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Mié</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Jue</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Vie</span>
-        <span style="font-size:11px;font-weight:700;color:var(--text3)">Sáb</span>
-      </div>
-      <div class="cal-grid" id="cal-grid"></div>
-    </div>
-    <div class="card" id="cal-event-panel" style="display:none">
-      <div class="card-title" id="cal-event-title">EVENTOS</div>
-      <div class="row mb12" style="gap:10px">
-        <input class="inp f1" id="cal-event-input" placeholder="Agregar evento o recordatorio..." onkeydown="if(event.key==='Enter')addCalEvent()"/>
-        <button class="btn btn-a" onclick="addCalEvent()">+</button>
-      </div>
-      <div id="cal-events-list"></div>
-    </div>
-
-    <!-- PRÓXIMAS ACTIVIDADES -->
-    <div class="card">
-      <div class="card-title">📋 PRÓXIMAS ACTIVIDADES</div>
-      <div id="upcoming-list"></div>
-    </div>
-
-    <!-- PLANES SOCIALES -->
-    <div class="card" style="border-color:rgba(168,85,247,.25)">
-      <div class="card-title" style="color:#a855f7;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span>🤝 PLANES SOCIALES</span>
-        <button class="btn btn-sm" onclick="openModalNuevoPlan()" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4)!important;color:#a855f7;font-size:11px">+ Crear Plan</button>
-      </div>
-
-      <!-- Tarjeta explicativa descartable -->
-      <div id="aliados-tip" class="aliados-tip-card">
-        <div class="aliados-tip-body">
-          <div class="aliados-tip-icon">🤝</div>
-          <div>
-            <div class="aliados-tip-title">¿Qué son los Planes Aliados?</div>
-            <div class="aliados-tip-desc">Comprométete con alguien más a cumplir un objetivo o plan. Ambos hacen check-in, ganan XP juntos y el plan solo se marca como completado cuando los dos cumplen. La responsabilidad compartida multiplica los resultados.</div>
-            <div class="aliados-tip-pills">
-              <span class="aliados-pill">⚡ XP compartido</span>
-              <span class="aliados-pill">📅 Fecha límite</span>
-              <span class="aliados-pill">✅ Check-in mutuo</span>
-            </div>
-          </div>
-        </div>
-        <button class="aliados-tip-dismiss" onclick="dismissAliadosTip()">✓ Entendido</button>
-      </div>
-
-      <div id="social-plans-list">
-        <div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Crea tu primer plan social para comprometer a tus aliados 🤝</div>
-      </div>
-    </div>
-  </div>
+  <!-- ── PAGE: CALENDAR — redirect shell (content moved to Flow > Agenda) ── -->
+  <div class="page" id="page-calendar"></div>
 
   <!-- ── PAGE: APRENDE E INFÓRMATE ── -->
-  <div class="page" id="page-aprende">
+  <div class="page" id="page-aprende" data-module="aprende">
     <!-- Welcome screen (first visit) -->
     <div id="aprende-welcome-screen" class="aprende-welcome" style="display:none">
       <div class="aprende-welcome-emoji">🤖</div>
@@ -1654,6 +1652,29 @@
           </div>
         </div>
       </div>
+      <!-- Dashboard Inteligente -->
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-title">🧠 DASHBOARD INTELIGENTE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">La app aprende de ti</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.6">
+              Life OS reorganiza tu dashboard según lo que más usas, la hora del día y tus hábitos. El Gemelo actúa como cerebro — a las 7am ves tu check-in, de noche ves tu resumen del día.
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+            <input type="checkbox" id="dynamic-dashboard-toggle" style="display:none" onchange="toggleDynamicDashboard(this.checked)"/>
+            <label for="dynamic-dashboard-toggle" style="cursor:pointer;display:flex;align-items:center;gap:8px">
+              <span id="dynamic-dashboard-track" class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span style="font-size:12px;color:var(--text3)" id="dynamic-dashboard-label">Desactivado</span>
+            </label>
+          </div>
+        </div>
+        <div id="dynamic-dashboard-info" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(0,229,255,.06);border-radius:10px;border:1px solid rgba(0,229,255,.12);font-size:11px;color:var(--text3);line-height:1.7">
+          ✅ Activo — Life OS está aprendiendo tus patrones. Los cambios en el dashboard se reflejarán gradualmente con el uso.
+        </div>
+      </div>
+
       <!-- Notificaciones Push -->
       <div class="card" id="notifications-setting-row" style="grid-column:1/-1">
         <div class="card-title">🔔 NOTIFICACIONES PUSH</div>
@@ -1786,7 +1807,7 @@
   <div class="page" id="page-saas"></div>
 
   <!-- ── PAGE: WORLD — Interactive pixel map ── -->
-  <div class="page" id="page-world">
+  <div class="page" id="page-world" data-module="world">
     <div class="page-header">
       <div class="page-title">🗺️ LIFE OS WORLD</div>
       <div class="page-sub">Explora y navega entre módulos en el mapa virtual</div>
