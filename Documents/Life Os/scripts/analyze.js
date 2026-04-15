@@ -75,10 +75,23 @@ function loadScreenshots(shotsDir) {
     shotsDir = path.join(screenshotsBase, dirs[0]);
   }
 
-  const files = fs.readdirSync(shotsDir)
+  const allFiles = fs.readdirSync(shotsDir)
     .filter(f => f.endsWith('.jpg') || f.endsWith('.png'))
-    .sort()
-    .slice(0, 10); // máximo 10 imágenes para controlar costo
+    .sort();
+
+  // Priorizar screenshots de módulos (_fold) sobre auth y scroll
+  // Orden: fold de módulos primero, luego responsive, luego scroll, al final auth
+  const foldShots      = allFiles.filter(f => f.includes('_fold') && !f.includes('auth'));
+  const responsiveShots = allFiles.filter(f => f.startsWith('responsive-'));
+  const scrollShots    = allFiles.filter(f => f.includes('_scroll'));
+  const authShots      = allFiles.filter(f => f.includes('auth'));
+  const otherShots     = allFiles.filter(f =>
+    !f.includes('_fold') && !f.includes('_scroll') &&
+    !f.startsWith('responsive-') && !f.includes('auth')
+  );
+
+  const ordered = [...foldShots, ...responsiveShots, ...scrollShots, ...otherShots, ...authShots];
+  const files = ordered.slice(0, 20); // hasta 20 imágenes para análisis completo
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
