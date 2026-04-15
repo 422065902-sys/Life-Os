@@ -165,7 +165,7 @@ Reducir a **7 módulos con propósito claro**, organizados por contexto de uso:
 
 ### El Gemelo Potenciado — decisión arquitectural crítica
 El Gemelo NO debe ser un módulo standalone. Su poder viene de analizar la bitácora, la biblioteca y los patrones del usuario. **Debe vivir dentro de Mente como la tercera tab**, creando el flujo natural:
-`Escribes en bitácora → lees en biblioteca → Gemelo analiza todo → insights personalizados`
+Escribes en bitácora → lees en biblioteca → Gemelo analiza todo → insights personalizados
 
 ### Identidad visual única por módulo — ESTO ES CRÍTICO
 Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
@@ -220,7 +220,7 @@ La app debe aprender del comportamiento del usuario y reorganizar el dashboard s
 - Con opt-in → la app analiza frecuencia de uso por módulo, hora del día y día de la semana
 - Los widgets del dashboard se reordenan automáticamente por relevancia real del usuario
 - El Gemelo actúa como cerebro: a las 7am muestra check-in + tareas, a las 8pm muestra resumen + hábitos pendientes, los lunes muestra metas semanales
-- Infraestructura ya existe: `registrarEvento()` en Firebase + Gemelo analizando patrones
+- Infraestructura ya existe: registrarEvento() en Firebase + Gemelo analizando patrones
 - Lo que falta: lógica de reordenamiento, preferencia opt-in en S (estado global), contexto horario/día en el Gemelo
 
 **Cuando veas el Dashboard en screenshots, propón:**
