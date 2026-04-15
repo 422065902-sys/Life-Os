@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Deep Analyst — Life OS
- * Versión: 1.0
+ * Versión: 2.0 (cobertura total, análisis real)
  *
- * Análisis PROFUNDO: una llamada Gemini por módulo → propuestas ultra-específicas.
- * Úsalo manualmente cuando quieras una revisión completa.
- * El análisis diario rápido sigue siendo analyze.js (1 llamada).
+ * - Auto-detecta TODOS los screenshots del último run
+ * - Agrupa módulos relacionados en 9 llamadas temáticas
+ * - Cada llamada recibe TODOS los screenshots del grupo
+ * - Filtra screenshots de login para no gastar tokens en ellos
+ * - maxOutputTokens: 16 000 por módulo (análisis real profundo)
+ * - Síntesis ejecutiva final cross-módulo
  *
  * Uso:
  *   node scripts/analyze-deep.js
@@ -30,251 +33,376 @@ if (!GEMINI_API_KEY) {
 function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
 
 // ══════════════════════════════════════════════════════════════
-// DEFINICIÓN DE MÓDULOS
-// ══════════════════════════════════════════════════════════════
-const MODULES = [
-  {
-    key: 'dashboard',
-    name: 'Tablero (Dashboard)',
-    accent: '#00e5ff (cyan)',
-    desc: 'Vista principal al abrir la app. Contiene: saludo dinámico, barra de progreso del Gemelo, briefing matutino, radar chart, focus bars, check-in diario, widget de saldo. Es el "¿Cómo estoy?" del usuario.',
-    tabs: null,
-  },
-  {
-    key: 'flow',
-    name: 'Flow',
-    accent: '#00ff88 (verde neón)',
-    desc: 'Módulo de productividad unificado. Contiene: Hábitos (heatmap de constancia, racha), Metas (progreso global, objetivos de vida), Ideas Rápidas (capturadas por FAB), Agenda (calendario con eventos, planes sociales).',
-    tabs: 'Hábitos · Metas · Ideas · Agenda',
-  },
-  {
-    key: 'flow-agenda',
-    name: 'Flow — Tab Agenda',
-    accent: '#00ff88 (verde neón)',
-    desc: 'El calendario vive dentro del tab Agenda de Flow. Contiene: grid mensual de días, eventos por día, próximas actividades, planes sociales con aliados (XP compartido, fecha límite, check-in mutuo).',
-    tabs: 'Parte de Flow',
-  },
-  {
-    key: 'finanzas',
-    name: 'Financiero',
-    accent: '#fbbf24 (dorado)',
-    desc: 'Control total de finanzas. Contiene: saldos múltiples (tarjetas, efectivo, digital), gráficas de gastos/ingresos por categoría, historial de transacciones, deudas, cards. Números siempre prominentes.',
-    tabs: null,
-  },
-  {
-    key: 'cuerpo',
-    name: 'Cuerpo',
-    accent: '#ff6b35 (naranja fuego)',
-    desc: 'Módulo de físico y bienestar. Contiene: muscle map interactivo, volumen de entrenamiento por grupo muscular, rutinas frecuentes, check-in de salud diario. Debe sentirse oscuro, muscular, energético.',
-    tabs: 'Físico · Salud',
-  },
-  {
-    key: 'mente',
-    name: 'Mente & Poder',
-    accent: '#a855f7 (púrpura)',
-    desc: 'Módulo de mente y crecimiento. Contiene: Bitácora (diario personal, entradas con fecha), Gemelo Potenciado (IA que analiza patrones del usuario), Poder (aliados, presencia social). Editorial, reflexivo.',
-    tabs: 'Bitácora · Gemelo · Poder',
-  },
-  {
-    key: 'world',
-    name: 'Life OS World',
-    accent: '#06b6d4 (teal)',
-    desc: 'Mapa gamificado del mundo del usuario. Zonas desbloqueables, apartamento virtual, logros visuales. Debe sentirse cinematográfico, como un videojuego premium.',
-    tabs: null,
-  },
-];
-
-// ══════════════════════════════════════════════════════════════
-// CARGAR SCREENSHOTS DEL ÚLTIMO RUN
+// CARGAR Y AGRUPAR SCREENSHOTS
 // ══════════════════════════════════════════════════════════════
 function loadLatestScreenshots() {
   const base = path.join(REPORTS_DIR, 'screenshots');
-  if (!fs.existsSync(base)) return {};
-  const dirs = fs.readdirSync(base).filter(d =>
-    fs.statSync(path.join(base, d)).isDirectory()
-  ).sort().reverse();
-  if (!dirs.length) return {};
+  if (!fs.existsSync(base)) return { dir: null, files: [] };
+  const dirs = fs.readdirSync(base)
+    .filter(d => fs.statSync(path.join(base, d)).isDirectory())
+    .sort().reverse();
+  if (!dirs.length) return { dir: null, files: [] };
 
   const shotsDir = path.join(base, dirs[0]);
-  log(`Screenshots del run: ${dirs[0]}`);
+  log(`Run de screenshots: ${dirs[0]}`);
 
   const files = fs.readdirSync(shotsDir)
-    .filter(f => f.endsWith('.jpg') || f.endsWith('.png'))
-    .sort();
-
-  // Agrupar por módulo (prefijo antes de _fold / _scroll / sin sufijo)
-  const grouped = {};
-  files.forEach(f => {
-    const base = f.replace(/_(fold|scroll)\.(jpg|png)$/, '').replace(/\.(jpg|png)$/, '');
-    if (!grouped[base]) grouped[base] = [];
-    grouped[base].push({
+    .filter(f => f.match(/\.(jpg|png)$/))
+    .sort()
+    .map(f => ({
+      filename: f,
       name: f.replace(/\.(jpg|png)$/, ''),
       mime: f.endsWith('.png') ? 'image/png' : 'image/jpeg',
       data: fs.readFileSync(path.join(shotsDir, f)).toString('base64'),
-    });
-  });
+    }));
 
-  return grouped;
+  return { dir: dirs[0], files };
+}
+
+function buildGroups(files) {
+  // Separar login real de módulos
+  const loginOnly  = files.filter(f => f.filename === '01-auth-login.jpg' || f.filename === '01-auth-login.png');
+  const moduleFiles = files.filter(f => f.filename !== '01-auth-login.jpg' && f.filename !== '01-auth-login.png');
+  const responsive = moduleFiles.filter(f => f.filename.startsWith('responsive-'));
+  const desktop    = moduleFiles.filter(f => !f.filename.startsWith('responsive-'));
+
+  const pick = (...prefixes) => desktop.filter(f => prefixes.some(p => f.filename.startsWith(p)));
+
+  return [
+    {
+      id: 'auth-onboarding',
+      name: 'Auth, Onboarding, Blackout y Paywall',
+      accent: 'Sin accent específico',
+      desc: 'Pantalla de login/registro, flujo de onboarding, estado BLACKOUT (puntos críticos perdidos) y paywall. ' +
+            'Es la PRIMERA experiencia del usuario — define si se queda o se va.',
+      shots: [...loginOnly, ...pick('02-', '03-', '04-')],
+      maxTokens: 8000,
+    },
+    {
+      id: 'dashboard-stats',
+      name: 'Dashboard (Tablero) y Análisis/Stats',
+      accent: '#00e5ff cyan (Dashboard) · #6366f1 índigo (Stats)',
+      desc: 'Dashboard = vista principal al abrir la app: saludo, radar chart, anillo SVG de progreso del Gemelo, ' +
+            'focus bars, check-in diario, widget de saldo, lista de tareas. ' +
+            'Stats/Gamificación = leaderboard, XP total, nivel, logros, métricas de uso.',
+      shots: pick('05-', '11-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'finanzas',
+      name: 'Módulo Financiero',
+      accent: '#fbbf24 dorado · verde #00C851 para positivo · rojo para negativo',
+      desc: 'Control financiero completo: múltiples saldos, historial de transacciones, pie charts por categoría, ' +
+            'deudas, cards. Los números son protagonistas — tipografía monospace, tamaños grandes. ' +
+            'El usuario debe ver de un vistazo si va bien o mal con su dinero.',
+      shots: pick('06-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'flow-completo',
+      name: 'Flow — Hábitos, Agenda/Calendario, Productividad, Ideas y Metas',
+      accent: '#00ff88 verde neón',
+      desc: 'Módulo de productividad unificado. Hábitos: heatmap de constancia, racha de días, indicador de batería por hábito. ' +
+            'Agenda/Calendario: grid mensual, eventos, planes sociales con aliados. ' +
+            'Ideas: captura rápida vía FAB. Metas: progreso global, objetivos de vida con fecha límite. ' +
+            'Todas las tabs deben tener identidad propia dentro del acento verde neón.',
+      shots: pick('07-', '13-', '14-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'cuerpo',
+      name: 'Módulo Cuerpo',
+      accent: '#ff6b35 naranja fuego · fondo casi negro',
+      desc: 'Físico y bienestar: muscle map NPC interactivo (SVG con grupos musculares coloreados según trabajo reciente), ' +
+            'volumen de entrenamiento por grupo, rutinas frecuentes, check-in de combustible diario (proteína, desayuno, sueño). ' +
+            'Debe sentirse oscuro, muscular, energético — como una app de gym premium.',
+      shots: pick('08-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'mente-gemelo',
+      name: 'Mente & Poder y Gemelo Potenciado',
+      accent: '#a855f7 púrpura',
+      desc: 'Mente tiene tres tabs: Bitácora (diario personal, victorias del día, modo editorial), ' +
+            'Gemelo (IA que analiza patrones del usuario — avanza progresivamente según uso, ' +
+            'NO se muestra hasta que hay datos suficientes), Poder (aliados, solicitudes de amistad, presencia social). ' +
+            'El Gemelo es el feature más diferenciador de la app — debe comunicar que crece con el usuario.',
+      shots: pick('09-', '15-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'world-tienda',
+      name: 'Life OS World y Tienda de Decoración',
+      accent: '#06b6d4 teal · cinematográfico',
+      desc: 'World = mapa gamificado del mundo del usuario: zonas desbloqueables, burbuja del usuario con color y emoji, ' +
+            'sistema de presencia social. Tienda = catálogo de muebles/rooms para el apartamento virtual, ' +
+            'compra con XP (NO coins). Apartamento = espacio personalizable del usuario.',
+      shots: pick('12-', '16-'),
+      maxTokens: 16000,
+    },
+    {
+      id: 'tech-settings',
+      name: 'Settings, Stripe, FAB, Admin, FCM y PWA',
+      accent: 'Accent global',
+      desc: 'Settings: suscripción Stripe, plan badge, toggle de notificaciones push. ' +
+            'FAB: botón flotante con NLP para captura rápida (texto libre → tarea/hábito/gasto). ' +
+            'Admin: panel de agencias para el rol admin. ' +
+            'FCM: service worker de notificaciones. PWA: manifest, offline mode.',
+      shots: pick('10-', '17-', '18-', '19-', '20-'),
+      maxTokens: 12000,
+    },
+    {
+      id: 'mobile-responsive',
+      name: 'Experiencia Mobile — Android 360×800 y iOS 390×844',
+      accent: 'Comparativa Android vs iOS',
+      desc: 'Screenshots de todos los módulos principales en dos viewports normalizados: ' +
+            'Android Pixel 6a (360×800) y iPhone 14/15 (390×844). ' +
+            'Evaluar: thumb zones, tap targets ≥44px, FAB no tapa nav inferior, ' +
+            'safe area / notch en iOS, texto no desbordado, scroll horizontal ausente, ' +
+            'identidad visual preservada en pantalla pequeña.',
+      shots: responsive,
+      maxTokens: 16000,
+    },
+  ].filter(g => g.shots.length > 0);
 }
 
 // ══════════════════════════════════════════════════════════════
-// PROMPT BASE (contexto de app — compartido en cada llamada)
+// CONTEXTO BASE (enviado en cada llamada)
 // ══════════════════════════════════════════════════════════════
 const BASE_CONTEXT = `
-Eres el equipo senior completo detrás de Life OS en 2026. Roles simultáneos:
-🔴 QA Engineer — detectas bugs funcionales y estados rotos
-🟠 Frontend Dev — sabes qué línea de código está causando el problema
-🟡 Lead Product Designer (Linear/Notion/Superhuman) — cada píxel comunica algo
-🟢 Game Designer — gamificación psicológica, XP, streaks, feedback satisfactorio
-🔵 Mobile UX — mobile-first, touch targets 44px, thumb zones
-⚫ Retention Analyst — qué hace que usuarios abandonen en los primeros 7 días
+Eres el equipo senior completo detrás de Life OS en 2026, con roles simultáneos:
 
-SOBRE LA APP:
-Life OS es una PWA gamificada = Notion + Duolingo + RPG. El usuario gestiona su vida completa y gana XP.
+🔴 SENIOR QA ENGINEER (15 años) — detectas bugs funcionales, estados rotos, NaN/undefined, flujos que fallan silenciosamente.
+🟠 SENIOR FRONTEND DEV — sabes exactamente qué archivo y línea está causando cada problema.
+🟡 LEAD PRODUCT DESIGNER (Linear/Notion/Superhuman 2026) — en 2026 las apps premium tienen: glassmorphism con profundidad real, micro-animaciones con spring physics, tipografía con jerarquía perfecta, skeleton loaders, estados vacíos con personalidad, transiciones de estado fluidas.
+🟢 GAME DESIGNER — gamificación psicológica. XP, streaks, recompensas variables, progresión visible, feedback inmediato y satisfactorio.
+🔵 MOBILE UX SPECIALIST — mobile-first siempre. Touch targets 44px mínimo, thumb zones, una mano.
+⚫ RETENTION ANALYST — sabes exactamente qué friction point hace que un usuario abandone en los primeros 7 días.
+
+═══════════════════════════════════════
+LA APP: LIFE OS
+═══════════════════════════════════════
+PWA gamificada = Notion + Duolingo + RPG. El usuario gestiona su vida completa y gana XP.
 Stack: SPA archivo único (main.js + index.html), Firebase Firestore/Auth, Stripe, Gemini AI, Chart.js.
+Target: usuarios hispanohablantes 20-35 años que quieren productividad con engagement de videojuego.
 
-SISTEMA DE IDENTIDAD VISUAL IMPLEMENTADO:
-Cada módulo tiene data-module scope en CSS con su propio accent color. Verifica que funcione.
+ARQUITECTURA IMPLEMENTADA:
+| Módulo       | Nav icon | Accent       | Tabs internas                          |
+|-------------|----------|--------------|---------------------------------------|
+| Dashboard   | ⚡        | cyan #00e5ff | —                                     |
+| World       | 🗺️        | teal #06b6d4 | —                                     |
+| Flow        | 🌊        | verde #00ff88| Hábitos · Metas · Ideas · Agenda      |
+| Cuerpo      | 💪        | naranja #ff6b35 | Físico · Salud                     |
+| Financiero  | 💰        | dorado #fbbf24 | —                                   |
+| Mente       | 🧠        | púrpura #a855f7 | Bitácora · Gemelo · Poder          |
+| Stats       | 📊        | índigo #6366f1 | Análisis · SaaS                    |
+| Settings    | ⚙️        | —            | —                                     |
 
-ARQUITECTURA ACTUAL (ya implementada):
-- 🌊 Flow = Hábitos + Metas + Ideas + Agenda (absorbe el Calendario)
-- 💪 Cuerpo = Físico + Salud
-- 🧠 Mente & Poder = Bitácora + Gemelo + Poder
-- 📊 Análisis = Stats + SaaS
+DECISIONES ARQUITECTURALES INAMOVIBLES:
+- Flow ABSORBE el Calendario (tab Agenda dentro de Flow)
+- Gemelo VIVE en Mente → tab "Gemelo". Flujo: Bitácora → Gemelo → insights.
+- Cada módulo tiene CSS data-module scope con su accent color propio.
+- El Gemelo NO muestra análisis hasta que hay suficientes datos del usuario.
 
 CONVENCIÓN DE SCREENSHOTS:
-- _fold = viewport inicial (lo primero que ve el usuario al abrir el módulo)
-- _scroll = 500px abajo (contenido debajo del fold)
-Si el _fold está vacío (solo fondo oscuro) = BUG DE LAYOUT — el contenido está fuera del viewport.
+- _fold = lo primero que ve el usuario al abrir el módulo (above the fold)
+- _scroll = 500px abajo (contenido below the fold)
+- responsive-android-* = Android 360×800 (Pixel 6a)
+- responsive-ios-* = iOS 390×844 (iPhone 14/15)
+⚠️ Si _fold está vacío (solo fondo, sin contenido) = BUG DE LAYOUT crítico.
 `.trim();
 
 // ══════════════════════════════════════════════════════════════
-// PROMPT POR MÓDULO
+// PROMPT POR GRUPO
 // ══════════════════════════════════════════════════════════════
-function buildModulePrompt(mod, screenshots) {
-  const shotList = screenshots.map(s => s.name).join(', ');
+function buildGroupPrompt(group) {
+  const shotList = group.shots.map(s => s.name).join('\n  - ');
 
   return `${BASE_CONTEXT}
 
-══════════════════════════════════
-ANÁLISIS PROFUNDO: ${mod.name.toUpperCase()}
-══════════════════════════════════
+${'═'.repeat(60)}
+ANÁLISIS PROFUNDO: ${group.name.toUpperCase()}
+${'═'.repeat(60)}
 
-IDENTIDAD DEL MÓDULO:
-- Accent color: ${mod.accent}
-- Descripción: ${mod.desc}
-${mod.tabs ? `- Tabs: ${mod.tabs}` : ''}
+IDENTIDAD DE ESTE GRUPO:
+Accent/paleta: ${group.accent}
+Descripción funcional: ${group.desc}
 
-Screenshots incluidos: ${shotList}
+Screenshots incluidos en este análisis (${group.shots.length} en total):
+  - ${shotList}
 
-INSTRUCCIONES DE ANÁLISIS:
+${'─'.repeat(60)}
+PROCESO DE RAZONAMIENTO OBLIGATORIO:
+${'─'.repeat(60)}
 
-1. INSPECCIÓN VISUAL PROFUNDA
-   - ¿El accent color del módulo (${mod.accent}) se aplica correctamente al título, tabs activas y botones?
-   - ¿El fold muestra contenido inmediatamente o está vacío? Si vacío → BUG DE LAYOUT
-   - ¿La identidad visual de ESTE módulo es distinguible de los demás?
-   - Compara _fold vs _scroll: ¿qué hay arriba del fold vs abajo?
+Antes de escribir CUALQUIER propuesta, ejecuta internamente:
+1. OBSERVAR — describe exactamente lo que ves en CADA screenshot. Sin interpretaciones aún.
+2. CONECTAR — relaciona lo visual con lo funcional. ¿Qué problema revela cada imagen?
+3. PROFUNDIZAR — para cada problema, pregunta "¿por qué?" mínimo 3 veces hasta la causa raíz.
+4. PRIORIZAR — ¿qué impacto real tiene en retención, engagement y conversión?
+5. PROPONER — soluciones específicas, implementables, con archivo/componente/línea si es posible.
+6. VERIFICAR — ¿tu propuesta resuelve la causa raíz o solo el síntoma?
 
-2. ANÁLISIS FUNCIONAL
-   - ¿Los datos se muestran correctamente? ¿Hay NaN, undefined, $0.00 incorrectos?
-   - ¿Los elementos interactivos son accesibles (44px touch targets)?
-   - ¿El estado vacío tiene personalidad o es genérico?
+${'─'.repeat(60)}
+DIMENSIONES DE ANÁLISIS PARA ESTE GRUPO:
+${'─'.repeat(60)}
 
-3. EXPERIENCIA DE USUARIO 2026
-   - ¿Este módulo se siente premium o de 2019?
-   - ¿Hay micro-animaciones? ¿Spring physics? ¿Skeleton loaders?
-   - ¿El usuario sabe inmediatamente qué hacer al abrir este módulo?
+1. IDENTIDAD VISUAL
+   - ¿El accent color (${group.accent}) se aplica consistentemente en titles, tabs activas, botones primarios y highlights?
+   - ¿Este módulo es visualmente distinguible de los demás con solo un vistazo?
+   - ¿El _fold comunica INMEDIATAMENTE qué hace este módulo? ¿O el usuario tiene que explorar para entenderlo?
+   - ¿Hay jerarquía tipográfica clara? ¿Los datos importantes son los más prominentes?
 
-4. RETENCIÓN
-   - ¿Hay algo que haría que un usuario nuevo cerrara este módulo en 30 segundos?
-   - ¿El módulo tiene un "gancho" emocional o solo es funcional?
+2. DATOS Y ESTADO
+   - ¿Los datos se muestran correctamente o hay NaN, undefined, $0.00, fechas inválidas?
+   - ¿Los estados vacíos tienen personalidad y guían al usuario hacia la acción?
+   - ¿Los skeleton loaders o spinners son apropiados para el tipo de contenido?
+   - ¿Los gráficos/charts tienen animación de entrada, tooltips útiles y leyendas claras?
 
-RAZONAMIENTO OBLIGATORIO antes de proponer:
-Para cada problema: Síntoma → ¿Por qué? → ¿Por qué? → ¿Por qué? → Causa raíz → Solución con archivo/línea específica.
+3. EXPERIENCIA PREMIUM 2026
+   - ¿Se siente como una app de 2026 o de 2019? Sé honesto.
+   - ¿Hay micro-animaciones satisfactorias en las interacciones clave?
+   - ¿Los touch targets son ≥44px para todos los elementos interactivos?
+   - ¿El spacing/padding respira o está apretado?
+   - ¿El glassmorphism/dark mode está bien ejecutado o se ve genérico?
 
-FORMATO DE RESPUESTA:
+4. GAMIFICACIÓN Y RETENCIÓN
+   - ¿El usuario ve claramente cómo sus acciones en este módulo afectan su XP/nivel?
+   - ¿Hay feedback visual inmediato y satisfactorio al completar una acción?
+   - ¿Este módulo tiene un "gancho" que haría que el usuario vuelva mañana?
+   - ¿Qué es lo primero que haría que un usuario NUEVO cerrara este módulo en 30 segundos?
+
+5. COHERENCIA CON EL SISTEMA
+   - ¿Los componentes son consistentes con el estilo del resto de la app?
+   - ¿La navegación entre sub-módulos o tabs es intuitiva?
+   - ¿Los mensajes y textos son consistentes en tono y estilo?
+
+${'─'.repeat(60)}
+FORMATO DE RESPUESTA REQUERIDO:
+${'─'.repeat(60)}
 
 ---PROPOSALS---
-- [TIPO] ${mod.name}: descripción concisa | SOLUCIÓN: qué cambiar exactamente, en qué archivo/línea | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO/ARQUITECTURA
-(5 a 8 propuestas. Solo propuestas que realmente veas en los screenshots o que se puedan inferir del contexto.)
+(Lista de propuestas específicas — entre 5 y 10, solo las que realmente se justifican con lo que ves)
+- [TIPO] Nombre del módulo: descripción concisa del problema | SOLUCIÓN: qué cambiar exactamente, en qué archivo o sección del CSS/JS | PRIORIDAD: CRÍTICA/ALTA/MEDIA/BAJA | CATEGORÍA: BUG/DISEÑO/GAMIFICACIÓN/RETENCIÓN/MOBILE/ARQUITECTURA
+(TIPO puede ser: BUG, DISEÑO, UX, MOBILE, RETENCIÓN, GAMIFICACIÓN, PERFORMANCE, ARQUITECTURA)
 
 ---ANALYSIS---
 
-## ${mod.name}
+## ${group.name}
 
-### 🔍 Diagnóstico visual
-[Describe exactamente lo que ves en los screenshots — fold y scroll por separado]
+### 👁️ Lo que veo en los screenshots
+[Para cada screenshot, 1-2 oraciones de observación pura — sin juicio todavía. Menciona el nombre del screenshot.]
 
-### 🐛 Bugs detectados
-[Lista bugs funcionales o visuales con causa raíz]
+### 🐛 Bugs funcionales detectados
+[Lista numerada. Para cada bug: nombre, descripción exacta, causa raíz probable, archivo/función afectada si se puede inferir]
 
-### ✨ Oportunidad de mejora
-[La mejora más impactante específica de este módulo]
+### 🎨 Diagnóstico visual
+[Análisis de identidad visual, jerarquía, espaciado, tipografía, color. Sé específico — no "podría mejorar", sino "el título H1 del fold tiene font-size 16px cuando debería ser 28-32px para establecer jerarquía"]
 
-### 💊 Salud del módulo: X/10`;
+### 🎮 Gamificación y retención
+[¿Este módulo engancha? ¿Por qué sí o por qué no? ¿Qué haría que el usuario volviera?]
+
+### 📱 Mobile (si aplica)
+[Solo si hay screenshots responsive en este grupo]
+
+### 🚀 La mejora de mayor impacto para este grupo
+[Una sola mejora, la más importante, con descripción de implementación suficientemente específica para que un dev la ejecute]
+
+### 💊 Salud: X/10 — [una frase honesta]`;
 }
 
 // ══════════════════════════════════════════════════════════════
-// PROMPT DE SÍNTESIS FINAL
+// SÍNTESIS EJECUTIVA FINAL
 // ══════════════════════════════════════════════════════════════
-function buildSynthesisPrompt(moduleResults) {
-  const summaries = moduleResults.map(r =>
-    `### ${r.module}\n${r.analysis.slice(0, 600)}`
-  ).join('\n\n');
+function buildSynthesisPrompt(groupResults, totalShots) {
+  const summaries = groupResults.map(r =>
+    `### ${r.group} (salud: ${r.health || '?'}/10)\n${r.analysis.slice(0, 800)}...`
+  ).join('\n\n---\n\n');
 
-  const allProposals = moduleResults.flatMap(r => r.proposals);
+  const allProposals = groupResults.flatMap(r => r.proposals);
+  const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
+  const highs = allProposals.filter(p => p.includes('ALTA'));
 
   return `${BASE_CONTEXT}
 
-Has analizado todos los módulos de Life OS individualmente. Aquí está el resumen:
+${'═'.repeat(60)}
+SÍNTESIS EJECUTIVA — ANÁLISIS PROFUNDO COMPLETO
+${'═'.repeat(60)}
 
+Has analizado TODA la app Life OS en profundidad: ${totalShots} screenshots, ${groupResults.length} grupos temáticos.
+Total de propuestas generadas: ${allProposals.length} (${criticals.length} críticas, ${highs.length} altas)
+
+RESUMEN POR GRUPO:
 ${summaries}
 
-Propuestas totales generadas: ${allProposals.length}
+PROPUESTAS CRÍTICAS Y ALTAS:
+${[...criticals, ...highs].slice(0, 20).map(p => `- ${p}`).join('\n')}
 
-Tu tarea ahora es la SÍNTESIS EJECUTIVA:
+${'─'.repeat(60)}
+Tu tarea: SÍNTESIS EJECUTIVA que un fundador puede leer en 5 minutos y tomar decisiones.
+${'─'.repeat(60)}
 
-1. ¿Cuál es el patrón sistémico más importante que ves a través de todos los módulos?
-2. ¿Cuáles son los 3 cambios de mayor impacto para retención y engagement?
-3. ¿Qué módulo necesita más urgencia de trabajo?
-4. ¿Hay inconsistencias entre módulos que rompen la coherencia de la app?
+FORMATO REQUERIDO:
 
-FORMATO:
+## 🎯 SÍNTESIS EJECUTIVA — LIFE OS DEEP ANALYSIS
 
-## 🎯 SÍNTESIS EJECUTIVA — ANÁLISIS PROFUNDO
+### 🔴 Patrón sistémico crítico
+[El problema más importante que atraviesa TODA la app. No un módulo específico — el patrón que se repite. Máximo 2 párrafos.]
 
-### Patrón sistémico principal
-[1 párrafo sobre el problema o patrón más importante que atraviesa toda la app]
+### ⚡ Top 5 cambios de mayor impacto (ordenados por ROI)
+1. **[cambio]** — Módulo: [módulo] | Impacto: [qué mejora] | Esfuerzo: BAJO/MEDIO/ALTO
+2. **[cambio]** — Módulo: [módulo] | Impacto: [qué mejora] | Esfuerzo: BAJO/MEDIO/ALTO
+3. **[cambio]** — Módulo: [módulo] | Impacto: [qué mejora] | Esfuerzo: BAJO/MEDIO/ALTO
+4. **[cambio]** — Módulo: [módulo] | Impacto: [qué mejora] | Esfuerzo: BAJO/MEDIO/ALTO
+5. **[cambio]** — Módulo: [módulo] | Impacto: [qué mejora] | Esfuerzo: BAJO/MEDIO/ALTO
 
-### Top 3 cambios de mayor impacto
-1. [cambio + módulo + por qué]
-2. [cambio + módulo + por qué]
-3. [cambio + módulo + por qué]
+### 🚨 Módulo más urgente: [nombre]
+[Por qué necesita atención inmediata — con datos de los screenshots]
 
-### Módulo más urgente: [nombre]
-[Por qué este módulo necesita atención inmediata]
+### 📱 Estado del mobile
+[¿La app es realmente usable en Android/iOS? ¿Qué es lo más urgente de mobile?]
 
-### Coherencia cross-módulo
-[¿Los módulos se sienten como parte de la misma app o como features sueltas?]
+### 🎮 Estado de la gamificación
+[¿El sistema de XP/niveles/streaks está comunicado claramente? ¿El usuario siente que progresa?]
 
-### 💊 Salud global: X/10
-[Una frase honesta sobre el estado actual de la app]`;
+### 🔗 Coherencia cross-módulo
+[¿Los módulos se sienten como parte de la misma app o como features sueltas con diseños diferentes?]
+
+### 🗺️ Roadmap sugerido (próximas 2 semanas)
+Semana 1 (quick wins, impacto inmediato):
+- [ ] ...
+- [ ] ...
+- [ ] ...
+
+Semana 2 (mejoras estructurales):
+- [ ] ...
+- [ ] ...
+- [ ] ...
+
+### 💊 Salud global de Life OS: X/10
+[Una sola frase honesta. No suavices.]`;
 }
 
 // ══════════════════════════════════════════════════════════════
 // LLAMAR GEMINI
 // ══════════════════════════════════════════════════════════════
-function callGemini(parts, maxTokens = 8000) {
+function callGemini(parts, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       contents: [{ parts }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens }
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: maxTokens,
+      }
     });
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      }
     };
     const req = https.request(options, res => {
       let data = '';
@@ -282,10 +410,11 @@ function callGemini(parts, maxTokens = 8000) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
+          if (json.error) return reject(new Error(`API error: ${json.error.message}`));
           const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta inesperada: ${data.slice(0, 300)}`));
-        } catch(e) { reject(new Error(`Parse error: ${e.message}`)); }
+          else reject(new Error(`Respuesta vacía: ${data.slice(0, 300)}`));
+        } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
       });
     });
     req.on('error', reject);
@@ -303,107 +432,122 @@ function parseResponse(raw) {
   if (propStart !== -1 && analStart !== -1 && propStart < analStart) {
     const proposals = raw.slice(propStart + 15, analStart).trim()
       .split('\n').filter(l => l.trim().match(/^-\s*\[/)).map(l => l.trim());
-    return { analysis: raw.slice(analStart + 14).trim(), proposals };
+    const analysis = raw.slice(analStart + 14).trim();
+    const healthMatch = analysis.match(/💊 Salud.*?(\d+)\/10/);
+    return { analysis, proposals, health: healthMatch ? healthMatch[1] : null };
   }
-  return { analysis: raw.trim(), proposals: [] };
+  const healthMatch = raw.match(/💊 Salud.*?(\d+)\/10/);
+  return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null };
 }
 
 // ══════════════════════════════════════════════════════════════
 // MAIN
 // ══════════════════════════════════════════════════════════════
 async function main() {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
+  const now  = new Date();
+  const pad  = n => String(n).padStart(2, '0');
   const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
 
-  log('═══ OpenClaw AI DEEP Analyst v1.0 iniciando ═══');
-  log('Modo: PROFUNDO — una llamada Gemini por módulo');
+  log('═══ OpenClaw AI DEEP Analyst v2.0 ═══');
 
-  const allShots = loadLatestScreenshots();
-  const shotKeys = Object.keys(allShots);
-  log(`Grupos de screenshots encontrados: ${shotKeys.join(', ')}`);
+  const { dir, files } = loadLatestScreenshots();
+  if (!files.length) {
+    log('ERROR: No se encontraron screenshots. Corre runner.js primero.');
+    process.exit(1);
+  }
+  log(`Total screenshots encontrados: ${files.length}`);
 
-  const moduleResults = [];
-  const allProposals  = [];
+  const groups = buildGroups(files);
+  const totalShots = groups.reduce((acc, g) => acc + g.shots.length, 0);
+  const loginShots = files.length - totalShots;
 
-  // ── Analizar cada módulo ──
-  for (const mod of MODULES) {
-    // Buscar screenshots de este módulo (prefijo match)
-    const matchKeys = shotKeys.filter(k =>
-      k.includes(mod.key) || k === mod.key ||
-      k.startsWith(mod.key.split('-')[0]) && mod.key.includes(k.split('-')[0])
-    );
+  log(`Grupos temáticos: ${groups.length}`);
+  log(`Screenshots a analizar: ${totalShots} (${loginShots} de login excluidos para ahorrar tokens)`);
+  groups.forEach(g => log(`  📦 ${g.name}: ${g.shots.length} screenshots`));
 
-    // Match más preciso
-    const exactMatch = shotKeys.find(k => k === mod.key || k.endsWith(mod.key));
-    const shots = exactMatch
-      ? allShots[exactMatch]
-      : matchKeys.flatMap(k => allShots[k] || []).slice(0, 2);
+  // Estimación de costo (Gemini 2.5 Flash: ~$0.075/1M input, ~$0.30/1M output)
+  const estInputTokens  = totalShots * 258 + groups.length * 3000;
+  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 8000;
+  const estCost = (estInputTokens / 1e6 * 0.075) + (estOutputTokens / 1e6 * 0.30);
+  log(`Estimación de costo: ~$${estCost.toFixed(3)} USD`);
+  log('Iniciando análisis...\n');
 
-    if (!shots || shots.length === 0) {
-      log(`⏭ ${mod.name} — sin screenshots, saltando`);
-      continue;
-    }
+  const groupResults = [];
+  const allProposals = [];
 
-    log(`▶ Analizando ${mod.name} (${shots.length} screenshots)...`);
+  // ── Analizar cada grupo ──────────────────────────────────────
+  for (const group of groups) {
+    log(`▶ Analizando: ${group.name} (${group.shots.length} shots, max ${group.maxTokens} tokens output)...`);
 
     try {
-      const prompt = buildModulePrompt(mod, shots);
-      const parts = [{ text: prompt }];
-      shots.forEach(s => {
-        parts.push({ text: `\n📸 ${s.name}` });
-        parts.push({ inline_data: { mime_type: s.mime, data: s.data } });
-      });
+      const prompt = buildGroupPrompt(group);
+      const parts  = [{ text: prompt }];
 
-      const raw = await callGemini(parts, 6000);
-      const { analysis, proposals } = parseResponse(raw);
+      // Intercalar screenshots con etiquetas de nombre
+      for (const shot of group.shots) {
+        parts.push({ text: `\n📸 ${shot.name}` });
+        parts.push({ inline_data: { mime_type: shot.mime, data: shot.data } });
+      }
 
-      moduleResults.push({ module: mod.name, analysis, proposals });
+      const raw = await callGemini(parts, group.maxTokens);
+      const { analysis, proposals, health } = parseResponse(raw);
+
+      groupResults.push({ group: group.name, analysis, proposals, health });
       allProposals.push(...proposals);
 
-      log(`✅ ${mod.name} — ${proposals.length} propuestas`);
+      log(`✅ ${group.name} — ${proposals.length} propuestas · salud: ${health || '?'}/10`);
 
-      // Pausa entre llamadas para evitar rate limiting
-      await new Promise(r => setTimeout(r, 1500));
+      // Pausa entre llamadas (evitar rate limiting)
+      if (groups.indexOf(group) < groups.length - 1) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
     } catch(e) {
-      log(`❌ ${mod.name} — Error: ${e.message}`);
-      moduleResults.push({ module: mod.name, analysis: `Error: ${e.message}`, proposals: [] });
+      log(`❌ ${group.name} — Error: ${e.message}`);
+      groupResults.push({ group: group.name, analysis: `Error en análisis: ${e.message}`, proposals: [], health: null });
     }
   }
 
-  // ── Síntesis final ──
-  log('▶ Generando síntesis ejecutiva...');
+  // ── Síntesis ejecutiva final ─────────────────────────────────
+  log('\n▶ Generando síntesis ejecutiva final...');
   let synthesis = '';
   try {
-    const synthPrompt = buildSynthesisPrompt(moduleResults);
-    synthesis = await callGemini([{ text: synthPrompt }], 4000);
+    const synthParts = [{ text: buildSynthesisPrompt(groupResults, totalShots) }];
+    synthesis = await callGemini(synthParts, 8000);
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);
-    synthesis = 'Error generando síntesis.';
+    synthesis = `Error en síntesis: ${e.message}`;
   }
 
-  // ── Guardar reporte ──
+  // ── Guardar reporte completo ─────────────────────────────────
   const reportPath = path.join(REPORTS_DIR, `DEEP_${stamp}.md`);
-  let report = `# ANÁLISIS PROFUNDO — ${stamp}\n`;
-  report += `> Generado por OpenClaw AI Deep Analyst v1.0\n`;
-  report += `> ${moduleResults.length} módulos analizados · ${allProposals.length} propuestas totales\n\n`;
+  let report = `# ANÁLISIS PROFUNDO LIFE OS — ${stamp}\n`;
+  report += `> OpenClaw AI Deep Analyst v2.0\n`;
+  report += `> ${files.length} screenshots del run · ${totalShots} analizados · ${loginShots} de login excluidos\n`;
+  report += `> ${groupResults.length} grupos temáticos · ${allProposals.length} propuestas totales\n\n`;
   report += `---\n\n${synthesis}\n\n---\n\n`;
-  report += `# ANÁLISIS POR MÓDULO\n\n`;
-  moduleResults.forEach(r => {
-    report += `${r.analysis}\n\n---\n\n`;
+  report += `# ANÁLISIS DETALLADO POR GRUPO\n\n`;
+  groupResults.forEach(r => {
+    report += `---\n\n${r.analysis}\n\n`;
   });
-  report += `# TODAS LAS PROPUESTAS\n\n`;
-  allProposals.forEach(p => { report += `- [ ] ${p.replace(/^- /, '')}\n`; });
+  report += `---\n\n# TODAS LAS PROPUESTAS\n\n`;
+  const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
+  const highs     = allProposals.filter(p => p.includes('ALTA') && !p.includes('CRÍTICA'));
+  const rest      = allProposals.filter(p => !p.includes('CRÍTICA') && !p.includes('ALTA'));
+  if (criticals.length) { report += `## 🔴 Críticas\n`; criticals.forEach(p => { report += `- [ ] ${p.replace(/^- /, '')}\n`; }); report += '\n'; }
+  if (highs.length)     { report += `## 🟠 Altas\n`;    highs.forEach(p => { report += `- [ ] ${p.replace(/^- /, '')}\n`; }); report += '\n'; }
+  if (rest.length)      { report += `## 🟡 Resto\n`;    rest.forEach(p => { report += `- [ ] ${p.replace(/^- /, '')}\n`; }); }
 
   fs.writeFileSync(reportPath, report, 'utf8');
-  log(`Reporte guardado: ${path.basename(reportPath)}`);
+  log(`\n📄 Reporte guardado: ${path.basename(reportPath)}`);
 
-  // ── Output en consola ──
-  console.log('\n' + synthesis + '\n');
-  log(`─── ${allProposals.length} PROPUESTAS TOTALES ───`);
-  allProposals.forEach(p => log(`  ${p}`));
-  log('═══ Deep Analyst completado ═══');
+  // ── Output en consola ────────────────────────────────────────
+  console.log('\n' + '═'.repeat(60));
+  console.log(synthesis);
+  console.log('═'.repeat(60));
+  log(`─── ${allProposals.length} PROPUESTAS (${criticals.length} críticas, ${highs.length} altas) ───`);
+  [...criticals, ...highs].forEach(p => log(`  ${p}`));
+  log('═══ Deep Analyst v2.0 completado ═══');
 }
 
 main().catch(e => {
