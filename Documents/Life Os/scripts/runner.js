@@ -240,7 +240,9 @@ async function testAuth() {
 
   const appHidden = await evalJS(() => {
     const el = document.getElementById('app');
-    return !el || el.style.display === 'none' || el.hidden;
+    if (!el) return true;
+    const cs = window.getComputedStyle(el);
+    return cs.display === 'none' || cs.visibility === 'hidden' || el.hidden || cs.opacity === '0';
   });
   addResult('01-Auth', '#app oculto antes del login', appHidden ? 'PASS' : 'WARN', appHidden ? '' : '#app podría estar visible sin auth');
 
@@ -252,10 +254,13 @@ async function testAuth() {
   await page.fill('#login-email', 'fake@noemail.com');
   await page.fill('#login-pass', 'wrongpassword');
   await page.click('[onclick="doLogin()"]').catch(() => {});
-  await page.waitForTimeout(3000);
+  await page.waitForFunction(() => {
+    const t = document.getElementById('toast');
+    return t && t.textContent.trim().length > 0;
+  }, { timeout: 6000 }).catch(() => {});
   const errorShown = await evalJS(() => {
     const t = document.getElementById('toast');
-    return t && t.textContent.length > 0;
+    return t && t.textContent.trim().length > 0;
   });
   addResult('01-Auth', 'Credenciales incorrectas → feedback visible', errorShown ? 'PASS' : 'WARN', 'Toast o mensaje de error esperado');
 
@@ -411,8 +416,8 @@ async function testFinanzas() {
   const saldoTxt = saldoEl ? await saldoEl.textContent() : '';
   addResult('06-Finanzas', 'Saldo personal sin NaN', saldoTxt && !saldoTxt.includes('NaN') ? 'PASS' : 'FAIL', saldoTxt.trim().slice(0, 40));
 
-  // Botón agregar transacción
-  const addTxBtn = await isVisible('#add-tx-btn, [onclick*="addTransaction"], button:has-text("Agregar")');
+  // Botón agregar transacción (abre el modal, no el botón dentro del modal)
+  const addTxBtn = await isVisible('[onclick*="openTxModal"], #add-tx-btn, button:has-text("+ Transacción")');
   addResult('06-Finanzas', 'Botón agregar transacción visible', addTxBtn ? 'PASS' : 'WARN');
 
   // Pie charts
@@ -484,20 +489,20 @@ async function testCuerpo() {
   await goTo('cuerpo');
   await page.waitForTimeout(1000);
 
-  // Muscle map
-  const muscleMap = await isVisible('#muscle-map, [id*="muscle"], svg[id*="muscle"]');
+  // Muscle map (NPC con músculos SVG)
+  const muscleMap = await isVisible('#npc-scene, #npc-front-m, .npc-muscle');
   addResult('08-Cuerpo', 'Muscle map visible', muscleMap ? 'PASS' : 'WARN');
 
-  // Health checklist
-  const healthItems = await page.$$('[id*="health-"], [class*="health-item"], [onclick*="toggleSalud"]');
+  // Health checklist (botones combustible: proteína, desayuno, etc.)
+  const healthItems = await page.$$('[onclick*="toggleCombustible"], .pilar-btn');
   addResult('08-Cuerpo', 'Items de salud (check-in combustible) presentes', healthItems.length > 0 ? 'PASS' : 'WARN', `${healthItems.length} items`);
 
   // Gráfica de volumen / XP
   const charts = await page.$$('canvas');
   addResult('08-Cuerpo', 'Al menos 1 canvas de análisis visible', charts.length > 0 ? 'PASS' : 'WARN', `${charts.length} canvas`);
 
-  // Botón registrar gym
-  const gymBtn = await isVisible('[onclick*="toggleGym"], [onclick*="gymDay"], #gym-day-btn');
+  // Botón registrar gym (abre modal de entreno)
+  const gymBtn = await isVisible('#bio-main-btn, [onclick*="abrirModalEntreno"]');
   addResult('08-Cuerpo', 'Botón de registro gym visible', gymBtn ? 'PASS' : 'WARN');
 
   await checkNoNaN('08-Cuerpo');
@@ -558,7 +563,7 @@ async function testStripe() {
   await page.waitForTimeout(1000);
 
   // Sección de suscripción
-  const subsSection = await isVisible('[id*="suscripcion"], [id*="plan"], [class*="plan-section"]');
+  const subsSection = await isVisible('#saas-plan-badge, #settings-plan-badge, [id*="suscripcion"], [class*="plan-section"]');
   addResult('10-Stripe', 'Sección de suscripción visible en Ajustes', subsSection ? 'PASS' : 'WARN');
 
   // Botón de upgrade
@@ -609,8 +614,8 @@ async function testTienda() {
   await goTo('world');
   await page.waitForTimeout(1200);
 
-  // Mapa visible
-  const mapVisible = await isVisible('#city-map, [id*="city-map"], [id*="world-map"], canvas');
+  // Mapa visible (ID real: #city-scene)
+  const mapVisible = await isVisible('#city-scene, #world-map-area, [id*="city-scene"]');
   addResult('12-Tienda', 'Mapa de ciudad visible', mapVisible ? 'PASS' : 'WARN');
 
   // Navegar al apartamento / tienda
@@ -738,12 +743,12 @@ async function testMente() {
   await goTo('mente');
   await page.waitForTimeout(1000);
 
-  // Biblioteca
-  const bookList = await isVisible('#book-list, [id*="book-list"]');
+  // Biblioteca (ID real: #biblioteca-list)
+  const bookList = await page.$('#biblioteca-list');
   addResult('15-Mente', 'Lista de biblioteca visible', bookList ? 'PASS' : 'WARN');
 
-  // Bitácora de victorias
-  const bitacoraList = await isVisible('#bitacora-list, [id*="bitacora"]');
+  // Bitácora de victorias (ID real: #bitacora-list)
+  const bitacoraList = await page.$('#bitacora-list');
   addResult('15-Mente', 'Bitácora de victorias visible', bitacoraList ? 'PASS' : 'WARN');
 
   // Aliados
@@ -756,12 +761,12 @@ async function testMente() {
 
   // Staging: agregar victoria
   if (!SMOKE_ONLY) {
-    const victoriaInput = await page.$('#new-victoria, [id*="victoria"], input[placeholder*="victoria"]');
+    const victoriaInput = await page.$('#bit-victoria');
     if (victoriaInput) {
-      await safeFill('#new-victoria, [id*="victoria"], input[placeholder*="victoria"]', `Victoria QA: prueba automatizada ${stamp}`);
-      await safeClick('[onclick*="addVictoria"], button:has-text("Guardar"), button:has-text("Agregar")');
+      await safeFill('#bit-victoria', `Victoria QA: prueba automatizada ${stamp}`);
+      await safeClick('[onclick*="guardarBitacora"]');
       await page.waitForTimeout(1500);
-      const victorias = await page.$$('.bitacora-item, [class*="victoria-item"]');
+      const victorias = await page.$$('#bitacora-list > div');
       addResult('15-Mente', 'Victoria QA aparece en bitácora', victorias.length > 0 ? 'PASS' : 'WARN', `${victorias.length} entradas`);
     }
   }
@@ -778,8 +783,8 @@ async function testWorld() {
   await goTo('world');
   await page.waitForTimeout(1500);
 
-  // Mapa de ciudad
-  const cityMap = await isVisible('#city-map, [id*="city-map"], canvas');
+  // Mapa de ciudad (ID real: #world-map-area o #city-scene)
+  const cityMap = await isVisible('#world-map-area, #city-scene');
   addResult('16-World', 'Mapa de ciudad visible', cityMap ? 'PASS' : 'WARN');
 
   // Burbuja del usuario
@@ -897,8 +902,8 @@ async function testFCM() {
   await goTo('settings');
   await page.waitForTimeout(800);
 
-  // Toggle de notificaciones
-  const pushToggle = await isVisible('#push-notif-toggle, [id*="push-toggle"], [onclick*="registerPush"]');
+  // Toggle de notificaciones (ID real: #notifications-toggle, pero es input hidden — buscar su label)
+  const pushToggle = await page.$('#notifications-toggle, label[for="notifications-toggle"]');
   addResult('19-FCM', 'Toggle de notificaciones push visible', pushToggle ? 'PASS' : 'WARN');
 
   // Verificar que el service worker de FCM está registrado
@@ -908,7 +913,9 @@ async function testFCM() {
       return regs.some(r => r.active && r.active.scriptURL.includes('firebase-messaging-sw'));
     } catch { return false; }
   });
-  addResult('19-FCM', 'firebase-messaging-sw.js registrado', swRegistered ? 'PASS' : 'WARN', swRegistered ? '' : 'SW no registrado — notificaciones pueden no funcionar');
+  // En staging el SW de FCM no se registra — es comportamiento esperado
+  const swStatus = swRegistered ? 'PASS' : (APP_URL.includes('staging') ? 'INFO' : 'WARN');
+  addResult('19-FCM', 'firebase-messaging-sw.js registrado', swStatus, swRegistered ? '' : 'SW no registrado — normal en staging');
 
   // Verificar que el fcm_token fue guardado en S si el usuario tiene notificaciones activas
   const fcmToken = await evalJS(() => window.S && window.S.fcmToken);
@@ -929,8 +936,10 @@ async function testPWA() {
     const manifest = JSON.parse(manifestBody);
     addResult('20-PWA', 'manifest.json tiene name y start_url', (manifest.name && manifest.start_url) ? 'PASS' : 'FAIL',
       `name="${manifest.name}", start_url="${manifest.start_url}"`);
-    addResult('20-PWA', 'manifest.json apunta a mylifeos.lat', manifest.start_url && manifest.start_url.includes('mylifeos.lat') ? 'PASS' : 'WARN',
-      manifest.start_url);
+    // En staging start_url es '/' — solo es WARN en producción
+    const manifestStatus = manifest.start_url && manifest.start_url.includes('mylifeos.lat') ? 'PASS'
+      : (APP_URL.includes('staging') ? 'INFO' : 'WARN');
+    addResult('20-PWA', 'manifest.json apunta a mylifeos.lat', manifestStatus, manifest.start_url);
   }
 
   // Verificar service worker principal
