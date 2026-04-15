@@ -120,32 +120,34 @@ Analiza cada screenshot buscando activamente:
 7. Estados vacíos sin mensaje apropiado
 8. Cualquier anomalía visual
 
-` : ''}## TU ANÁLISIS
-Responde EXCLUSIVAMENTE en este formato. No agregues texto fuera de las secciones.
+` : ''}## INSTRUCCIONES DE RESPUESTA — CRÍTICO
 
-\`\`\`
+Tu respuesta DEBE tener EXACTAMENTE DOS BLOQUES separados por la línea "---PROPOSALS---".
+NO omitas ningún bloque. NO cambies el separador. NO expliques tu razonamiento.
+
+BLOQUE 1 — análisis (antes del separador):
 🔍 DIAGNÓSTICO DEL DÍA
-[Qué falló o llamó la atención hoy. Menciona screenshots específicos si aplica. Máx 80 palabras.]
+[Qué falló o llamó la atención. ${hasScreenshots ? 'Menciona screenshots específicos.' : ''} Máx 80 palabras.]
 
 📈 TENDENCIAS
-[Patrones de los últimos días. ¿Algo mejora o empeora? Máx 60 palabras.]
+[Patrones de los últimos días. Máx 60 palabras.]
 
 💊 SALUD GENERAL: X/10
-[Una frase de diagnóstico]
-\`\`\`
+[Una frase concisa de diagnóstico]
 
 ---PROPOSALS---
-[Lista de propuestas en formato exacto abajo. Mínimo 3, máximo 10. SOLO propuestas accionables y específicas.]
 
-FORMATO DE CADA PROPUESTA:
-- [TIPO] MÓDULO: descripción específica del problema | SOLUCIÓN: cómo arreglarlo | PRIORIDAD: ALTA/MEDIA/BAJA
+BLOQUE 2 — propuestas (después del separador):
+Genera ENTRE 3 Y 8 propuestas accionables. Cada línea empieza con "- [TIPO]".
+TIPOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD
 
-TIPOS VÁLIDOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD
+FORMATO EXACTO DE CADA LÍNEA:
+- [TIPO] MÓDULO: problema específico | SOLUCIÓN: cómo arreglarlo | PRIORIDAD: ALTA/MEDIA/BAJA
 
-Ejemplos:
-- [BUG] Dashboard: El anillo núcleo muestra 68% fijo sin reflejar datos reales del usuario | SOLUCIÓN: Verificar que strokeDashoffset se actualiza con S.nucleoProgress en renderDashboard() | PRIORIDAD: ALTA
-- [UX] Mobile: El botón FAB tapa el último ítem de la lista de tareas en viewport 375px | SOLUCIÓN: Añadir padding-bottom:80px al contenedor de la lista | PRIORIDAD: MEDIA
-- [DISEÑO] Finanzas: El header del módulo se trunca en pantallas < 400px | SOLUCIÓN: Usar font-size responsive o ellipsis con title attribute | PRIORIDAD: BAJA`;
+EJEMPLOS (usa este formato exacto):
+- [BUG] Dashboard: El anillo núcleo muestra 68% fijo | SOLUCIÓN: Verificar renderDashboard() actualiza strokeDashoffset con S.nucleoProgress | PRIORIDAD: ALTA
+- [UX] Mobile: FAB tapa el último ítem de la lista | SOLUCIÓN: Añadir padding-bottom:80px al contenedor | PRIORIDAD: MEDIA
+- [DISEÑO] Calendario: Header truncado en 375px | SOLUCIÓN: Reducir font-size o usar ellipsis | PRIORIDAD: BAJA`;
 
   const parts = [{ text: textPrompt }];
 
