@@ -40,6 +40,7 @@ const pad   = n => String(n).padStart(2, '0');
 const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`
             + `_${pad(now.getHours())}-${pad(now.getMinutes())}`;
 const reportPath = path.join(REPORTS_DIR, `${stamp}.md`);
+const SHOTS_DIR  = path.join(REPORTS_DIR, 'screenshots', stamp);
 
 // ══════════════════════════════════════════════════════════════
 // ESTADO GLOBAL DEL REPORTE
@@ -103,6 +104,17 @@ async function getAttr(selector, attr) {
 async function evalJS(fn) {
   try { return await page.evaluate(fn); }
   catch { return null; }
+}
+
+/** Captura screenshot del viewport actual */
+async function takeShot(name) {
+  try {
+    fs.mkdirSync(SHOTS_DIR, { recursive: true });
+    await page.screenshot({
+      path: path.join(SHOTS_DIR, `${name}.jpg`),
+      type: 'jpeg', quality: 55, fullPage: false
+    });
+  } catch(e) { log(`[WARN] Screenshot ${name} falló: ${e.message}`); }
 }
 
 /** page.click con timeout corto — no cuelga 30s si el elemento está tapado */
@@ -264,6 +276,9 @@ async function testAuth() {
   });
   addResult('01-Auth', 'Credenciales incorrectas → feedback visible', errorShown ? 'PASS' : 'WARN', 'Toast o mensaje de error esperado');
 
+  // Screenshot pantalla de login (antes de hacer login)
+  await takeShot('01-auth-login');
+
   // Happy path login
   const loggedIn = await doLogin();
   addResult('01-Auth', 'Login happy path → app visible', loggedIn ? 'PASS' : 'FAIL');
@@ -397,6 +412,7 @@ async function testDashboard() {
   addResult('05-Dashboard', 'Focus bars visibles', focusBars ? 'PASS' : 'WARN');
 
   await checkNoNaN('05-Dashboard');
+  await takeShot('05-dashboard');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -443,6 +459,7 @@ async function testFinanzas() {
   }
 
   await checkNoNaN('06-Finanzas');
+  await takeShot('06-finanzas');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -506,6 +523,7 @@ async function testCuerpo() {
   addResult('08-Cuerpo', 'Botón de registro gym visible', gymBtn ? 'PASS' : 'WARN');
 
   await checkNoNaN('08-Cuerpo');
+  await takeShot('08-cuerpo');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -678,6 +696,7 @@ async function testCalendario() {
   addResult('13-Calendario', 'Botón export ICS visible', exportBtn ? 'PASS' : 'WARN');
 
   await checkNoNaN('13-Calendario');
+  await takeShot('13-calendario');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -772,6 +791,7 @@ async function testMente() {
   }
 
   await checkNoNaN('15-Mente');
+  await takeShot('15-mente');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -800,6 +820,7 @@ async function testWorld() {
   // Apartamento accesible
   const aptBtn = await isVisible('[onclick*="openApartment"], [onclick*="apartment"], .apt-zone');
   addResult('16-World', 'Acceso al apartamento visible', aptBtn ? 'PASS' : 'WARN');
+  await takeShot('16-world');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -999,6 +1020,9 @@ async function testResponsive() {
     hasHScroll ? `scrollWidth=${document.body ? document.body.scrollWidth : '?'}` : '');
   if (hasHScroll) addUX('RESPONSIVE', 'Scroll horizontal en mobile 375px', 'Revisar elementos con width fijo o overflow visible');
 
+  // Screenshot mobile antes de restaurar
+  await takeShot('responsive-mobile-375');
+
   // Restaurar viewport desktop
   await page.setViewportSize({ width: 1280, height: 800 });
 }
@@ -1166,7 +1190,8 @@ async function main() {
   // Análisis IA con Gemini
   try {
     log('Ejecutando análisis IA con Gemini...');
-    execSync(`node "${path.join(__dirname, 'analyze.js')}"`, { stdio: 'inherit' });
+    const analyzeEnv = { ...process.env, QA_SHOTS_DIR: SHOTS_DIR };
+    execSync(`node "${path.join(__dirname, 'analyze.js')}"`, { stdio: 'inherit', env: analyzeEnv });
   } catch (e) {
     log(`[WARN] Análisis IA falló: ${e.message.split('\n')[0]}`);
   }

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Analyst — Life OS
- * Versión: 1.0
- * Fecha: 2026-04-14
+ * Versión: 2.0 (Vision + Propuestas)
+ * Fecha: 2026-04-15
  *
- * Lee los últimos N reportes QA y genera un diagnóstico inteligente con Gemini Flash.
- * Se ejecuta automáticamente al final de runner.js.
+ * Lee reportes QA + screenshots y genera diagnóstico visual con Gemini 2.5 Flash.
+ * Produce análisis en el reporte + archivo PROPOSALS separado para revisión humana.
  *
  * Uso manual:
  *   node analyze.js
- *   REPORTS_DAYS=14 node analyze.js   (analiza últimos 14 días)
+ *   REPORTS_DAYS=7 node analyze.js
  */
 
 'use strict';
@@ -21,7 +21,8 @@ const path = require('path');
 const https = require('https');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
+const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
+const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
 if (!GEMINI_API_KEY) {
@@ -43,28 +44,61 @@ function loadReports(dir, days) {
     .slice(0, days);
   return files.map(f => ({
     name: f,
-    content: fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 1500) // máx 1500 chars por reporte
+    content: fs.readFileSync(path.join(dir, f), 'utf8').slice(0, 2000)
   }));
 }
 
 // ══════════════════════════════════════════════════════════════
-// CONSTRUIR PROMPT
+// CARGAR SCREENSHOTS
 // ══════════════════════════════════════════════════════════════
-function buildPrompt(reports) {
-  const today = reports[0];
+function loadScreenshots(shotsDir) {
+  if (!shotsDir || !fs.existsSync(shotsDir)) {
+    // Intentar encontrar la carpeta de screenshots más reciente
+    const screenshotsBase = path.join(REPORTS_DIR, 'screenshots');
+    if (!fs.existsSync(screenshotsBase)) return [];
+    const dirs = fs.readdirSync(screenshotsBase).sort().reverse();
+    if (!dirs.length) return [];
+    shotsDir = path.join(screenshotsBase, dirs[0]);
+  }
+
+  const files = fs.readdirSync(shotsDir)
+    .filter(f => f.endsWith('.jpg') || f.endsWith('.png'))
+    .sort()
+    .slice(0, 10); // máximo 10 imágenes para controlar costo
+
+  return files.map(f => ({
+    name: f.replace(/\.(jpg|png)$/, ''),
+    mime: f.endsWith('.png') ? 'image/png' : 'image/jpeg',
+    data: fs.readFileSync(path.join(shotsDir, f)).toString('base64')
+  }));
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONSTRUIR PROMPT MULTIMODAL
+// ══════════════════════════════════════════════════════════════
+function buildParts(reports, screenshots) {
+  const today   = reports[0];
   const history = reports.slice(1);
 
   const historyText = history.length > 0
     ? history.map(r => `### ${r.name}\n${r.content}`).join('\n\n---\n\n')
-    : 'Sin reportes históricos aún.';
+    : 'Sin reportes históricos.';
 
-  return `Eres un experto en QA y desarrollo de aplicaciones web. Analiza los siguientes reportes de pruebas automatizadas de "Life OS", una PWA de productividad gamificada.
+  const hasScreenshots = screenshots.length > 0;
+
+  const textPrompt = `Eres un experto senior en QA, UX y desarrollo de aplicaciones web. Analiza los resultados de pruebas automatizadas y${hasScreenshots ? ' los screenshots en tiempo real' : ''} de "Life OS", una PWA de productividad gamificada.
 
 ## CONTEXTO DE LA APP
-- Life OS es una SPA (Single Page Application) con Firebase, Stripe y Gemini AI
-- Módulos: Auth, Dashboard, Finanzas, Productividad, Hábitos, Cuerpo/Gym, Gemelo Potenciado, Stripe, Gamificación, Tienda, Calendario, Mente, World, FAB, FCM, PWA
-- Staging URL: https://mylifeos-staging.web.app
-- Los errores 404/400 de consola en staging son normales (recursos de Firebase inexistentes en ese entorno)
+- Life OS es una SPA con Firebase, Stripe y Gemini AI
+- Módulos: Dashboard (anillo núcleo, radar chart, check-in), Finanzas, Productividad, Hábitos, Cuerpo/Gym, Gemelo Potenciado, Tienda (usa XP NO coins), Calendario, Mente (biblioteca + bitácora), World (mapa ciudad + apartamento), Gamificación, FCM, PWA
+- URL staging: https://mylifeos-staging.web.app
+- Los errores 404/400 en staging son normales (recursos inexistentes en ese entorno)
+
+## PROBLEMAS CONOCIDOS A BUSCAR
+- El chart/anillo del núcleo puede mostrar valores fijos (como 68%) en lugar de datos reales del usuario
+- Datos que muestran NaN, undefined, 0 cuando deberían tener valores reales
+- Elementos que no renderizan correctamente en mobile (375px)
+- Inconsistencias visuales entre desktop e iOS/mobile
 
 ## REPORTE DE HOY
 ### ${today.name}
@@ -73,44 +107,66 @@ ${today.content}
 ## HISTORIAL (últimos ${history.length} días)
 ${historyText}
 
-## TU ANÁLISIS
-Responde en español. Sé directo y específico. Máximo 400 palabras.
+---
 
-1. **DIAGNÓSTICO DEL DÍA** — ¿Qué falló hoy y por qué? ¿Es un bug real o un problema del entorno de staging?
+${hasScreenshots ? `## SCREENSHOTS ADJUNTOS (${screenshots.length} capturas del run de hoy)
+Analiza cada screenshot buscando activamente:
+1. Datos hardcodeados o fijos (porcentajes que no cambian, valores constantes)
+2. Elementos cortados, solapados o mal alineados
+3. Texto truncado o ilegible
+4. Botones o áreas de interacción muy pequeñas para mobile
+5. Inconsistencias de diseño (colores, spacing, tipografía)
+6. Gráficas o charts que no renderizan correctamente
+7. Estados vacíos sin mensaje apropiado
+8. Cualquier anomalía visual
 
-2. **TENDENCIAS** — ¿Hay patrones en los últimos días? ¿Algo que empeora o mejora?
+` : ''}## TU ANÁLISIS
+Responde EXCLUSIVAMENTE en este formato. No agregues texto fuera de las secciones.
 
-3. **TOP 3 ACCIONES** — Las 3 cosas más importantes a hacer esta semana, ordenadas por impacto al usuario real.
-
-4. **SALUD GENERAL** — Una calificación del 1 al 10 de la salud de la app hoy, con una frase de diagnóstico.
-
-Formato de respuesta:
 \`\`\`
 🔍 DIAGNÓSTICO DEL DÍA
-[tu análisis]
+[Qué falló o llamó la atención hoy. Menciona screenshots específicos si aplica. Máx 80 palabras.]
 
 📈 TENDENCIAS
-[tu análisis]
-
-🎯 TOP 3 ACCIONES
-1. ...
-2. ...
-3. ...
+[Patrones de los últimos días. ¿Algo mejora o empeora? Máx 60 palabras.]
 
 💊 SALUD GENERAL: X/10
-[frase diagnóstico]
-\`\`\``;
+[Una frase de diagnóstico]
+\`\`\`
+
+---PROPOSALS---
+[Lista de propuestas en formato exacto abajo. Mínimo 3, máximo 10. SOLO propuestas accionables y específicas.]
+
+FORMATO DE CADA PROPUESTA:
+- [TIPO] MÓDULO: descripción específica del problema | SOLUCIÓN: cómo arreglarlo | PRIORIDAD: ALTA/MEDIA/BAJA
+
+TIPOS VÁLIDOS: BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD
+
+Ejemplos:
+- [BUG] Dashboard: El anillo núcleo muestra 68% fijo sin reflejar datos reales del usuario | SOLUCIÓN: Verificar que strokeDashoffset se actualiza con S.nucleoProgress en renderDashboard() | PRIORIDAD: ALTA
+- [UX] Mobile: El botón FAB tapa el último ítem de la lista de tareas en viewport 375px | SOLUCIÓN: Añadir padding-bottom:80px al contenedor de la lista | PRIORIDAD: MEDIA
+- [DISEÑO] Finanzas: El header del módulo se trunca en pantallas < 400px | SOLUCIÓN: Usar font-size responsive o ellipsis con title attribute | PRIORIDAD: BAJA`;
+
+  const parts = [{ text: textPrompt }];
+
+  // Agregar screenshots intercalados con etiquetas
+  screenshots.forEach(shot => {
+    parts.push({ text: `\n📸 Screenshot: ${shot.name}` });
+    parts.push({ inline_data: { mime_type: shot.mime, data: shot.data } });
+  });
+
+  return parts;
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A GEMINI API
+// LLAMAR A GEMINI API (multimodal)
 // ══════════════════════════════════════════════════════════════
-function callGemini(prompt) {
+function callGemini(parts) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: {
-        temperature: 0.3,
+        temperature: 0.4,
         maxOutputTokens: 2000,
       }
     });
@@ -133,7 +189,7 @@ function callGemini(prompt) {
           const json = JSON.parse(data);
           const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta inesperada: ${data.slice(0, 200)}`));
+          else reject(new Error(`Respuesta inesperada: ${data.slice(0, 300)}`));
         } catch (e) {
           reject(new Error(`Error parseando respuesta: ${e.message}`));
         }
@@ -147,19 +203,66 @@ function callGemini(prompt) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// PARSEAR Y SEPARAR ANÁLISIS DE PROPUESTAS
+// ══════════════════════════════════════════════════════════════
+function parseResponse(raw) {
+  const dividerIdx = raw.indexOf('---PROPOSALS---');
+  if (dividerIdx === -1) {
+    return { analysis: raw.trim(), proposals: [] };
+  }
+
+  const analysisPart  = raw.slice(0, dividerIdx).trim();
+  const proposalsPart = raw.slice(dividerIdx + 15).trim();
+
+  const proposals = proposalsPart
+    .split('\n')
+    .filter(l => l.trim().startsWith('-'))
+    .map(l => l.trim());
+
+  return { analysis: analysisPart, proposals };
+}
+
+// ══════════════════════════════════════════════════════════════
+// GUARDAR PROPUESTAS EN ARCHIVO SEPARADO
+// ══════════════════════════════════════════════════════════════
+function saveProposals(proposals, reportName) {
+  if (!proposals.length) return null;
+
+  const date   = reportName.slice(0, 10);
+  const propsPath = path.join(REPORTS_DIR, `PROPOSALS_${date}.md`);
+
+  // Si ya existe el archivo del día, agregar sección nueva
+  let existing = '';
+  if (fs.existsSync(propsPath)) {
+    existing = fs.readFileSync(propsPath, 'utf8');
+  }
+
+  const header = existing ? '' : `# PROPUESTAS PENDIENTES — ${date}\n> Generadas por OpenClaw AI. Revisar y aprobar antes de implementar.\n\n`;
+  const section = `## Run: ${reportName}\n\n` +
+    proposals.map(p => `- [ ] ${p.replace(/^- /, '')}`).join('\n') +
+    '\n\n---\n\n';
+
+  fs.writeFileSync(propsPath, header + existing + section, 'utf8');
+  return propsPath;
+}
+
+// ══════════════════════════════════════════════════════════════
 // AGREGAR ANÁLISIS AL REPORTE
 // ══════════════════════════════════════════════════════════════
-function appendAnalysis(reportPath, analysis) {
+function appendToReport(reportPath, analysis, screenshotCount) {
   const existing = fs.readFileSync(reportPath, 'utf8');
-  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini Flash\n\n';
-  fs.writeFileSync(reportPath, existing + divider + analysis + '\n', 'utf8');
+  const shotNote = screenshotCount > 0
+    ? `> 📸 ${screenshotCount} screenshots analizados con Gemini Vision\n\n`
+    : '';
+  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini 2.5 Flash\n\n';
+  fs.writeFileSync(reportPath, existing + divider + shotNote + analysis + '\n', 'utf8');
 }
 
 // ══════════════════════════════════════════════════════════════
 // MAIN
 // ══════════════════════════════════════════════════════════════
 async function main() {
-  log('═══ OpenClaw AI Analyst v1.0 iniciando ═══');
+  log('═══ OpenClaw AI Analyst v2.0 (Vision) iniciando ═══');
 
   const reports = loadReports(REPORTS_DIR, REPORTS_DAYS);
   if (reports.length === 0) {
@@ -167,20 +270,32 @@ async function main() {
     process.exit(1);
   }
 
-  log(`Cargados ${reports.length} reportes. Analizando con Gemini Flash...`);
+  const screenshots = loadScreenshots(SHOTS_DIR);
+  log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
+  log('Analizando con Gemini 2.5 Flash Vision...');
 
-  const prompt   = buildPrompt(reports);
-  const analysis = await callGemini(prompt);
+  const parts    = buildParts(reports, screenshots);
+  const rawResp  = await callGemini(parts);
+  const { analysis, proposals } = parseResponse(rawResp);
 
-  log('Análisis recibido de Gemini ✓');
+  log(`Análisis recibido ✓ | ${proposals.length} propuestas generadas`);
   console.log('\n' + analysis + '\n');
 
-  // Agregar al reporte más reciente
+  // Agregar al reporte
   const latestPath = path.join(REPORTS_DIR, reports[0].name);
-  appendAnalysis(latestPath, analysis);
+  appendToReport(latestPath, analysis, screenshots.length);
   log(`Análisis agregado a: ${reports[0].name}`);
 
-  log('═══ OpenClaw AI Analyst completado ═══');
+  // Guardar propuestas en archivo separado
+  if (proposals.length > 0) {
+    const propsPath = saveProposals(proposals, reports[0].name);
+    log(`Propuestas guardadas en: ${path.basename(propsPath)}`);
+    log('─── PROPUESTAS PENDIENTES DE APROBACIÓN ───');
+    proposals.forEach(p => log(`  ${p}`));
+    log('───────────────────────────────────────────');
+  }
+
+  log('═══ OpenClaw AI Analyst v2.0 completado ═══');
 }
 
 main().catch(e => {
