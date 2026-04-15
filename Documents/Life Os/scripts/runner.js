@@ -293,15 +293,23 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
   const start = Date.now();
 
   while (Date.now() - start < POLL_TIMEOUT) {
-    // Éxito: app visible y boot-screen oculto
+    // Éxito: auth-screen oculto (señal más confiable que esperar #app)
     const success = await evalJS(() => {
+      const auth = document.getElementById('auth-screen');
       const app  = document.getElementById('app');
-      const boot = document.getElementById('boot-screen');
-      if (!app) return false;
-      const st = window.getComputedStyle(app);
-      const appOk  = st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
-      const bootOk = !boot || window.getComputedStyle(boot).display === 'none';
-      return appOk && bootOk;
+      // Señal 1: auth-screen desapareció
+      if (auth) {
+        const authSt = window.getComputedStyle(auth);
+        if (authSt.display === 'none' || authSt.visibility === 'hidden' || authSt.opacity === '0') return true;
+      }
+      // Señal 2: #app tiene contenido visible (nav, sidebar, módulos)
+      if (app) {
+        const appSt = window.getComputedStyle(app);
+        const appVisible = appSt.display !== 'none' && appSt.visibility !== 'hidden';
+        const hasContent = app.querySelectorAll('#sidebar, #mob-nav, .page, #nav').length > 0;
+        if (appVisible && hasContent) return true;
+      }
+      return false;
     });
     if (success) { log('[AUTH] Login exitoso'); return true; }
 
