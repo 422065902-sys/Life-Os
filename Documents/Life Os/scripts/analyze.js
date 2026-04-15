@@ -192,6 +192,25 @@ Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
 
 Estas son features aprobadas por el owner para desarrollar. Cuando veas el módulo relevante en screenshots, genera propuestas concretas de implementación.
 
+### 🌗 MODO CLARO — PARIDAD VISUAL CON MODO OSCURO (ALTA PRIORIDAD)
+El modo claro (light mode) debe verse igual de premium y cómodo que el modo oscuro. No es "quitar el negro y poner blanco" — es un sistema de color completamente pensado para luz.
+
+**Visión:**
+- El usuario que prefiere blanco de día debe sentir que la app fue diseñada para él, no que es un modo olvidado
+- Nada de blancos puros que lastimen la vista — usar off-whites cálidos (#F8F9FA, #F0F2F5) con sombras suaves
+- Los acentos cyan/púrpura deben ajustarse en saturación para no gritar sobre fondo claro
+- Glassmorphism en modo claro: blur con tinte blanco semi-transparente, no negro
+- Tipografía: en oscuro el texto es blanco suave, en claro debe ser gris oscuro (#1A1A2E) nunca negro puro
+- Cada módulo mantiene su identidad visual en ambos modos — Cuerpo sigue sintiéndose "muscular" aunque sea claro
+- Sin perder contraste de accesibilidad (WCAG AA mínimo)
+
+**Cuando veas screenshots en modo claro, analiza:**
+1. ¿Hay elementos que desaparecen o pierden contraste sobre fondo blanco?
+2. ¿Los colores de acento se ven agresivos o lavados en luz?
+3. ¿El glassmorphism sigue funcionando o se pierde?
+4. ¿Las sombras son suficientes para dar profundidad sin fondo oscuro?
+5. ¿La identidad visual del módulo sobrevive al cambio de modo?
+
 ### 🧠 DASHBOARD DINÁMICO (ALTA PRIORIDAD)
 La app debe aprender del comportamiento del usuario y reorganizar el dashboard según sus hábitos reales.
 
