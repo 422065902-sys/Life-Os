@@ -110,6 +110,14 @@ async function evalJS(fn) {
 async function takeShot(name) {
   try {
     fs.mkdirSync(SHOTS_DIR, { recursive: true });
+    // Guardia: no capturar si estamos en auth screen
+    const onAuth = await evalJS(() => {
+      const auth = document.getElementById('auth-screen');
+      if (!auth) return false;
+      const st = window.getComputedStyle(auth);
+      return st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.1;
+    });
+    if (onAuth) { log(`[SHOT-GUARD] Auth screen visible — screenshot ${name} omitido`); return; }
     await page.screenshot({
       path: path.join(SHOTS_DIR, `${name}.jpg`),
       type: 'jpeg', quality: 55, fullPage: false
@@ -123,16 +131,52 @@ async function takeShot(name) {
  *   <name>_scroll.jpg — después de hacer scroll 500px (contenido debajo del fold)
  * También verifica si el fold inicial está vacío (posible bug de layout).
  */
+/** Verifica que la pantalla actual NO es el auth-screen antes de tomar un screenshot.
+ *  Si el auth está visible, re-loguea y navega al módulo.
+ *  Devuelve false si no pudo recuperarse. */
+async function ensureNotOnAuth(moduleLabel) {
+  const onAuth = await evalJS(() => {
+    const auth = document.getElementById('auth-screen');
+    if (!auth) return false;
+    const st = window.getComputedStyle(auth);
+    return st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.1;
+  });
+  if (!onAuth) return true; // ya estamos en la app, ok
+
+  log(`[SHOT-GUARD] Auth screen detectado antes de screenshot de ${moduleLabel} — re-loginando...`);
+  const ok = await doLogin();
+  if (!ok) {
+    log(`[SHOT-GUARD] ❌ No se pudo recuperar sesión para ${moduleLabel} — screenshot omitido`);
+    return false;
+  }
+  // Navegar al módulo correcto basado en el nombre del screenshot (ej: "08-cuerpo" → "cuerpo")
+  const moduleMap = {
+    'dashboard': 'dashboard', 'finanzas': 'financial', 'flow': 'productividad',
+    'flow-agenda': 'productividad', 'cuerpo': 'cuerpo', 'mente': 'mente', 'world': 'world'
+  };
+  const key = Object.keys(moduleMap).find(k => moduleLabel.toLowerCase().includes(k));
+  if (key) {
+    await goTo(moduleMap[key]);
+    await page.waitForTimeout(800);
+  }
+  return true;
+}
+
 async function takeShotWithScroll(name, moduleLabel) {
   try {
     fs.mkdirSync(SHOTS_DIR, { recursive: true });
+
+    // GUARDIA: asegurar que no estamos en auth screen antes de capturar
+    const canShoot = await ensureNotOnAuth(moduleLabel);
+    if (!canShoot) return;
+
     // Asegurar que el scroll esté en top antes de capturar
     await evalJS(() => {
       const c = document.getElementById('content');
       if (c) c.scrollTop = 0;
       window.scrollTo(0, 0);
     });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
     // Screenshot 1 — fold inicial
     await page.screenshot({
