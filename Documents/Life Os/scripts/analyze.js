@@ -164,7 +164,7 @@ La app ya fue reorganizada. Esta es la estructura **real y actual**:
 **Decisiones arquitecturales ya tomadas (NO reversar):**
 - **Flow absorbe Calendario:** el tab "📅 Agenda" dentro de Flow ES el calendario. No hay módulo Calendario separado.
 - **Gemelo es STANDALONE dentro de Mente:** el Gemelo vive en el tab "Gemelo" de Mente & Poder. NO moverlo fuera de Mente, NO convertirlo en módulo separado. El flujo correcto es: Bitácora → Gemelo → insights.
-- **Identidad visual por módulo implementada:** CSS `data-module` scope en cada página. Cada módulo tiene su accent color propio, tabs activas con ese color, botones primarios coloreados.
+- **Identidad visual por módulo implementada:** CSS data-module scope en cada página. Cada módulo tiene su accent color propio, tabs activas con ese color, botones primarios coloreados.
 
 ### Identidad visual única por módulo — VERIFICAR EN SCREENSHOTS
 Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
