@@ -85,7 +85,7 @@
     <!-- ══ HEADER FIJO: logo, subtítulo, tabs, error ══ -->
     <div class="auth-box-header">
       <div class="auth-logo">LIFE OS</div>
-      <div class="auth-sub">Personal Command Center · Montecristo SaaS</div>
+      <div class="auth-sub">Tu Nexus Personal · Montecristo SaaS</div>
       <div class="auth-tabs">
         <button class="auth-tab on" id="tab-login"    onclick="switchAuthTab('login')">Iniciar Sesión</button>
         <button class="auth-tab"    id="tab-register" onclick="switchAuthTab('register')">Crear Cuenta</button>
@@ -106,27 +106,27 @@
               onkeydown="if(event.key==='Enter')doLogin()"
               style="padding-right:44px"/>
             <span onclick="togglePassVis('login-pass')"
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:var(--text3)"
+              style="position:absolute;right:0;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:var(--text3);min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center"
               title="Ver/ocultar">👁</span>
           </div>
         </div>
         <!-- Mantener sesión 30 días -->
         <div class="consent-wrap" style="margin-bottom:14px;padding:10px 12px">
-          <input type="checkbox" id="login-remember" checked
-            style="width:17px;height:17px;min-width:17px;accent-color:var(--accent);cursor:pointer;margin-top:1px"/>
-          <label class="consent-label" for="login-remember" style="cursor:pointer">
-            Mantener mi sesión iniciada por los próximos <strong>30 días</strong>
+          <input type="checkbox" id="login-remember" checked style="display:none"/>
+          <label for="login-remember" style="cursor:pointer;display:flex;align-items:center;gap:10px">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="consent-label" style="cursor:pointer">Mantener sesión iniciada</span>
           </label>
         </div>
         <button class="btn btn-a" onclick="doLogin()"
           style="width:100%;padding:12px;font-size:14px;margin-bottom:10px">
           ⚡ Entrar a Life OS
         </button>
-        <button onclick="switchAuthTab('register')"
-          style="width:100%;padding:10px;background:transparent;border:1px solid rgba(168,85,247,.4);border-radius:10px;color:#a855f7;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s"
+        <button onclick="switchAuthTab('register')" class="btn-shimmer"
+          style="width:100%;padding:10px;background:transparent;border:1px solid rgba(168,85,247,.4);border-radius:10px;color:#a855f7;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden"
           onmouseover="this.style.background='rgba(168,85,247,.1)'"
           onmouseout="this.style.background='transparent'">
-          🔮 Pruebe 30 días — Gratis
+          🔮 Empezar Prueba Gratuita — 30 días
         </button>
       </div><!-- /form-login -->
 

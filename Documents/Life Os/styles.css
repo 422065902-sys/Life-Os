@@ -1520,21 +1520,21 @@ body.modo-recuperacion #recovery-banner{display:flex;align-items:center;gap:10px
 /* ── AUTH BOX — contenedor flex-column para separar header, body y footer ── */
 .auth-box{
   width:100%;max-width:420px;
-  background:var(--bg2);
-  border:1px solid rgba(0,229,255,.18);
+  background:linear-gradient(145deg,rgba(10,12,20,.85),rgba(6,8,16,.92));
+  border:1px solid rgba(0,229,255,.22);
   border-radius:22px;
-  /* padding solo en los lados; top/bottom los manejan los hijos internos */
   padding:0;
-  backdrop-filter:blur(20px);
-  box-shadow:0 0 60px rgba(0,229,255,.08),0 20px 60px rgba(0,0,0,.4);
-  /* Flex column: header fijo + body scrollable + footer fijo */
+  backdrop-filter:blur(32px) saturate(1.4);
+  -webkit-backdrop-filter:blur(32px) saturate(1.4);
+  box-shadow:0 0 0 1px rgba(0,229,255,.06) inset,0 0 80px rgba(0,229,255,.1),0 30px 80px rgba(0,0,0,.55);
   display:flex;
   flex-direction:column;
-  /* Altura máxima = 95% del viewport para que quepan en pantallas cortas */
   max-height:min(95vh, 900px);
-  overflow:hidden; /* el scroll ocurre solo dentro de #form-register */
+  overflow:hidden;
   position:relative;
+  animation:auth-box-in .5s cubic-bezier(.34,1.56,.64,1) both;
 }
+@keyframes auth-box-in{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 
 /* ── Zona superior fija (logo, subtítulo, tabs, error) ── */
 .auth-box-header{
@@ -3642,3 +3642,40 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
   background-size:200% 100%;animation:db-shimmer 1.4s ease-in-out infinite;
   min-width:60px;vertical-align:middle;
 }
+
+/* ── Auth: shimmer CTA + toggle switch + fondo animado ──────── */
+@keyframes shimmer-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+.btn-shimmer::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 40%,rgba(168,85,247,.35) 50%,transparent 60%);
+  transform:translateX(-100%);
+  animation:shimmer-sweep 2.4s ease-in-out infinite;
+}
+
+/* Toggle switch */
+.toggle-track{
+  width:42px;min-width:42px;height:24px;border-radius:12px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(0,229,255,.2);
+  position:relative;transition:background .25s,border-color .25s;cursor:pointer;
+}
+#login-remember:checked + .toggle-track{
+  background:rgba(0,229,255,.25);border-color:rgba(0,229,255,.5);
+}
+.toggle-thumb{
+  position:absolute;top:3px;left:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--text3);
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),background .25s;
+}
+#login-remember:checked + .toggle-track .toggle-thumb{
+  transform:translateX(18px);background:var(--accent);
+  box-shadow:0 0 8px rgba(0,229,255,.5);
+}
+
+/* Fondo pulsante detrás del auth-box */
+#auth-screen::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 40% at 50% 50%,rgba(0,229,255,.04) 0%,transparent 70%);
+  animation:auth-pulse 6s ease-in-out infinite;
+}
+@keyframes auth-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
