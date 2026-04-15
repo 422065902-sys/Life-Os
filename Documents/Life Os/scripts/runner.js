@@ -118,6 +118,22 @@ async function takeShot(name) {
       return st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.1;
     });
     if (onAuth) { log(`[SHOT-GUARD] Auth screen visible — screenshot ${name} omitido`); return; }
+    // Esperar contenido real (excepto para screenshots de auth intencionales)
+    if (!name.includes('auth') && !name.includes('offline')) {
+      await page.waitForFunction(() => {
+        const auth = document.getElementById('auth-screen');
+        if (auth) {
+          const st = window.getComputedStyle(auth);
+          if (st.display !== 'none' && parseFloat(st.opacity || '1') > 0.1) return false;
+        }
+        const pages = document.querySelectorAll('[id^="page-"], .page');
+        for (const p of pages) {
+          const st = window.getComputedStyle(p);
+          if (st.display !== 'none' && p.getBoundingClientRect().height > 80) return true;
+        }
+        return false;
+      }, { timeout: 6000 }).catch(() => {});
+    }
     await page.screenshot({
       path: path.join(SHOTS_DIR, `${name}.jpg`),
       type: 'jpeg', quality: 55, fullPage: false
@@ -171,9 +187,35 @@ async function takeShotWithScroll(name, moduleLabel) {
   try {
     fs.mkdirSync(SHOTS_DIR, { recursive: true });
 
-    // GUARDIA: asegurar que no estamos en auth screen antes de capturar
+    // GUARDIA 1: re-login si auth screen está visible
     const canShoot = await ensureNotOnAuth(moduleLabel);
     if (!canShoot) return;
+
+    // GUARDIA 2: esperar hasta que el módulo tenga contenido real visible
+    // Confirma que auth-screen está oculto Y hay al menos un .page con altura > 50px
+    const moduleReady = await page.waitForFunction(() => {
+      // Auth screen debe estar oculto
+      const auth = document.getElementById('auth-screen');
+      if (auth) {
+        const st = window.getComputedStyle(auth);
+        const authVisible = st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.1;
+        if (authVisible) return false;
+      }
+      // Debe haber al menos un .page o [id^="page-"] con contenido
+      const pages = document.querySelectorAll('[id^="page-"], .page');
+      for (const p of pages) {
+        const st = window.getComputedStyle(p);
+        if (st.display !== 'none' && st.visibility !== 'hidden' && p.getBoundingClientRect().height > 80) {
+          return true;
+        }
+      }
+      return false;
+    }, { timeout: 8000 }).catch(() => null);
+
+    if (!moduleReady) {
+      log(`[SHOT-GUARD] ⚠️ Módulo ${moduleLabel} no tiene contenido visible después de 8s — screenshot omitido`);
+      return;
+    }
 
     // Asegurar que el scroll esté en top antes de capturar
     await evalJS(() => {
