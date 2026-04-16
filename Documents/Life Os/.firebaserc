@@ -1,5 +1,18 @@
 {
   "projects": {
-    "default": "life-os-prod-3a590"
+    "default": "life-os-prod-3a590",
+    "staging": "mylifeos-staging"
+  },
+  "targets": {
+    "life-os-prod-3a590": {
+      "hosting": {
+        "production": ["life-os-prod-3a590"]
+      }
+    },
+    "mylifeos-staging": {
+      "hosting": {
+        "staging": ["mylifeos-staging"]
+      }
+    }
   }
 }
