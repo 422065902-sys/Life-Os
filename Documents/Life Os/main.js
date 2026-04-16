@@ -4688,11 +4688,15 @@ function _applyData(d) {
     }
     // Inicializar campo si no existe (hábitos viejos sin lastCompletedDate)
     if (typeof h.lastCompletedDate === 'undefined') {
-      // Si completedToday=true pero no hay fecha → era dato sucio, limpiar
       h.completedToday = false;
       h.lastCompletedDate = '';
     }
   });
+
+  // ── DECAY INDEPENDIENTE POR HÁBITO ──────────────────────────────────────
+  // Cada hábito decae según sus propios días perdidos, no por check-in global.
+  // Se ejecuta una sola vez por día (guarda la última fecha de decay en h.lastDecayDate).
+  applyHabitDecay();
 
   // Reconstruir set de UIDs desde datos cargados
   _rebuildAliadosUids();
@@ -6592,14 +6596,70 @@ function ensureHabitBattery(h) {
   if (typeof h.battery === 'undefined') h.battery = 100;
 }
 
-// Llamado en checkIn diario — degrada hábitos no completados
+/**
+ * applyHabitDecay — corre al cargar la app, una vez por día por hábito.
+ *
+ * Lógica independiente por hábito:
+ * - Si el hábito se completó hoy → sin cambios.
+ * - Si se completó ayer → sin cambios (el día aún no terminó).
+ * - Si lleva N días sin hacerse (N ≥ 2):
+ *     · Batería: -20% por cada día perdido (mín 0%)
+ *     · Racha:   se resetea a 0 (la racha se rompió)
+ *
+ * Usa h.lastDecayDate para no aplicar el decay más de una vez por día.
+ */
+function applyHabitDecay() {
+  const todayKey = today();
+  (S.habits || []).filter(h => !h.deleted).forEach(h => {
+    ensureHabitBattery(h);
+
+    // Ya procesado hoy → saltear
+    if (h.lastDecayDate === todayKey) return;
+
+    // Sin fecha de última completación → es hábito nuevo, no decaer aún
+    if (!h.lastCompletedDate) {
+      h.lastDecayDate = todayKey;
+      return;
+    }
+
+    // Completado hoy → recargar y salir
+    if (h.lastCompletedDate === todayKey) {
+      h.lastDecayDate = todayKey;
+      return;
+    }
+
+    // Calcular días reales transcurridos desde la última completación
+    const last  = new Date(h.lastCompletedDate + 'T12:00:00');
+    const now   = new Date(todayKey + 'T12:00:00');
+    const diffMs = now - last;
+    const daysMissed = Math.floor(diffMs / 86400000); // ms → días enteros
+
+    if (daysMissed >= 2) {
+      // Cada día perdido quita 20% de batería (más gradual que el -25 del toggle)
+      const decay = (daysMissed - 1) * 20; // el primer día (ayer) no cuenta
+      h.battery   = Math.max(0, (h.battery || 100) - decay);
+
+      // Racha rota — solo si no la completó ayer
+      const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+      const yKey = yesterday.toISOString().split('T')[0];
+      if (h.lastCompletedDate !== yKey) {
+        h.streak = 0;
+      }
+    }
+
+    h.lastDecayDate = todayKey;
+  });
+}
+
+// Llamado en checkIn diario — degrada hábitos no completados ese día
+// (complementa a applyHabitDecay que ya corrió al abrir la app)
 function chargeHabitBatteries() {
   (S.habits || []).forEach(h => {
     ensureHabitBattery(h);
     if (!h.completedToday) {
-      h.battery = Math.max(0, h.battery - 25);
+      h.battery = Math.max(0, h.battery - 20);
     } else {
-      h.battery = Math.min(100, h.battery + 25); // recarga al completar
+      h.battery = Math.min(100, h.battery + 25);
     }
   });
 }
