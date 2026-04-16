@@ -119,12 +119,18 @@ async function takeShot(name) {
     });
     if (onAuth) { log(`[SHOT-GUARD] Auth screen visible — screenshot ${name} omitido`); return; }
     // Esperar contenido real (excepto para screenshots de auth intencionales)
-    if (!name.includes('auth') && !name.includes('offline')) {
+    if (!name.includes('auth') && !name.includes('offline') && !name.includes('landing')) {
       await page.waitForFunction(() => {
         const auth = document.getElementById('auth-screen');
         if (auth) {
           const st = window.getComputedStyle(auth);
           if (st.display !== 'none' && parseFloat(st.opacity || '1') > 0.1) return false;
+        }
+        // Aceptar #app visible como condición suficiente
+        const app = document.getElementById('app');
+        if (app) {
+          const st = window.getComputedStyle(app);
+          if (st.display !== 'none' && app.getBoundingClientRect().height > 100) return true;
         }
         const pages = document.querySelectorAll('[id^="page-"], .page');
         for (const p of pages) {
@@ -132,7 +138,7 @@ async function takeShot(name) {
           if (st.display !== 'none' && p.getBoundingClientRect().height > 80) return true;
         }
         return false;
-      }, { timeout: 6000 }).catch(() => {});
+      }, { timeout: 8000 }).catch(() => {});
     }
     await page.screenshot({
       path: path.join(SHOTS_DIR, `${name}.jpg`),
@@ -201,7 +207,13 @@ async function takeShotWithScroll(name, moduleLabel) {
         const authVisible = st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.1;
         if (authVisible) return false;
       }
-      // Debe haber al menos un .page o [id^="page-"] con contenido
+      // Fallback 1: #app visible con contenido es suficiente
+      const app = document.getElementById('app');
+      if (app) {
+        const appSt = window.getComputedStyle(app);
+        if (appSt.display !== 'none' && appSt.visibility !== 'hidden' && app.getBoundingClientRect().height > 100) return true;
+      }
+      // Fallback 2: cualquier .page o [id^="page-"] con contenido visible
       const pages = document.querySelectorAll('[id^="page-"], .page');
       for (const p of pages) {
         const st = window.getComputedStyle(p);
@@ -210,7 +222,7 @@ async function takeShotWithScroll(name, moduleLabel) {
         }
       }
       return false;
-    }, { timeout: 8000 }).catch(() => null);
+    }, { timeout: 12000 }).catch(() => null);
 
     if (!moduleReady) {
       log(`[SHOT-GUARD] ⚠️ Módulo ${moduleLabel} no tiene contenido visible después de 8s — screenshot omitido`);
@@ -351,6 +363,17 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
       return doLogin(email, pass, attempt + 1);
     }
     return false;
+  }
+
+  // Detectar si la landing page está visible (SESSION auth perdida tras recarga)
+  // y hacer clic en "Iniciar Sesión" para mostrar el auth-screen
+  const landingUp = await evalJS(() => {
+    const lp = document.getElementById('landing-page');
+    return lp ? window.getComputedStyle(lp).display !== 'none' : false;
+  });
+  if (landingUp) {
+    await safeClick('.lp-nav-login, [onclick*="showAuthFromLanding"]', 5000);
+    await page.waitForTimeout(500);
   }
 
   const authReady = await waitFor('#auth-screen', 12000);
@@ -1094,21 +1117,29 @@ async function testFinanzas() {
   const charts = await page.$$('canvas');
   addResult('06-Finanzas', 'Al menos 1 canvas (pie chart) en módulo financiero', charts.length > 0 ? 'PASS' : 'WARN', `${charts.length} canvas`);
 
-  // Staging: agregar y verificar transacción
+  // Staging: agregar y verificar transacción (abrir modal primero)
   if (!SMOKE_ONLY && addTxBtn) {
-    const montoInput = await page.$('[id*="tx-amount"], [id*="monto"], input[type="number"]');
+    // 1. Abrir modal
+    await safeClick('[onclick*="openTxModal"], #add-tx-btn, button:has-text("+ Transacción"), button:has-text("Nueva")', 5000);
+    // 2. Esperar a que el input de monto sea visible
+    const montoInput = await page.waitForSelector(
+      '[id*="tx-amount"], [id*="monto"], [id*="amount"], input[placeholder*="monto"], input[placeholder*="Monto"], input[placeholder*="cantidad"], input[type="number"]',
+      { state: 'visible', timeout: 8000 }
+    ).catch(() => null);
+
     if (montoInput) {
-      const xpBefore = await evalJS(() => (window.S && window.S.xp) || 0);
-      await montoInput.fill('250');
-      // Seleccionar tipo entrada si existe el selector
+      await montoInput.fill('250').catch(() => {});
       await evalJS(() => {
         const sel = document.querySelector('select[id*="tipo"], [id*="tx-type"]');
         if (sel) sel.value = 'entrada';
       });
-      await page.click('[onclick*="addTransaction"], button:has-text("Guardar"), button:has-text("Agregar")').catch(() => {});
+      await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], button:has-text("Guardar"), button:has-text("Agregar")');
       await page.waitForTimeout(2000);
       const txItems = await page.$$('[id*="tx-list"] > *, .tx-item, [class*="tx-card"]');
       addResult('06-Finanzas', 'Transacción de prueba aparece en lista', txItems.length > 0 ? 'PASS' : 'WARN', `${txItems.length} items`);
+    } else {
+      log('[06-Finanzas] ⚠️ Input de monto no visible después de abrir modal — omitiendo tx test');
+      await page.keyboard.press('Escape').catch(() => {});
     }
   }
 
