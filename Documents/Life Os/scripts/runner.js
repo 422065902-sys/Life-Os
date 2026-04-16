@@ -552,23 +552,35 @@ async function seedUserData() {
       { monto: '450',   tipo: 'gasto',   desc: 'Membresía gym'  },
     ];
     for (const tx of txs) {
-      // Abrir modal si existe botón
-      const addBtn = await page.$('[onclick*="openTxModal"], #add-tx-btn, button:has-text("+ Transacción")');
-      if (addBtn) { await addBtn.click().catch(() => {}); await page.waitForTimeout(700); }
+      // Abrir modal — esperar a que sea visible antes de continuar
+      const addBtn = await page.$('[onclick*="openTxModal"], #add-tx-btn, [onclick*="abrirTx"], button:has-text("+ Transacción"), button:has-text("Nueva")');
+      if (!addBtn) { log('[SEED] ⚠️ Botón add-tx no encontrado — saltando tx'); break; }
+      await addBtn.click().catch(() => {});
 
-      const montoEl = await page.$('[id*="tx-amount"], [id*="monto"], input[type="number"]');
-      if (!montoEl) break;
+      // Esperar a que el input de monto esté visible (modal abierto)
+      const montoEl = await page.waitForSelector(
+        '[id*="tx-amount"], [id*="monto"], [id*="amount"], input[placeholder*="monto"], input[placeholder*="Monto"], input[placeholder*="cantidad"]',
+        { timeout: 8000, state: 'visible' }
+      ).catch(() => null);
+
+      if (!montoEl) {
+        log('[SEED] ⚠️ Input de monto no apareció — cerrando modal y continuando');
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(400);
+        continue;
+      }
+
       await montoEl.fill(tx.monto);
 
       await page.evaluate((tipo) => {
-        const sel = document.querySelector('select[id*="tipo"], [id*="tx-type"], select[id*="category"]');
+        const sel = document.querySelector('select[id*="tipo"], [id*="tx-type"], select[id*="type"], select[id*="category"]');
         if (sel) sel.value = tipo;
       }, tx.tipo);
 
-      const descEl = await page.$('[id*="tx-desc"], [id*="descripcion"], input[placeholder*="escr"], input[placeholder*="desc"]');
+      const descEl = await page.$('[id*="tx-desc"], [id*="descripcion"], [id*="desc"], input[placeholder*="escr"], input[placeholder*="desc"], input[placeholder*="Desc"]');
       if (descEl) await descEl.fill(tx.desc);
 
-      await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], button:has-text("Guardar"), button:has-text("Agregar")');
+      await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], [onclick*="saveTx"], button:has-text("Guardar"), button:has-text("Agregar")');
       await page.waitForTimeout(1000);
     }
     log('[SEED] ✅ Transacciones sembradas');
@@ -744,6 +756,20 @@ async function scrollToSection(selector) {
 async function testLanding() {
   log('▶ 00-Landing');
 
+  // Cerrar sesión activa antes de cargar la landing — el pre-check deja al usuario logueado
+  // y la landing solo se muestra a visitantes sin sesión.
+  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  await evalJS(() => {
+    // Cerrar sesión de Firebase si está disponible
+    try {
+      const auth = firebase?.auth?.();
+      if (auth?.currentUser) auth.signOut().catch(() => {});
+    } catch(e) {}
+    // Limpiar tokens de sesión local
+    localStorage.removeItem('lifeos_session');
+    sessionStorage.removeItem('lifeos_session_temp');
+  });
+  // Recargar sin caché para que _checkLocalSession no encuentre sesión y muestre la landing
   await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 }).catch(() => {});
 
