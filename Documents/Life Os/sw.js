@@ -27,14 +27,18 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// ── Activación: limpiar caches viejas ──
+// ── Activación: limpiar caches viejas y recargar todos los clientes ──
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => {
+        // Forzar recarga de todas las pestañas abiertas para que usen el nuevo SW
+        clients.forEach(client => client.navigate(client.url));
+      })
   );
-  self.clients.claim();
 });
 
 // ── Fetch: Cache First para assets estáticos, Network First para APIs ──
