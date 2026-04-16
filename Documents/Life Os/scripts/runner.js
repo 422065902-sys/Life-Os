@@ -1573,61 +1573,96 @@ async function testFAB() {
     await page.keyboard.press('Escape').catch(()=>{});
     await page.waitForTimeout(200);
 
-    // ── Casos de prueba NLP ──────────────────────────────────
+    // ── Casos de prueba NLP — cobertura amplia ───────────────
+    // Los resultados de estos tests los analiza el deep analyzer
+    // para proponer mejoras de semántica al equipo.
 
-    // 1. TAREA básica
-    await fabTest('tarea básica', 'comprar leche mañana', 'Tarea');
+    // ═══ TAREAS ═══
+    await fabTest('tarea básica',        'comprar leche mañana',                    'Tarea');
+    await fabTest('tarea con verbo',     'llamar al médico esta semana',            'Tarea');
+    await fabTest('tarea recordatorio',  'recordar enviar el reporte del proyecto', 'Tarea');
+    await fabTest('tarea compuesta',     'traer el cargador y la libreta al trabajo','Tarea');
+    await takeShot('17-fab-tareas');
 
-    // 2. GASTO con monto
-    await fabTest('gasto con $', 'gasté 150 en café', 'Finanzas');
+    // ═══ GASTOS ═══
+    await fabTest('gasto con $',         'gasté 150 en café',                       'Finanzas');
+    await fabTest('gasto sin tilde',     'gaste 80 en comida',                      'Finanzas');
+    await fabTest('gasto Uber',          'uber 95 pesos al aeropuerto',             'Finanzas');
+    await fabTest('gasto Rappi',         'rappi 230 de sushi anoche',               'Finanzas');
+    await fabTest('gasto gasolina',      'gasoline 500 para el carro',              'Finanzas');
+    await fabTest('gasto Netflix',       'pague netflix 199',                       'Finanzas');
+    await fabTest('gasto farmacia',      'farmacia 340 medicamento',                'Finanzas');
+    await fabTest('gasto renta',         'renta 8500',                              'Finanzas');
+    await fabTest('gasto "varos"',       'me costó 50 varos el café',              'Finanzas');
+    await fabTest('gasto sin monto',     'pagué el estacionamiento',                'Finanzas');
+    await takeShot('17-fab-gastos');
 
-    // 3. GASTO con typo: "gaste" sin tilde
-    await fabTest('gasto sin tilde', 'gaste 80 en comida', 'Finanzas');
+    // ═══ INGRESOS ═══
+    await fabTest('ingreso cobré',       'cobré 3500 del proyecto freelance',       'Ingreso');
+    await fabTest('ingreso recibi',      'recibi 2000 de sueldo',                   'Ingreso');
+    await fabTest('ingreso pagaron',     'me pagaron 1500 del cliente',             'Ingreso');
+    await fabTest('ingreso venta',       'venta de 800 pesos hoy',                  'Ingreso');
+    await fabTest('ingreso depósito',    'deposito de 5000 en mi cuenta',           'Ingreso');
+    await takeShot('17-fab-ingresos');
 
-    // 4. GASTO Uber/transporte
-    await fabTest('gasto Uber', 'uber 95 pesos para ir al aeropuerto', 'Finanzas');
+    // ═══ CALENDARIO ═══
+    await fabTest('evento hora am',      'reunión con el equipo mañana a las 10am', 'Calendario');
+    await fabTest('reunión sin tilde',   'reunion con cliente el viernes 3pm',      'Calendario');
+    await fabTest('cita médico',         'cita con el doctor el jueves',            'Calendario');
+    await fabTest('evento hora tarde',   'comer con mamá el sábado a las 2',       'Calendario');
+    await fabTest('llamada',             'llamada con el proveedor mañana',         'Calendario');
+    await fabTest('cumpleaños',          'cumpleaños de Ana el domingo',            'Calendario');
+    await fabTest('vuelo viaje',         'vuelo a Guadalajara el lunes a las 7am',  'Calendario');
+    await fabTest('junta trabajo',       'junta con el jefe el miércoles',          'Calendario');
+    await takeShot('17-fab-calendario');
 
-    // 5. INGRESO
-    await fabTest('ingreso cobré', 'cobré 3500 del proyecto freelance', 'Ingreso');
+    // ═══ HÁBITOS (ya hecho hoy) ═══
+    await fabTest('hábito lectura',      'hice mi hábito de lectura',               'Hábito');
+    await fabTest('fui al gym',          'fui al gym esta mañana',                  'Hábito');
+    await fabTest('corrí typo',          'cori 5km en el parque',                   'Hábito');
+    await fabTest('medité',              'medite 15 minutos',                       'Hábito');
+    await fabTest('bebí agua',           'bebi 2 litros de agua hoy',               'Hábito');
+    await fabTest('entrené',             'entrene pecho y triceps',                 'Hábito');
+    await fabTest('dormí bien',          'dormi 8 horas anoche',                    'Hábito');
+    await fabTest('completé hábito',     'completé mi hábito de español',           'Hábito');
+    await takeShot('17-fab-habitos');
 
-    // 6. INGRESO con typo: "recibi"
-    await fabTest('ingreso recibi', 'recibi 2000 de sueldo', 'Ingreso');
+    // ═══ IDEAS ═══
+    await fabTest('idea app',            'idea: agregar modo oscuro automático',    'Ideas');
+    await fabTest('nota:',               'nota: revisar si el gemelo usa la data de sueño', 'Ideas');
+    await fabTest('sugerencia',          'sugerencia: notificación a las 9pm para check-in', 'Ideas');
 
-    // 7. CALENDARIO con hora
-    await fabTest('evento con hora', 'reunión con el equipo mañana a las 10am', 'Calendario');
+    // ═══ BITÁCORA / MOOD ═══
+    await fabTest('victoria',            'victoria: terminé el proyecto antes del deadline', 'Bitácora');
+    await fabTest('logro',               'logro: pagué la deuda de la tarjeta',     'Bitácora');
+    await fabTest('me siento',           'me siento muy productivo hoy',            'Bitácora');
 
-    // 8. CALENDARIO typo: "reunion"
-    await fabTest('reunión sin tilde', 'reunion con cliente el viernes a las 3pm', 'Calendario');
+    // ═══ METAS ═══
+    await fabTest('meta libro',          'meta: leer 12 libros este año',           'Meta');
+    await fabTest('objetivo peso',       'objetivo: bajar 5 kilos en 3 meses',     'Meta');
+    await fabTest('reto',                'reto: 30 días sin azúcar',               'Meta');
 
-    // 9. IDEA
-    await fabTest('idea', 'idea: agregar modo oscuro automático según la hora del día', 'Ideas');
+    // ═══ MULTI-MÓDULO ═══
+    await fabTest('gasto + fecha',       'pagar renta 4500 pesos el 1ro',           'Finanzas');
+    await fabTest('gym + hora',          'entrené a las 7am en el gym',             'Hábito');
 
-    // 10. HÁBITO — el usuario dice que ya lo hizo
-    await fabTest('hábito hecho', 'hice mi hábito de lectura', 'Hábito');
+    // ═══ TYPOS DIFÍCILES ═══
+    await fabTest('cosinar',             'cosinar pasta para cenar hoy',            'Calendario');
+    await fabTest('manana sin ñ',        'cita con dentista manana a las 11',       'Calendario');
+    await fabTest('aser',                'aser la tarea de matemáticas',            'Tarea');
+    await fabTest('jym',                 'fui al jym esta tarde',                   'Hábito');
+    await fabTest('spnglish meeting',    'tuve un meeting importante hoy',          'Calendario');
+    await takeShot('17-fab-typos');
 
-    // 11. GYM / hábito físico
-    await fabTest('fui al gym', 'fui al gym esta mañana', 'Hábito');
-
-    // 12. CORRER con typo
-    await fabTest('corrí con typo', 'cori 5km en el parque', 'Hábito');
-
-    // 13. TYPO cosinar
-    await fabTest('typo cosinar', 'cosinar pasta para cenar hoy', 'Calendario');
-
-    // 14. VICTORIA / bitácora
-    await fabTest('victoria', 'victoria: terminé el proyecto antes del deadline', 'Bitácora');
-
-    // 15. META
-    await fabTest('meta nueva', 'meta: leer 12 libros este año', 'Meta');
-
-    // 16. MULTI: gasto + fecha
-    await fabTest('multi gasto+fecha', 'pagar renta 4500 pesos el 1ro', 'Finanzas');
-
-    // 17. TEXTO ambiguo → debe caer en tarea
-    await fabTest('texto ambiguo → tarea', 'revisar correos importantes del trabajo', 'Tarea');
-
-    // Screenshot final con chip visible
-    await takeShot('17-fab-nlp-final');
+    // ═══ EDGE CASES ═══
+    await fabTest('monto escrito',       'gasté como cien pesos en dulces',        'Finanzas');
+    await fabTest('monto con coma',      'cobré 1,500 del cliente nuevo',           'Ingreso');
+    await fabTest('solo número',         '350',                                     'Tarea');
+    await fabTest('emoji en texto',      'fui al 🏋️ esta mañana',                  'Hábito');
+    await fabTest('texto muy corto',     'gym',                                     'Hábito');
+    await fabTest('mayúsculas',          'REUNIÓN CON EL JEFE MAÑANA A LAS 9',     'Calendario');
+    await fabTest('ambiguo → tarea',     'revisar correos del trabajo',             'Tarea');
+    await takeShot('17-fab-edge-cases');
   }
 }
 
@@ -1996,11 +2031,12 @@ async function main() {
       await runModule(testProductividad, '14-Productividad');
       await runModule(testMente,         '15-Mente');
       await runModule(testWorld,         '16-World');
-      await runModule(testFAB,           '17-FAB');
       await runModule(testAdmin,         '18-Admin');
       await runModule(testFCM,           '19-FCM');
       await runModule(testPWA,           '20-PWA');
       await runModule(testResponsive,    'RESPONSIVE');
+      // FAB al final: suite larga de NLP — si falla no afecta los demás módulos
+      await runModule(testFAB,           '17-FAB');
     }
 
   } catch (e) {

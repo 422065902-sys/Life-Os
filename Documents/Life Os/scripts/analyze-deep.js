@@ -161,15 +161,40 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
       maxTokens: 16000,
     },
     {
+      id: 'fab-nlp',
+      name: 'FAB Consola Universal — NLP, Semántica y Routing',
+      accent: 'Cyan #00e5ff — es el feature más "Jarvis" de la app',
+      desc: `La FAB es la consola universal de Life OS. El usuario escribe en lenguaje natural y la app detecta automáticamente adónde enviar la información.
+
+ARQUITECTURA NLP ACTUAL (parseLocalNLP en main.js):
+- 8 módulos de destino: financial (gasto), income (ingreso), calendar, task, habit, mood/bitácora, goal/meta, idea
+- Corrección de typos: diccionario estático de ~50 palabras + algoritmo Levenshtein (distancia=1) para palabras ≥5 chars
+- Claude API (claude-haiku) como fallback premium si el usuario tiene API key configurada
+
+CASOS QUE SE PRUEBAN EN ESTE RUN (los screenshots 17-fab-* muestran los previews):
+TAREAS: "comprar leche mañana", "llamar al médico", "traer el cargador"
+GASTOS: "gasté 150 en café", "gaste" (sin tilde), "uber 95 pesos", "rappi 230", "farmacia 340", "varos", "pagué el estacionamiento" (sin monto)
+INGRESOS: "cobré 3500 freelance", "recibi 2000" (sin tilde), "me pagaron 1500", "venta de 800", "deposito de 5000"
+CALENDARIO: "reunión con equipo mañana 10am", "reunion" (sin tilde), "cita doctor jueves", "cumpleaños de Ana el domingo", "vuelo a GDL lunes 7am"
+HÁBITOS: "hice mi hábito de lectura", "fui al gym", "cori 5km" (typo), "medite 15 minutos", "bebi 2 litros", "dormi 8 horas"
+IDEAS: "idea: ...", "nota: ...", "sugerencia: ..."
+BITÁCORA: "victoria: ...", "logro: ...", "me siento muy productivo"
+METAS: "meta: leer 12 libros", "objetivo: bajar 5 kilos", "reto: 30 días sin azúcar"
+MULTI-MÓDULO: "pagar renta 4500 el 1ro", "entrené a las 7am en el gym"
+TYPOS DIFÍCILES: "cosinar", "manana", "aser", "jym", "spnglish meeting"
+EDGE CASES: "gasté como cien pesos" (monto en palabras), "350" (solo número), emoji "🏋️", texto en MAYÚSCULAS, "gym" (una sola palabra)`,
+      shots: pick('17-'),
+      maxTokens: 14000,
+    },
+    {
       id: 'tech-settings',
-      name: 'Settings, Stripe, FAB, Admin, FCM y PWA',
+      name: 'Settings, Stripe, Admin, FCM y PWA',
       accent: 'Accent global',
       desc: 'Settings: suscripción Stripe, plan badge, toggle de notificaciones push. ' +
-            'FAB: botón flotante con NLP para captura rápida (texto libre → tarea/hábito/gasto). ' +
             'Admin: panel de agencias para el rol admin. ' +
             'FCM: service worker de notificaciones. PWA: manifest, offline mode.',
-      shots: pick('10-', '17-', '18-', '19-', '20-'),
-      maxTokens: 12000,
+      shots: pick('10-', '18-', '19-', '20-'),
+      maxTokens: 10000,
     },
     {
       id: 'mobile-responsive',
@@ -367,8 +392,137 @@ ${'─'.repeat(60)}
 ### 💊 Salud: X/10 — [una frase honesta sobre si esta landing convierte o no]`;
 }
 
+function buildFABPrompt(group) {
+  const shotList = group.shots.map(s => s.name).join('\n  - ');
+  return `${BASE_CONTEXT}
+
+${'═'.repeat(60)}
+ANÁLISIS ESPECIAL: FAB CONSOLA UNIVERSAL — NLP Y SEMÁNTICA
+${'═'.repeat(60)}
+
+Este es el feature más "Jarvis" de Life OS: el usuario escribe en lenguaje natural y la app detecta sola adónde enviar la info.
+Es un diferenciador de producto brutal si funciona bien — y frustrante si falla.
+
+Screenshots disponibles (${group.shots.length}):
+  - ${shotList}
+
+Cada screenshot de grupo (17-fab-tareas, 17-fab-gastos, etc.) muestra el estado visual después de ejecutar esa batería de casos.
+Los screenshots 17-fab-abierto y 17-fab-nlp-final muestran la UI del FAB abierto y cerrado.
+
+${'─'.repeat(60)}
+CONTEXTO TÉCNICO DEL NLP ACTUAL
+${'─'.repeat(60)}
+
+parseLocalNLP() en main.js detecta (en orden de prioridad):
+1. Ideas     — prefijo "idea:", "nota:", "sugerencia:", "apunta:"
+2. Mood      — prefijo "victoria:", "logro:", "me siento", "hoy me di cuenta"
+3. Meta      — prefijo "meta:", "objetivo:", "reto:", "quiero lograr"
+4. Income    — keywords: cobré, recibí, me pagaron, sueldo, freelance, venta, depósito
+5. Financial — keywords: gasté, pagué, uber, rappi, gasolina, farmacia, netflix, renta, etc.
+6. Habit     — keywords de acción completada: hice, fui al gym, corrí, medité, completé, cumplí
+7. Multi     — gasto + fecha → calendar + financial
+8. Calendar  — keywords de evento: reunión, cita, evento, junta, llamada, vuelo, cumpleaños
+9. Task      — default si nada más aplica
+
+Typo correction: diccionario ~50 palabras + Levenshtein(distancia=1) para palabras ≥5 chars.
+Claude Haiku como fallback premium (requiere API key del usuario).
+
+BATERÍA DE CASOS PROBADOS:
+Tareas: "comprar leche mañana", "llamar al médico esta semana", "traer el cargador y libreta"
+Gastos: "gasté 150 en café", "gaste 80" (sin tilde), "uber 95 pesos", "rappi 230", "farmacia 340", "varos", "pagué estacionamiento" (sin monto), "me costó 50 varos"
+Ingresos: "cobré 3500 freelance", "recibi 2000" (sin tilde), "me pagaron 1500", "venta de 800", "deposito de 5000"
+Calendario: "reunión equipo mañana 10am", "reunion" (sin tilde), "cita doctor jueves", "cumpleaños Ana domingo", "vuelo GDL lunes 7am", "junta con el jefe miércoles"
+Hábitos: "hice mi hábito de lectura", "fui al gym", "cori 5km" (typo), "medite 15min", "bebi 2 litros", "dormi 8 horas", "completé mi hábito de español"
+Ideas: "idea: modo oscuro automático", "nota: revisar gemelo", "sugerencia: notif a las 9pm"
+Bitácora: "victoria: terminé proyecto", "logro: pagué la deuda", "me siento muy productivo"
+Metas: "meta: leer 12 libros", "objetivo: bajar 5 kilos", "reto: 30 días sin azúcar"
+Multi: "pagar renta 4500 el 1ro", "entrené a las 7am en gym"
+Typos: "cosinar", "manana", "aser", "jym", "meeting" (Spanglish)
+Edge cases: "gasté como cien pesos" (monto en palabras), "1,500" (coma), "350" (solo número), emoji "🏋️", "gym" (una palabra), MAYÚSCULAS
+
+${'─'.repeat(60)}
+LO QUE DEBES ANALIZAR:
+${'─'.repeat(60)}
+
+1. ROUTING ACCURACY — ¿Los previews muestran el módulo correcto?
+   - En los screenshots, ¿el preview (texto bajo el input) coincide con el módulo esperado?
+   - ¿Hay casos donde claramente el routing fue incorrecto o genérico?
+   - ¿El preview es lo suficientemente claro para que el usuario entienda qué va a pasar ANTES de ejecutar?
+
+2. CASOS QUE PROBABLEMENTE FALLAN — aunque no veas el error, razona:
+   - "gasté como cien pesos" — "cien" en letras, no número — ¿lo detecta?
+   - "350" solo — ¿tarea o gasto?
+   - "gym" una sola palabra — ¿hábito o tarea?
+   - emojis en el texto — ¿los ignora o rompen algo?
+   - "me costó 50 varos" — "varos" es slang mexicano para pesos — ¿lo detecta?
+   - montos con coma: "1,500" vs "1500" — ¿ambos funcionan?
+
+3. GAPS SEMÁNTICOS — ¿qué frases naturales en español NO están cubiertas?
+   Piensa en cómo hablan usuarios mexicanos de 20-35 años:
+   - "me cayó el veinte de que debo hacer X" → ¿tarea?
+   - "oye apunta que..." → ¿idea o tarea?
+   - "quedé de ir con X el sábado" → ¿calendario?
+   - "se me acabó el dinero en X" → ¿gasto?
+   - "me prestaron 500" → ¿ingreso o deuda?
+   - "abono a la tarjeta 1000" → ¿gasto o deuda?
+   - números escritos: "cien", "doscientos", "mil", "cinco mil"
+   - horas: "a las 3 de la tarde", "en la mañana", "al mediodía"
+   - fechas relativas: "en 3 días", "la próxima semana", "a fin de mes"
+   Propón los keywords/regex exactos para cubrir cada uno.
+
+4. UX DEL FAB — mira los screenshots con ojo de diseñador:
+   - ¿El preview muestra suficiente información? ¿O el usuario no sabe qué va a pasar?
+   - ¿El chip de confirmación tras ejecutar es claro y satisfactorio?
+   - ¿Hay feedback de error cuando algo no se entiende bien?
+   - ¿Debería haber un placeholder en el input que ejemplifique tipos de entrada?
+   - ¿Falta un historial de los últimos comandos usados para reutilizar?
+
+5. PROPUESTAS CONCRETAS DE SEMÁNTICA — escribe el código:
+   Para cada gap importante que encuentres, propón el regex o keyword exacto.
+   Formato: "Para detectar X: /regex_exacto/i en la variable lower, hacer result.modules.push('módulo')"
+   Incluye al menos 5 propuestas de expansión semántica con código.
+
+6. FEATURE IDEAS — ¿qué haría que este FAB se sintiera como el Jarvis de Iron Man?
+   - ¿Debería haber confirmación opcional para el usuario antes de ejecutar?
+   - ¿Shortcuts de teclado?
+   - ¿Modo voz (Web Speech API)?
+   - ¿Historial de los últimos 10 comandos?
+   - ¿Sugerencias mientras escribe (como autocomplete)?
+   - ¿El preview debería mostrar exactamente el estado antes vs después? (ej: "Saldo actual: $1,200 → después: $1,050")
+
+${'─'.repeat(60)}
+FORMATO DE RESPUESTA:
+${'─'.repeat(60)}
+
+---PROPOSALS---
+(8-12 propuestas — mezcla de fixes de semántica con código listo, mejoras de UX y features)
+- [TIPO] FAB-NLP: descripción | SOLUCIÓN: código o descripción exacta | PRIORIDAD: CRÍTICA/ALTA/MEDIA | CATEGORÍA: NLP/UX/FEATURE/BUG
+
+---ANALYSIS---
+
+## FAB Consola Universal — Análisis de Semántica
+
+### 👁️ Lo que veo en los screenshots
+[Para cada screenshot del FAB, describe el estado visual. ¿Se ve el preview? ¿Qué módulo muestra? ¿Hay errores visibles?]
+
+### 🎯 Routing accuracy — qué funciona y qué no
+[Evalúa cada categoría: tareas, gastos, ingresos, calendario, hábitos, ideas, bitácora, metas, typos, edge cases]
+
+### 🕳️ Gaps semánticos detectados
+[Lista de frases naturales mexicanas que NO están cubiertas. Para cada una: frase → módulo esperado → regex/keyword propuesto]
+
+### 💻 Código listo para implementar
+[Al menos 5 expansiones de semántica con el regex o condición exacta, listo para copiar-pegar en parseLocalNLP()]
+
+### 🤖 El FAB como Jarvis — propuestas de features
+[Ideas de features que elevarían el FAB de "útil" a "adictivo". Sé concreto en implementación.]
+
+### 💊 Salud NLP: X/10 — [¿Está este FAB listo para usuarios reales? Una frase honesta]`;
+}
+
 function buildGroupPrompt(group) {
   if (group.id === 'landing-page') return buildLandingPrompt(group);
+  if (group.id === 'fab-nlp')      return buildFABPrompt(group);
 
   const shotList = group.shots.map(s => s.name).join('\n  - ');
 
