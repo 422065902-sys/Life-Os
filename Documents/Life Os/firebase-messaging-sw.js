@@ -1,7 +1,15 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
-firebase.initializeApp({
+const _IS_STAGING = self.location.hostname.includes('mylifeos-staging');
+firebase.initializeApp(_IS_STAGING ? {
+  apiKey:            "AIzaSyDoSVDHs0dfmttl7vUrp-Qf1Qz2qJ8tF4E",
+  authDomain:        "mylifeos-staging.firebaseapp.com",
+  projectId:         "mylifeos-staging",
+  storageBucket:     "mylifeos-staging.firebasestorage.app",
+  messagingSenderId: "955142565160",
+  appId:             "1:955142565160:web:bc240d2d30743f746b741d"
+} : {
   apiKey:            "AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ",
   authDomain:        "life-os-prod-3a590.firebaseapp.com",
   projectId:         "life-os-prod-3a590",

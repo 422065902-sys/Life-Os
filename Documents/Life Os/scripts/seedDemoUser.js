@@ -25,13 +25,21 @@ const https = require('https');
 const http  = require('http');
 
 // ── Config Firebase ───────────────────────────────────────────────────────────
-const WEB_API_KEY  = 'AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ';
-const PROJECT_ID   = 'life-os-prod-3a590';
+// Usar variables de entorno; si no están definidas, usa los valores de producción
+// IMPORTANTE: pasar SEED_PROJECT_ID explícitamente para evitar escribir en prod por accidente
+const WEB_API_KEY  = process.env.SEED_API_KEY    || 'AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ';
+const PROJECT_ID   = process.env.SEED_PROJECT_ID || 'life-os-prod-3a590';
 const DEMO = {
-  email:    'demo@mylifeos.lat',
-  password: 'LifeOS2026Demo',
+  email:    process.env.SEED_DEMO_EMAIL    || 'demo@mylifeos.lat',
+  password: process.env.SEED_DEMO_PASSWORD || 'LifeOS2026Demo',
   name:     'Alejandro Torres',
 };
+
+// Guard adicional: advertir si se corre contra producción
+if (PROJECT_ID === 'life-os-prod-3a590') {
+  console.warn('⚠️  ATENCIÓN: ejecutando contra PRODUCCIÓN (life-os-prod-3a590).');
+  console.warn('   Para staging: SEED_PROJECT_ID=mylifeos-staging SEED_ENV=demo node scripts/seedDemoUser.js');
+}
 let DEMO_UID   = null;
 let DEMO_TOKEN = null;
 

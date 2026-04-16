@@ -355,7 +355,8 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
   log(`[AUTH] Login intento ${attempt}/${MAX_ATTEMPTS} — ${email}`);
 
   try {
-    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
+    await page.waitForTimeout(1000);
   } catch (e) {
     log(`[AUTH] Error cargando APP_URL: ${e.message}`);
     if (attempt < MAX_ATTEMPTS) {
@@ -600,7 +601,10 @@ async function seedUserData() {
         if (sel) sel.value = tipo;
       }, tx.tipo);
 
-      const descEl = await page.$('[id*="tx-desc"], [id*="descripcion"], [id*="desc"], input[placeholder*="escr"], input[placeholder*="desc"], input[placeholder*="Desc"]');
+      const descEl = await page.waitForSelector(
+        '[id*="tx-desc"], [id*="descripcion"], [id*="desc"], input[placeholder*="escr"], input[placeholder*="desc"], input[placeholder*="Desc"]',
+        { timeout: 5000, state: 'visible' }
+      ).catch(() => null);
       if (descEl) await descEl.fill(tx.desc);
 
       await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], [onclick*="saveTx"], button:has-text("Guardar"), button:has-text("Agregar")');
@@ -781,30 +785,37 @@ async function testLanding() {
 
   // Cerrar sesión activa antes de cargar la landing.
   // Firebase usa IndexedDB (LOCAL persistence) — hay que hacer signOut ASYNC y eliminar IndexedDB.
-  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  // networkidle no funciona con Firebase activo (polling continuo) — usar load + wait
+  await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForTimeout(1500);
 
   // 1. SignOut propiamente esperado + limpiar todo el storage incluyendo IndexedDB
-  await page.evaluate(async () => {
-    try {
-      if (typeof firebase !== 'undefined' && firebase.auth) {
-        const auth = firebase.auth();
-        if (auth.currentUser) await auth.signOut();
-      }
-    } catch(e) {}
-    try { localStorage.clear(); } catch(e) {}
-    try { sessionStorage.clear(); } catch(e) {}
-    // IndexedDB — Firebase guarda tokens aquí con LOCAL persistence
-    try {
-      const dbs = await (window.indexedDB.databases?.() || Promise.resolve([]));
-      await Promise.all(dbs.map(db => new Promise(res => {
-        const r = window.indexedDB.deleteDatabase(db.name);
-        r.onsuccess = r.onerror = res;
-      })));
-    } catch(e) {}
-  });
+  // page.evaluate con async puede colgar sin timeout — usar Promise.race con límite de 8s
+  await Promise.race([
+    page.evaluate(async () => {
+      try {
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+          const auth = firebase.auth();
+          if (auth.currentUser) await auth.signOut();
+        }
+      } catch(e) {}
+      try { localStorage.clear(); } catch(e) {}
+      try { sessionStorage.clear(); } catch(e) {}
+      // IndexedDB — Firebase guarda tokens aquí con LOCAL persistence
+      try {
+        const dbs = await (window.indexedDB.databases?.() || Promise.resolve([]));
+        await Promise.all(dbs.map(db => new Promise(res => {
+          const r = window.indexedDB.deleteDatabase(db.name);
+          r.onsuccess = r.onerror = res;
+        })));
+      } catch(e) {}
+    }),
+    new Promise(r => setTimeout(r, 8000))
+  ]).catch(() => {});
 
   // 2. Recargar — sin sesión en ningún storage, onAuthStateChanged dará null → landing
-  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForTimeout(1500);
   await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 }).catch(() => {});
 
   const isLanding = await evalJS(() => {
@@ -912,7 +923,7 @@ async function testAuth() {
   });
 
   if (!currentLanding) {
-    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(1500);
   }
 
@@ -1600,10 +1611,12 @@ async function testFAB() {
       // Asegurar que el FAB está cerrado y abierto limpio
       await page.keyboard.press('Escape').catch(()=>{});
       await page.waitForTimeout(200);
-      await fabBtn.click().catch(() => {});
+      // Re-adquirir handle fresco — el original puede estar obsoleto tras navegación
+      const freshFab = await page.$('#fab-btn, .fab-btn, [id*="fab-btn"]').catch(() => null);
+      await (freshFab || fabBtn).click().catch(() => {});
       await page.waitForTimeout(400);
 
-      const fabInput = await page.$('#fab-input, [id*="fab-input"]');
+      const fabInput = await page.waitForSelector('#fab-input, [id*="fab-input"]', { timeout: 5000, state: 'visible' }).catch(() => null);
       if (!fabInput) { addResult('17-FAB', `NLP: ${label}`, 'SKIP', 'fab-input no encontrado'); return ''; }
 
       await fabInput.fill('');
@@ -1746,7 +1759,8 @@ async function testAdmin() {
   }
 
   // Login como admin
-  await page.goto(APP_URL, { waitUntil: 'networkidle' });
+  await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForTimeout(1000);
   await waitFor('#auth-screen');
   await page.fill('#login-email', ADMIN_EMAIL);
   await page.fill('#login-pass', ADMIN_PASS);
@@ -1831,7 +1845,8 @@ async function testPWA() {
     swRes ? `HTTP ${swRes.status()}` : 'No accesible');
 
   // Volver a la app y capturar
-  await page.goto(APP_URL, { waitUntil: 'networkidle' });
+  await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForTimeout(1500);
   await waitForBoot();
   await takeShot('20-pwa-manifest');
 
@@ -1839,12 +1854,15 @@ async function testPWA() {
   if (!SMOKE_ONLY) {
     // Dar tiempo al SW para instalar y pre-cachear offline.html antes de cortar la red
     await page.waitForTimeout(3500);
-    // Verificar que el SW está activo
-    const swActive = await page.evaluate(async () => {
-      if (!navigator.serviceWorker) return false;
-      const reg = await navigator.serviceWorker.ready.catch(() => null);
-      return !!reg?.active;
-    }).catch(() => false);
+    // Verificar que el SW está activo — con timeout para evitar colgar si no hay SW
+    const swActive = await Promise.race([
+      page.evaluate(async () => {
+        if (!navigator.serviceWorker) return false;
+        const reg = await navigator.serviceWorker.ready.catch(() => null);
+        return !!reg?.active;
+      }).catch(() => false),
+      new Promise(r => setTimeout(() => r(false), 5000))
+    ]);
     log(`[20-PWA] Service Worker activo: ${swActive}`);
 
     await page.context().setOffline(true);
@@ -1856,8 +1874,9 @@ async function testPWA() {
       crashedOffline ? 'App no disponible offline' : 'App renderiza contenido offline');
     await takeShot('20-pwa-offline');
     await page.context().setOffline(false);
-    // Reconectar
-    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+    // Reconectar — usar load en vez de networkidle (Firebase Auth hace polling continuo)
+    await page.goto(APP_URL, { waitUntil: 'load', timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(1500);
     await waitForBoot();
     await takeShot('20-pwa-online');
   }

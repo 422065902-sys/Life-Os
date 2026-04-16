@@ -16,14 +16,22 @@
    ▸ Mientras uses los valores placeholder, la app funciona en modo
      LOCAL-ONLY (datos solo en este dispositivo, sin sincronización).
 ═══════════════════════════════════════════════════════════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ",
-  authDomain: "life-os-prod-3a590.firebaseapp.com",
-  projectId: "life-os-prod-3a590",
-  storageBucket: "life-os-prod-3a590.firebasestorage.app",
+const _IS_STAGING = location.hostname.includes('mylifeos-staging');
+const firebaseConfig = _IS_STAGING ? {
+  apiKey:            "AIzaSyDoSVDHs0dfmttl7vUrp-Qf1Qz2qJ8tF4E",
+  authDomain:        "mylifeos-staging.firebaseapp.com",
+  projectId:         "mylifeos-staging",
+  storageBucket:     "mylifeos-staging.firebasestorage.app",
+  messagingSenderId: "955142565160",
+  appId:             "1:955142565160:web:bc240d2d30743f746b741d"
+} : {
+  apiKey:            "AIzaSyATQklLWsLAzSqnWkVzcYgz-FVr_Q7eyyQ",
+  authDomain:        "life-os-prod-3a590.firebaseapp.com",
+  projectId:         "life-os-prod-3a590",
+  storageBucket:     "life-os-prod-3a590.firebasestorage.app",
   messagingSenderId: "25285159906",
-  appId: "1:25285159906:web:8e8d648a7a04097bc8a7bb",
-  measurementId: "G-DP8YMBQFCK"
+  appId:             "1:25285159906:web:8e8d648a7a04097bc8a7bb",
+  measurementId:     "G-DP8YMBQFCK"
 };
 
 // Detecta si la config ya fue reemplazada con valores reales
