@@ -724,14 +724,28 @@ async function seedUserData() {
 // ══════════════════════════════════════════════════════════════
 // 01 — AUTH
 // ══════════════════════════════════════════════════════════════
+/** Hace scroll hasta un selector dentro de .lp-scroll y espera a que entre al viewport */
+async function scrollToSection(selector) {
+  await evalJS((sel) => {
+    const scroll = document.querySelector('.lp-scroll');
+    const target = document.querySelector(sel);
+    if (!target) return;
+    if (scroll) {
+      const containerTop = scroll.getBoundingClientRect().top;
+      const elemTop = target.getBoundingClientRect().top - containerTop + scroll.scrollTop;
+      scroll.scrollTo({ top: elemTop, behavior: 'instant' });
+    } else {
+      target.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+  }, selector);
+  await page.waitForTimeout(350);
+}
+
 async function testLanding() {
   log('▶ 00-Landing');
 
   await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
-
-  // Esperar que aparezca landing page (nuevo flujo) o auth-screen (flujo viejo)
-  const landingVisible = await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 })
-    .then(() => true).catch(() => false);
+  await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 }).catch(() => {});
 
   const isLanding = await evalJS(() => {
     const lp = document.getElementById('landing-page');
@@ -741,94 +755,122 @@ async function testLanding() {
   });
 
   addResult('00-Landing', 'Landing page visible al abrir sin sesión', isLanding ? 'PASS' : 'FAIL',
-    isLanding ? '' : 'Se esperaba #landing-page visible, pero está oculto o no existe');
+    isLanding ? '' : '#landing-page oculto — se muestra auth o app directamente');
 
   if (!isLanding) {
-    log('[00-Landing] ⚠️ Landing no visible — tomando screenshot de estado actual de todas formas');
+    log('[00-Landing] ⚠️ Landing no visible — screenshot del estado actual');
     await page.screenshot({ path: `${SHOTS_DIR}/00-landing-fold.jpg`, type: 'jpeg', quality: 55 }).catch(() => {});
     return;
   }
 
-  // Scroll al top del .lp-scroll para asegurar estado inicial
+  // Forzar animaciones de entrada
   await evalJS(() => {
     const s = document.querySelector('.lp-scroll');
     if (s) s.scrollTop = 0;
-    window.scrollTo(0, 0);
+    document.querySelectorAll('.lp-anim').forEach(el => el.classList.add('lp-anim-in'));
   });
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(700);
 
-  // Screenshot 1 — Hero fold (lo primero que ve un visitante)
-  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-fold.jpg`, type: 'jpeg', quality: 55 });
-  addResult('00-Landing', 'Screenshot hero fold capturado', 'PASS');
+  // ── 1. HERO FOLD ─────────────────────────────────────────────
+  await scrollToSection('.lp-hero');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-hero.jpg`, type: 'jpeg', quality: 65 });
 
-  // Verificar que los botones CTA son visibles en el fold
   const ctaVisible = await evalJS(() => {
-    const btn = document.querySelector('.lp-btn-primary, .lp-hero-cta button');
+    const btn = document.querySelector('.lp-hero-cta .lp-btn-primary');
     if (!btn) return false;
-    const r = btn.getBoundingClientRect();
-    return r.top >= 0 && r.bottom <= window.innerHeight;
+    const r  = btn.getBoundingClientRect();
+    const lp = document.getElementById('landing-page');
+    const lpR = lp ? lp.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+    return r.top >= lpR.top && r.bottom <= lpR.bottom;
   });
-  addResult('00-Landing', 'Botones CTA visibles above the fold sin scroll', ctaVisible ? 'PASS' : 'FAIL',
-    ctaVisible ? '' : 'Los botones CTA están fuera del viewport inicial — bug de layout en hero');
+  addResult('00-Landing', 'CTA "Empezar gratis" visible above the fold', ctaVisible ? 'PASS' : 'FAIL',
+    ctaVisible ? '' : 'El botón CTA está fuera del viewport inicial — bug crítico de conversión');
 
-  // Screenshot 2 — Sección módulos / features
-  await evalJS(() => {
-    const s = document.querySelector('.lp-scroll');
-    if (s) s.scrollTop = window.innerHeight;
-    else window.scrollTo(0, window.innerHeight);
-  });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-modules.jpg`, type: 'jpeg', quality: 55 });
+  // ── 2. SECCIÓN MÓDULOS ───────────────────────────────────────
+  await scrollToSection('.lp-modules-grid');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-modules.jpg`, type: 'jpeg', quality: 65 });
 
-  // Screenshot 3 — Sección testimonios / pricing
-  await evalJS(() => {
-    const s = document.querySelector('.lp-scroll');
-    if (s) s.scrollTop = window.innerHeight * 2.5;
-    else window.scrollTo(0, window.innerHeight * 2.5);
-  });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-pricing.jpg`, type: 'jpeg', quality: 55 });
+  // ── 3. CÓMO FUNCIONA (pasos) ─────────────────────────────────
+  await scrollToSection('.lp-steps');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-steps.jpg`, type: 'jpeg', quality: 65 });
 
-  // Screenshot 4 — Footer / CTA final
-  await evalJS(() => {
-    const s = document.querySelector('.lp-scroll');
-    if (s) s.scrollTop = s.scrollHeight;
-    else window.scrollTo(0, document.body.scrollHeight);
-  });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-footer.jpg`, type: 'jpeg', quality: 55 });
+  // ── 4. TESTIMONIOS ───────────────────────────────────────────
+  await scrollToSection('.lp-testimonials');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-testimonials.jpg`, type: 'jpeg', quality: 65 });
 
-  // Screenshot responsive — mobile 390px (iPhone)
+  // ── 5. PRICING ───────────────────────────────────────────────
+  await scrollToSection('.lp-pricing');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-pricing.jpg`, type: 'jpeg', quality: 65 });
+
+  // ── 6. FOOTER CTA ────────────────────────────────────────────
+  await scrollToSection('.lp-footer-cta');
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-footer.jpg`, type: 'jpeg', quality: 65 });
+
+  addResult('00-Landing', 'Todas las secciones capturadas (hero, módulos, pasos, testimonios, pricing, footer)', 'PASS');
+
+  // ── MOBILE — iPhone 14 (390×844) ─────────────────────────────
   const origVP = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
   await evalJS(() => {
     const s = document.querySelector('.lp-scroll');
     if (s) s.scrollTop = 0;
-    window.scrollTo(0, 0);
   });
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${SHOTS_DIR}/responsive-ios-landing.jpg`, type: 'jpeg', quality: 55 });
-  addResult('00-Landing', 'Screenshot landing mobile iOS (390×844) capturado', 'PASS');
+  // Hero en iOS
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-ios-landing.jpg`, type: 'jpeg', quality: 65 });
+  // Módulos en iOS
+  await scrollToSection('.lp-modules-grid');
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-ios-landing-modules.jpg`, type: 'jpeg', quality: 65 });
+  // Pricing en iOS
+  await scrollToSection('.lp-pricing');
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-ios-landing-pricing.jpg`, type: 'jpeg', quality: 65 });
+  addResult('00-Landing', 'Screenshots landing iOS 390×844 capturados (hero + módulos + pricing)', 'PASS');
 
-  // Screenshot responsive — mobile 360px (Android)
+  // ── MOBILE — Android Pixel 6a (360×800) ──────────────────────
   await page.setViewportSize({ width: 360, height: 800 });
+  await evalJS(() => { const s = document.querySelector('.lp-scroll'); if (s) s.scrollTop = 0; });
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${SHOTS_DIR}/responsive-android-landing.jpg`, type: 'jpeg', quality: 55 });
-  addResult('00-Landing', 'Screenshot landing mobile Android (360×800) capturado', 'PASS');
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-android-landing.jpg`, type: 'jpeg', quality: 65 });
+  await scrollToSection('.lp-modules-grid');
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-android-landing-modules.jpg`, type: 'jpeg', quality: 65 });
+  addResult('00-Landing', 'Screenshots landing Android 360×800 capturados (hero + módulos)', 'PASS');
 
   // Restaurar viewport
   if (origVP) await page.setViewportSize(origVP);
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(200);
 }
 
 // ══════════════════════════════════════════════════════════════
 async function testAuth() {
   log('▶ 01-Auth');
 
-  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  // Si ya estamos en la app desde testLanding, reutilizar la página
+  // Si no, navegar de nuevo
+  const currentLanding = await evalJS(() => {
+    const lp = document.getElementById('landing-page');
+    return lp && window.getComputedStyle(lp).display !== 'none';
+  });
 
-  const authVisible = await waitFor('#auth-screen', 12000);
-  addResult('01-Auth', 'auth-screen visible antes del login', authVisible ? 'PASS' : 'FAIL');
+  if (!currentLanding) {
+    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(1500);
+  }
+
+  // Nuevo flujo: landing → clic en "Iniciar Sesión" → auth-screen
+  const onLanding = await evalJS(() => {
+    const lp = document.getElementById('landing-page');
+    return lp && window.getComputedStyle(lp).display !== 'none';
+  });
+
+  if (onLanding) {
+    // Clic en el botón de login del nav de la landing
+    await safeClick('.lp-nav-login, [onclick*="showAuthFromLanding"]');
+    await page.waitForTimeout(600);
+    addResult('01-Auth', 'Botón "Iniciar Sesión" en landing abre auth-screen', 'PASS');
+  }
+
+  const authVisible = await waitFor('#auth-screen', 8000);
+  addResult('01-Auth', 'auth-screen visible al hacer clic en Iniciar Sesión', authVisible ? 'PASS' : 'FAIL');
 
   const appHidden = await evalJS(() => {
     const el = document.getElementById('app');

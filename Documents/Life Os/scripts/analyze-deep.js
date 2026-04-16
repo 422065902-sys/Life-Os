@@ -82,7 +82,11 @@ BUG CONOCIDO A REPORTAR: En la última versión desplegada, la sección hero (#l
 PROPUESTA A EVALUAR Y MEJORAR: El usuario quiere que el título del hero (actualmente con gradiente estático cyan→purple→green) tenga una animación que CICLA a través de los 8 colores preset de la app con efecto glitch entre transiciones. Esto comunicaría visualmente que "tu color puede ser cualquiera de estos" y haría la landing memorable. Evalúa si esta idea es buena para conversión, cómo implementarla en CSS (keyframes + @property para el gradiente, clip-path glitch), y qué ajustes de timing/suavidad harían que se vea premium en lugar de genérico.
 
 SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile el contenido bajo el fold (secciones de módulos, pasos, testimonios, pricing) podría ser completamente inaccesible si no hay señal visual de que hay contenido abajo. Evalúa si hay indicadores de scroll (flecha animada, fade gradient en el borde inferior, etc.) y si falta alguno.`,
-      shots: [...files.filter(f => f.filename.startsWith('00-landing')), ...loginOnly],
+      shots: [
+        ...files.filter(f => f.filename.startsWith('00-landing')),
+        ...files.filter(f => f.filename.startsWith('responsive-') && f.filename.includes('landing')),
+        ...loginOnly,
+      ],
       maxTokens: 14000,
     },
     {
