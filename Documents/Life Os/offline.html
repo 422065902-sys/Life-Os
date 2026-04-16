@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Life OS — Sin Conexión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Syne:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root { --accent:#00e5ff; --bg:#070b14; --text:#e2e8f0; --text3:rgba(128,148,180,.45); }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; }
+    body { display:flex; align-items:center; justify-content:center; min-height:100dvh; padding:24px; }
+
+    .offline-card {
+      width:100%; max-width:380px;
+      text-align:center;
+      padding:40px 32px;
+      background:rgba(13,20,35,.9);
+      border:1px solid rgba(0,229,255,.15);
+      border-radius:20px;
+      box-shadow:0 0 60px rgba(0,229,255,.06), 0 20px 60px rgba(0,0,0,.5);
+      animation: card-in .5s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes card-in { from { opacity:0; transform:translateY(20px) scale(.97); } to { opacity:1; transform:none; } }
+
+    .offline-logo {
+      font-family:'Orbitron',monospace;
+      font-size:22px;
+      font-weight:900;
+      color:var(--accent);
+      letter-spacing:.12em;
+      margin-bottom:28px;
+      text-shadow:0 0 20px rgba(0,229,255,.4);
+    }
+
+    .offline-icon {
+      font-size:56px;
+      margin-bottom:20px;
+      animation:pulse-icon 3s ease-in-out infinite;
+    }
+    @keyframes pulse-icon { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+    .offline-title {
+      font-family:'Orbitron',monospace;
+      font-size:16px;
+      font-weight:900;
+      color:var(--text);
+      margin-bottom:10px;
+      letter-spacing:.05em;
+    }
+
+    .offline-sub {
+      font-size:13px;
+      color:var(--text3);
+      line-height:1.7;
+      margin-bottom:28px;
+    }
+
+    .offline-sub strong {
+      color:var(--accent);
+      font-weight:700;
+    }
+
+    /* Skeleton loader — muestra estructura de la app */
+    .skeleton-wrap {
+      margin-bottom:28px;
+      border:1px solid rgba(0,229,255,.08);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .skeleton-bar {
+      height:10px;
+      background:linear-gradient(90deg, rgba(0,229,255,.04) 25%, rgba(0,229,255,.12) 50%, rgba(0,229,255,.04) 75%);
+      background-size:200% 100%;
+      animation:shimmer 1.8s infinite;
+      border-radius:6px;
+      margin:10px 14px;
+    }
+    .skeleton-bar.short { width:55%; }
+    .skeleton-bar.medium { width:75%; }
+    .skeleton-bar.long { width:90%; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .retry-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:12px 28px;
+      background:transparent;
+      border:1px solid rgba(0,229,255,.35);
+      border-radius:12px;
+      color:var(--accent);
+      font-family:'Orbitron',monospace;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.06em;
+      cursor:pointer;
+      transition:all .2s;
+    }
+    .retry-btn:hover {
+      background:rgba(0,229,255,.08);
+      border-color:rgba(0,229,255,.6);
+      box-shadow:0 0 16px rgba(0,229,255,.2);
+    }
+
+    .offline-footer {
+      margin-top:20px;
+      font-size:11px;
+      color:var(--text3);
+      font-family:'JetBrains Mono',monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-card">
+    <div class="offline-logo">LIFE OS</div>
+
+    <div class="offline-icon">📡</div>
+
+    <div class="offline-title">Estás offline</div>
+    <div class="offline-sub">
+      No hay conexión a internet en este momento.<br>
+      <strong>Pero puedes seguir usando Life OS</strong> — tus datos están guardados localmente en este dispositivo.
+    </div>
+
+    <!-- Skeleton loader con branding -->
+    <div class="skeleton-wrap">
+      <div class="skeleton-bar long" style="margin-top:14px"></div>
+      <div class="skeleton-bar medium"></div>
+      <div class="skeleton-bar short"></div>
+      <div class="skeleton-bar long"></div>
+      <div class="skeleton-bar medium" style="margin-bottom:14px"></div>
+    </div>
+
+    <button class="retry-btn" onclick="window.location.reload()">
+      ↺ Reintentar conexión
+    </button>
+
+    <div class="offline-footer">
+      Los cambios se sincronizarán automáticamente cuando se restaure la conexión.
+    </div>
+  </div>
+</body>
+</html>

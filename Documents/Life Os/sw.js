@@ -7,13 +7,13 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-const CACHE_NAME    = 'lifeos-v2';
+const CACHE_NAME    = 'lifeos-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/offline.html',
   '/styles.css',
   '/main.js',
-  '/app.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -65,7 +65,14 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
           return response;
-        }).catch(() => caches.match('/index.html'));
+        }).catch(() => {
+          // Para solicitudes de navegación (HTML), mostrar offline.html con branding
+          if (event.request.mode === 'navigate') {
+            return caches.match('/offline.html');
+          }
+          // Para otros assets, intentar la caché o devolver vacío
+          return caches.match(event.request);
+        });
       })
     );
     return;

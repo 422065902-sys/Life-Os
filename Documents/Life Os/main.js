@@ -360,6 +360,14 @@ function navigate(id) {
   if (id==='routines')  { navigate('cuerpo'); switchInnerTab('cuerpo','physical'); return; }
   // ── Telemetría: módulo visitado ──
   registrarEvento('modulo_visitado', { modulo: id });
+  // ── userActivity: tracking de frecuencia para Dashboard Inteligente ──
+  if (CLOUD_ENABLED && _auth?.currentUser) {
+    _activityRef(_auth.currentUser.uid).add({
+      moduleId:     id,
+      eventType:    'view',
+      timestamp:    firebase.firestore.FieldValue.serverTimestamp(),
+    }).catch(() => {}); // silencioso — no interrumpe navegación
+  }
   // ── Onboarding tips (primera semana) ──
   if (typeof _hookNavigateTips === 'function') _hookNavigateTips(id);
 }
@@ -911,10 +919,11 @@ function renderHabits() {
   document.getElementById('h-streak') && (document.getElementById('h-streak').textContent = maxStreak + ' días');
   document.getElementById('h-count')  && (document.getElementById('h-count').textContent  = active.length);
   if (!active.length) {
-    el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="font-size:36px;animation:float-empty 3s ease-in-out infinite">🌱</div>
-      <div style="font-size:14px;font-weight:700;color:var(--text2)">Sin hábitos aún</div>
-      <div style="font-size:12px;color:var(--text3);max-width:200px;line-height:1.5">Los grandes logros empiezan con un hábito. Agrega el primero arriba.</div>
+    el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-size:42px;animation:float-empty 3s ease-in-out infinite">🌱</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text2);font-family:'Orbitron',monospace">Aún no tienes hábitos</div>
+      <div style="font-size:12px;color:var(--text3);max-width:220px;line-height:1.6">Los grandes logros empiezan con un solo hábito. ¡Crea el primero y sube de nivel!</div>
+      <button class="btn btn-a" onclick="document.getElementById('new-habit')?.focus();document.getElementById('new-habit')?.scrollIntoView({behavior:'smooth'})" style="margin-top:4px;padding:9px 20px;font-size:12px">⚡ Crear mi primer hábito</button>
     </div>`;
     return;
   }
@@ -2043,7 +2052,8 @@ function getTaskEmoji(name) {
 
 function renderCalendar() {
   const { calYear:y, calMonth:m } = S;
-  document.getElementById('cal-title').textContent = MONTHS[m]+' '+y;
+  const _calTitle = document.getElementById('cal-title');
+  if (_calTitle) _calTitle.textContent = MONTHS[m]+' '+y;
   const firstDay=new Date(y,m,1).getDay();
   const daysInMonth=new Date(y,m+1,0).getDate();
   const todayStr=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
@@ -2338,6 +2348,46 @@ function updateSettingsDisplay() {
   // — Avatar
   const _avatarEl = document.getElementById('settings-avatar');
   if (_avatarEl) _avatarEl.textContent = _realName.charAt(0).toUpperCase();
+}
+
+/* ─── _updateSaasSubscriptionUI ────────────────────────────────────
+ * Muestra la sección de pago solo a usuarios no-Pro.
+ * Pro activos ven su estado de suscripción en lugar de los planes de pago.
+ * ─────────────────────────────────────────────────────────────────── */
+function _updateSaasSubscriptionUI() {
+  const plansSection   = document.getElementById('saas-plans-section');
+  const proActiveCard  = document.getElementById('saas-pro-active-card');
+  const planBadge      = document.getElementById('saas-plan-badge');
+  const trialDaysEl    = document.getElementById('saas-trial-days');
+
+  if (S.plan === 'pro') {
+    // Usuario Pro: ocultar planes de pago, mostrar tarjeta de estado activo
+    if (plansSection)  plansSection.style.display  = 'none';
+    if (proActiveCard) proActiveCard.style.display = 'block';
+    if (planBadge) {
+      planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:#4ade80">SUSCRIPCIÓN ACTIVA</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Life OS Pro</div>`;
+    }
+  } else {
+    // Usuario en prueba o expirado: mostrar planes de pago
+    if (plansSection)  plansSection.style.display  = '';
+    if (proActiveCard) proActiveCard.style.display = 'none';
+    // Actualizar días restantes en el badge de la tab saas
+    if (trialDaysEl && !S.trialExpired) {
+      const diasTranscurridos = S.createdAt
+        ? Math.floor((Date.now() - new Date(S.createdAt)) / 86400000)
+        : 0;
+      const diasRestantes = Math.max(0, 30 - diasTranscurridos);
+      trialDaysEl.textContent = diasRestantes + ' día' + (diasRestantes !== 1 ? 's' : '') + ' restante' + (diasRestantes !== 1 ? 's' : '');
+    } else if (trialDaysEl && S.trialExpired) {
+      trialDaysEl.textContent = 'Prueba expirada';
+      trialDaysEl.style.color = 'var(--red)';
+    }
+    if (planBadge && S.trialExpired) {
+      planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:var(--red)">PRUEBA EXPIRADA</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Activa tu plan Pro</div>`;
+    }
+  }
 }
 
 let resetConfirm=false;
@@ -3429,9 +3479,11 @@ function renderAliados() {
   if (!el) return;
 
   if (!S.aliados.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px 16px;font-size:12px;color:var(--text3)">
-      <div style="font-size:28px;margin-bottom:8px">🤝</div>
-      Sin aliados aún. Busca usuarios o añade un contacto manual.
+    el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-size:42px;animation:float-empty 3s ease-in-out infinite">🤝</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text2);font-family:'Orbitron',monospace">Sin aliados aún</div>
+      <div style="font-size:12px;color:var(--text3);max-width:220px;line-height:1.6">Conecta con otros para potenciar tu mente. ¡Tu primer aliado puede cambiar tu trayectoria!</div>
+      <button class="btn btn-a" onclick="document.getElementById('aliado-search-input')?.focus();document.getElementById('aliado-search-input')?.scrollIntoView({behavior:'smooth'})" style="margin-top:4px;padding:9px 20px;font-size:12px;background:linear-gradient(135deg,#a855f7,#7c3aed)">🔮 Buscar Aliados</button>
     </div>`;
     return;
   }
@@ -4951,10 +5003,16 @@ async function loginSuccess(userObj) {
   checkTrialBanner(userObj);
   buildAdminModules(userObj);
 
-  // Ocultar pantalla de auth
+  // Ocultar pantalla de auth y mostrar app
   const as = document.getElementById('auth-screen');
   as.classList.add('hidden');
   setTimeout(() => as.style.display = 'none', 420);
+  // Ocultar landing page si estaba visible
+  const lp = document.getElementById('landing-page');
+  if (lp) lp.style.display = 'none';
+  // Mostrar app (estaba display:none hasta auth exitoso)
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.style.display = '';
 
   // ── Arrancar boot sequence AHORA, en paralelo con la carga de la nube ──
   // runBootSequence registra el callback pero no lo dispara hasta que AMBOS
@@ -5118,9 +5176,14 @@ async function doLogout() {
   localStorage.removeItem('lifeos_session');
   sessionStorage.removeItem('lifeos_session_temp');
 
-  document.getElementById('auth-screen').style.display = 'flex';
+  // Ocultar app
+  const appElLogout = document.getElementById('app');
+  if (appElLogout) appElLogout.style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('trial-banner').classList.add('hidden');
+  // Mostrar landing page al cerrar sesión (mejor UX que ir directo al login)
+  _showLandingPage();
   document.body.classList.remove('has-trial-banner');
   ['login-email','login-pass','reg-nombre','reg-tel','reg-email','reg-pass']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -5182,6 +5245,7 @@ function _checkLocalSession() {
         // Validar que no haya expirado (si tiene rememberUntil)
         if (user.rememberUntil && Date.now() > user.rememberUntil) {
           localStorage.removeItem('lifeos_session');
+          _showLandingPage();
           return;
         }
         loginSuccess(user);
@@ -5197,6 +5261,34 @@ function _checkLocalSession() {
       if (user?.id) { loginSuccess(user); return; }
     }
   } catch(e) {}
+  // Sin sesión — mostrar landing page
+  _showLandingPage();
+}
+
+/* ─── Landing page helpers ──────────────────────────────────────── */
+function _showLandingPage() {
+  const lp = document.getElementById('landing-page');
+  const as = document.getElementById('auth-screen');
+  if (lp) {
+    lp.style.display = 'flex';
+    lp.style.flexDirection = 'column';
+    // Activar animaciones de entrada con un tick de delay
+    requestAnimationFrame(() => {
+      lp.querySelectorAll('.lp-anim').forEach(el => el.classList.add('lp-anim-in'));
+    });
+  }
+  if (as) as.style.display = 'none';
+}
+
+function showAuthFromLanding(tab) {
+  const lp = document.getElementById('landing-page');
+  const as = document.getElementById('auth-screen');
+  if (lp) lp.style.display = 'none';
+  if (as) {
+    as.style.display = 'flex';
+    as.classList.remove('hidden');
+  }
+  if (tab) switchAuthTab(tab);
 }
 
 /* ═══════════════════════════════════════════
@@ -8240,7 +8332,7 @@ function _fireTabInit(pageId, tabId) {
     const _uid = _auth?.currentUser?.uid;
     if (_uid) renderXPChart(_uid);
   }
-  if (tabId === 'saas')     { renderLeaderboard(); renderWrapped(); updateGlobalCore(); }
+  if (tabId === 'saas')     { renderLeaderboard(); renderWrapped(); updateGlobalCore(); _updateSaasSubscriptionUI(); }
   // Onboarding sub-card for inner tabs
   setTimeout(() => showSubCard(tabId), 300);
 }

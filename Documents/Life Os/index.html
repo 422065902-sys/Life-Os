@@ -78,8 +78,192 @@
   </div>
 </div>
 
+<!-- ══ LANDING PAGE ══ -->
+<div id="landing-page" style="display:none">
+
+  <!-- ── Fondo con partículas CSS ── -->
+  <div class="lp-bg-glow lp-glow-1"></div>
+  <div class="lp-bg-glow lp-glow-2"></div>
+  <div class="lp-bg-glow lp-glow-3"></div>
+
+  <!-- ── Navbar mínimo ── -->
+  <nav class="lp-nav">
+    <div class="lp-nav-logo">LIFE OS</div>
+    <button class="lp-nav-login" onclick="showAuthFromLanding('login')">Iniciar Sesión →</button>
+  </nav>
+
+  <div class="lp-scroll">
+
+    <!-- ══ HERO ══ -->
+    <section class="lp-hero">
+      <div class="lp-hero-inner">
+        <div class="lp-hero-tag lp-anim lp-anim-1">⚡ Versión 2.0 — Ahora con IA</div>
+        <h1 class="lp-hero-title lp-anim lp-anim-2">El juego<br><span class="lp-gradient-text">de tu vida</span></h1>
+        <p class="lp-hero-sub lp-anim lp-anim-3">La única app de productividad que te trata como el protagonista de tu historia. Gamifica tus hábitos, finanzas, salud y mente en un solo sistema.</p>
+        <div class="lp-hero-cta lp-anim lp-anim-4">
+          <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
+          <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">Ya tengo cuenta</button>
+        </div>
+        <p class="lp-cta-legal lp-anim lp-anim-5">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
+      </div>
+    </section>
+
+    <!-- ══ MÓDULOS ══ -->
+    <section class="lp-section">
+      <div class="lp-section-label">MÓDULOS</div>
+      <h2 class="lp-section-title">Todo tu mundo, en un sistema</h2>
+      <div class="lp-modules-grid">
+        <div class="lp-module-card lp-module-cyan">
+          <div class="lp-module-icon">⚡</div>
+          <div class="lp-module-name">Productividad</div>
+          <div class="lp-module-desc">Tareas, hábitos, metas y calendario gamificados con XP</div>
+        </div>
+        <div class="lp-module-card lp-module-green">
+          <div class="lp-module-icon">💪</div>
+          <div class="lp-module-name">Cuerpo</div>
+          <div class="lp-module-desc">Gym tracker, nutrición, salud física y métricas corporales</div>
+        </div>
+        <div class="lp-module-card lp-module-purple">
+          <div class="lp-module-icon">🧠</div>
+          <div class="lp-module-name">Mente & Poder</div>
+          <div class="lp-module-desc">Pomodoro, aliados, bitácora emocional y modo Blackout</div>
+        </div>
+        <div class="lp-module-card lp-module-gold">
+          <div class="lp-module-icon">💰</div>
+          <div class="lp-module-name">Finanzas</div>
+          <div class="lp-module-desc">Control de gastos, deudas, tarjetas y balance personal</div>
+        </div>
+        <div class="lp-module-card lp-module-cyan">
+          <div class="lp-module-icon">🤖</div>
+          <div class="lp-module-name">Gemelo IA</div>
+          <div class="lp-module-desc">Tu versión digital aprende tus patrones y te da insights reales</div>
+        </div>
+        <div class="lp-module-card lp-module-purple">
+          <div class="lp-module-icon">🗺️</div>
+          <div class="lp-module-name">Life OS World</div>
+          <div class="lp-module-desc">Apartamento virtual, leaderboard y conexión con aliados</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ CÓMO FUNCIONA ══ -->
+    <section class="lp-section lp-section-alt">
+      <div class="lp-section-label">CÓMO FUNCIONA</div>
+      <h2 class="lp-section-title">De 0 a sistema élite en 3 pasos</h2>
+      <div class="lp-steps">
+        <div class="lp-step">
+          <div class="lp-step-num">01</div>
+          <div class="lp-step-title">Crea tu perfil</div>
+          <div class="lp-step-desc">Elige tus colores, configura tus módulos y el Gemelo IA comienza a observarte desde el día 1.</div>
+        </div>
+        <div class="lp-step-arrow">→</div>
+        <div class="lp-step">
+          <div class="lp-step-num">02</div>
+          <div class="lp-step-title">Gana XP cada día</div>
+          <div class="lp-step-desc">Completa hábitos, registra gastos, entrena y haz check-in. Cada acción suma XP y sube tu nivel.</div>
+        </div>
+        <div class="lp-step-arrow">→</div>
+        <div class="lp-step">
+          <div class="lp-step-num">03</div>
+          <div class="lp-step-title">Domina tu vida</div>
+          <div class="lp-step-desc">El Gemelo IA genera análisis semanales. El dashboard se adapta a ti. Tu mejor versión emerge.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ SOCIAL PROOF ══ -->
+    <section class="lp-section">
+      <div class="lp-section-label">RESULTADOS</div>
+      <h2 class="lp-section-title">Lo que dicen los usuarios</h2>
+      <div class="lp-testimonials">
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-text">"En 30 días de trial subí al nivel 12, pagué $4,200 de deuda y fui al gym 18 veces. Nunca una app me había movido tanto."</div>
+          <div class="lp-testimonial-author">
+            <div class="lp-testimonial-avatar">A</div>
+            <div>
+              <div class="lp-testimonial-name">Andrés M.</div>
+              <div class="lp-testimonial-role">Nv. 34 · México</div>
+            </div>
+          </div>
+        </div>
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-text">"El Gemelo IA me dijo algo sobre mis patrones de gasto que yo no había visto. Me ahorró más dinero del que cuesta la suscripción."</div>
+          <div class="lp-testimonial-author">
+            <div class="lp-testimonial-avatar">S</div>
+            <div>
+              <div class="lp-testimonial-name">Sara L.</div>
+              <div class="lp-testimonial-role">Nv. 28 · Monterrey</div>
+            </div>
+          </div>
+        </div>
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-text">"La gamificación es real. Compito en el leaderboard con mi hermano y los dos hemos mejorado brutalmente en 2 meses."</div>
+          <div class="lp-testimonial-author">
+            <div class="lp-testimonial-avatar">C</div>
+            <div>
+              <div class="lp-testimonial-name">Carlos R.</div>
+              <div class="lp-testimonial-role">Nv. 41 · CDMX</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ PRICING ══ -->
+    <section class="lp-section lp-section-alt">
+      <div class="lp-section-label">PRECIOS</div>
+      <h2 class="lp-section-title">Empieza gratis, actualiza cuando quieras</h2>
+      <div class="lp-pricing">
+        <div class="lp-price-card lp-price-trial">
+          <div class="lp-price-badge">GRATIS</div>
+          <div class="lp-price-name">Modo Prueba</div>
+          <div class="lp-price-amount">$0</div>
+          <div class="lp-price-period">30 días completos</div>
+          <ul class="lp-price-features">
+            <li>✅ Acceso a todos los módulos</li>
+            <li>✅ Gemelo IA incluido</li>
+            <li>✅ Datos en la nube</li>
+            <li>✅ Sin tarjeta de crédito</li>
+          </ul>
+          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
+        </div>
+        <div class="lp-price-card lp-price-pro">
+          <div class="lp-price-badge lp-badge-pro">PRO</div>
+          <div class="lp-price-name">Life OS Pro</div>
+          <div class="lp-price-amount">$99</div>
+          <div class="lp-price-period">MXN por mes</div>
+          <ul class="lp-price-features">
+            <li>✅ Todo el Modo Prueba</li>
+            <li>✅ Datos protegidos permanentemente</li>
+            <li>✅ Análisis profundo del Gemelo</li>
+            <li>✅ Soporte prioritario</li>
+            <li>✅ Cancela cuando quieras</li>
+          </ul>
+          <button class="lp-btn-secondary" style="width:100%" onclick="showAuthFromLanding('register')">Activar Pro →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ FOOTER CTA ══ -->
+    <section class="lp-footer-cta">
+      <h2 class="lp-footer-title">¿Listo para jugar en serio?</h2>
+      <p class="lp-footer-sub">Únete a los usuarios que ya están ganando XP, controlando sus finanzas y dominando sus hábitos con Life OS.</p>
+      <button class="lp-btn-primary lp-btn-xl" onclick="showAuthFromLanding('register')">🚀 Empezar gratis ahora</button>
+      <p class="lp-cta-legal" style="margin-top:12px">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
+      <div class="lp-footer-links">
+        <button onclick="openLegalModal('terms')" class="lp-footer-link">Términos</button>
+        <span style="color:rgba(128,148,180,.3)">·</span>
+        <button onclick="openLegalModal('privacy')" class="lp-footer-link">Privacidad</button>
+        <span style="color:rgba(128,148,180,.3)">·</span>
+        <span class="lp-footer-link">© 2025 Life OS · Montecristo SaaS</span>
+      </div>
+    </section>
+
+  </div><!-- /lp-scroll -->
+</div><!-- /landing-page -->
+
 <!-- ══ AUTH SCREEN (Login / Register) ══ -->
-<div id="auth-screen">
+<div id="auth-screen" style="display:none">
   <div class="auth-box pop-in">
 
     <!-- ══ HEADER FIJO: logo, subtítulo, tabs, error ══ -->
@@ -263,7 +447,7 @@
 
 <!-- ══ APP WRAPPER (SPA Root) ══ -->
 
-<div id="app">
+<div id="app" style="display:none">
 
 <!-- ══ SIDEBAR — Desktop Navigation ══ -->
 <aside id="sidebar">
@@ -1489,36 +1673,52 @@
     </div>
     <!-- /Núcleo Global -->
 
-    <!-- Planes de pago -->
-    <div class="card mb14" style="border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.04),transparent)">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:40px">🚀</div>
-        <div style="flex:1">
-          <div class="f-display" style="font-size:16px;font-weight:900;color:#a855f7;margin-bottom:4px">LIFE OS PRO</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.6">Activa tu membresía para conservar todos tus datos y acceder sin límites.<br>Actualmente en <strong style="color:var(--accent)">Modo Prueba Gratuito</strong> con acceso completo.</div>
+    <!-- Planes de pago — visible solo para usuarios no-Pro -->
+    <div id="saas-plans-section">
+      <div class="card mb14" style="border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.04),transparent)">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:40px">🚀</div>
+          <div style="flex:1">
+            <div class="f-display" style="font-size:16px;font-weight:900;color:#a855f7;margin-bottom:4px">LIFE OS PRO</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.6">Activa tu membresía para conservar todos tus datos y acceder sin límites.<br>Actualmente en <strong style="color:var(--accent)">Modo Prueba Gratuito</strong> con acceso completo.</div>
+          </div>
+          <div id="saas-plan-badge" style="padding:10px 18px;border-radius:12px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);text-align:center">
+            <div class="f-display c-accent" style="font-size:13px;font-weight:900">MODO PRUEBA</div>
+            <div id="saas-trial-days" style="font-size:11px;color:var(--text3);margin-top:2px">30 días restantes</div>
+          </div>
         </div>
-        <div id="saas-plan-badge" style="padding:10px 18px;border-radius:12px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);text-align:center">
-          <div class="f-display c-accent" style="font-size:13px;font-weight:900">MODO PRUEBA</div>
-          <div id="saas-trial-days" style="font-size:11px;color:var(--text3);margin-top:2px">7 días restantes</div>
+      </div>
+      <div class="grid2 mb14">
+        <div class="card" style="border-color:rgba(0,229,255,.3)">
+          <div style="font-size:24px;margin-bottom:8px">🔄</div>
+          <div class="f-display c-accent" style="font-size:15px;font-weight:900;margin-bottom:4px">SUSCRIPCIÓN MENSUAL</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">✅ Acceso completo<br>✅ Datos en la nube protegidos<br>✅ Cancela cuando quieras<br>✅ Soporte prioritario</div>
+          <div style="padding:10px 12px;background:rgba(0,229,255,.08);border-radius:10px;text-align:center;margin-bottom:10px">
+            <div class="f-display c-accent" style="font-size:22px;font-weight:900">$99 MXN</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">por mes</div>
+          </div>
+          <button class="btn btn-a" onclick="openModal('modal-pago')" style="width:100%;padding:10px;font-size:13px">🔐 Activar ahora</button>
+        </div>
+        <div class="card" style="border-color:rgba(255,215,0,.2);opacity:.75">
+          <div style="font-size:24px;margin-bottom:8px">♾️</div>
+          <div class="f-display c-gold" style="font-size:15px;font-weight:900;margin-bottom:4px">LIFETIME ACCESS</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">✅ Acceso de por vida<br>✅ Todas las funciones<br>✅ Actualizaciones incluidas<br>✅ Sin suscripciones</div>
+          <div style="padding:8px;background:rgba(255,215,0,.08);border-radius:8px;text-align:center;font-size:12px;color:var(--gold);font-family:'Orbitron',monospace;font-weight:700">PRÓXIMAMENTE</div>
         </div>
       </div>
     </div>
-    <div class="grid2 mb14">
-      <div class="card" style="border-color:rgba(0,229,255,.3)">
-        <div style="font-size:24px;margin-bottom:8px">🔄</div>
-        <div class="f-display c-accent" style="font-size:15px;font-weight:900;margin-bottom:4px">SUSCRIPCIÓN MENSUAL</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">✅ Acceso completo<br>✅ Datos en la nube protegidos<br>✅ Cancela cuando quieras<br>✅ Soporte prioritario</div>
-        <div style="padding:10px 12px;background:rgba(0,229,255,.08);border-radius:10px;text-align:center;margin-bottom:10px">
-          <div class="f-display c-accent" style="font-size:22px;font-weight:900">$99 MXN</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">por mes</div>
+    <!-- Estado Pro activo — visible solo para usuarios Pro -->
+    <div id="saas-pro-active-card" class="card mb14" style="display:none;border-color:rgba(74,222,128,.25);background:linear-gradient(135deg,rgba(74,222,128,.04),transparent)">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="font-size:40px">⭐</div>
+        <div style="flex:1">
+          <div class="f-display" style="font-size:16px;font-weight:900;color:#4ade80;margin-bottom:4px">LIFE OS PRO ACTIVO</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6">Tu suscripción está activa. Tienes acceso completo a todos los módulos y funciones premium.</div>
         </div>
-        <button class="btn btn-a" onclick="openModal('modal-pago')" style="width:100%;padding:10px;font-size:13px">🔐 Activar ahora</button>
-      </div>
-      <div class="card" style="border-color:rgba(255,215,0,.2);opacity:.75">
-        <div style="font-size:24px;margin-bottom:8px">♾️</div>
-        <div class="f-display c-gold" style="font-size:15px;font-weight:900;margin-bottom:4px">LIFETIME ACCESS</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">✅ Acceso de por vida<br>✅ Todas las funciones<br>✅ Actualizaciones incluidas<br>✅ Sin suscripciones</div>
-        <div style="padding:8px;background:rgba(255,215,0,.08);border-radius:8px;text-align:center;font-size:12px;color:var(--gold);font-family:'Orbitron',monospace;font-weight:700">PRÓXIMAMENTE</div>
+        <div style="padding:10px 18px;border-radius:12px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);text-align:center">
+          <div class="f-display" style="font-size:13px;font-weight:900;color:#4ade80">✅ ACTIVO</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Life OS Pro</div>
+        </div>
       </div>
     </div>
     <!-- Leaderboard -->
