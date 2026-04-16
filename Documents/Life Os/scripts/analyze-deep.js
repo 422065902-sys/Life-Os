@@ -70,6 +70,22 @@ function buildGroups(files) {
 
   return [
     {
+      id: 'landing-page',
+      name: 'Landing Page Pública — Primera Impresión y Conversión',
+      accent: 'Cyan #00e5ff + gradiente multicolor con los 8 preset colors del usuario',
+      desc: `La landing page es la CARTA DE PRESENTACIÓN de Life OS. Es lo que ve un visitante ANTES de registrarse.
+Objetivo: convertir visitantes escépticos en registros en menos de 10 segundos.
+Features diferenciadores que DEBEN estar destacados: Gemelo Potenciado (IA personalizada), Life OS World (mapa gamificado), Plan Amigos (productividad social), Rachas de hábitos (heatmap + streaks), XP y niveles, toda la vida como RPG.
+
+BUG CONOCIDO A REPORTAR: En la última versión desplegada, la sección hero (#landing-page > .lp-scroll > .lp-hero) muestra un ESPACIO VACÍO ENORME en la parte superior del viewport. El tag "Versión 2.0", el título "El juego de tu vida" y los botones CTA aparecen desplazados hacia el fondo de la pantalla — o los botones quedan cortados fuera del fold. Esto es un bug crítico de layout que causa una tasa de conversión cercana a cero porque el visitante no sabe qué hacer. Analiza el screenshot 00-landing-fold con esta información y propón la solución de CSS/layout que realmente lo resuelva.
+
+PROPUESTA A EVALUAR Y MEJORAR: El usuario quiere que el título del hero (actualmente con gradiente estático cyan→purple→green) tenga una animación que CICLA a través de los 8 colores preset de la app con efecto glitch entre transiciones. Esto comunicaría visualmente que "tu color puede ser cualquiera de estos" y haría la landing memorable. Evalúa si esta idea es buena para conversión, cómo implementarla en CSS (keyframes + @property para el gradiente, clip-path glitch), y qué ajustes de timing/suavidad harían que se vea premium en lugar de genérico.
+
+SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile el contenido bajo el fold (secciones de módulos, pasos, testimonios, pricing) podría ser completamente inaccesible si no hay señal visual de que hay contenido abajo. Evalúa si hay indicadores de scroll (flecha animada, fade gradient en el borde inferior, etc.) y si falta alguno.`,
+      shots: [...files.filter(f => f.filename.startsWith('00-landing')), ...loginOnly],
+      maxTokens: 14000,
+    },
+    {
       id: 'auth-onboarding',
       name: 'Auth, Onboarding, Blackout y Paywall',
       accent: 'Sin accent específico',
@@ -170,7 +186,7 @@ function buildGroups(files) {
 // CONTEXTO BASE (enviado en cada llamada)
 // ══════════════════════════════════════════════════════════════
 const BASE_CONTEXT = `
-Eres el equipo senior completo detrás de Life OS en 2026, con roles simultáneos:
+Eres el equipo senior completo detrás de Life OS en 2026 — la app que convierte la vida real en un RPG de productividad. Tienes roles simultáneos:
 
 🔴 SENIOR QA ENGINEER (15 años) — detectas bugs funcionales, estados rotos, NaN/undefined, flujos que fallan silenciosamente.
 🟠 SENIOR FRONTEND DEV — sabes exactamente qué archivo y línea está causando cada problema.
@@ -205,17 +221,151 @@ DECISIONES ARQUITECTURALES INAMOVIBLES:
 - El Gemelo NO muestra análisis hasta que hay suficientes datos del usuario.
 
 CONVENCIÓN DE SCREENSHOTS:
+- 00-landing-* = landing page pública (antes del login) — la carta de presentación
 - _fold = lo primero que ve el usuario al abrir el módulo (above the fold)
 - _scroll = 500px abajo (contenido below the fold)
 - responsive-android-* = Android 360×800 (Pixel 6a)
 - responsive-ios-* = iOS 390×844 (iPhone 14/15)
 ⚠️ Si _fold está vacío (solo fondo, sin contenido) = BUG DE LAYOUT crítico.
+⚠️ Si en 00-landing-fold los botones CTA no se ven = BUG CRÍTICO de conversión.
+
+LANDING PAGE — CONTEXTO CLAVE:
+La landing vive en <div id="landing-page"> con display:flex y flex-direction:column.
+Nav (`.lp-nav`) es hijo DIRECTO de #landing-page (~53px height).
+El scroll container (`.lp-scroll`) tiene flex:1 y overflow-y:auto.
+La sección hero (`.lp-hero`) está dentro de `.lp-scroll`.
+
+COLORES PRESET DE LA APP (ACCENT_PRESETS en main.js) — estos son los 8 colores que el usuario puede elegir al registrarse, y son el corazón visual del sistema:
+#00e5ff Cyan, #4ade80 Verde, #a855f7 Violeta, #fb923c Naranja, #f472b6 Rosa, #ffd700 Oro, #ff6b35 Coral, #60a5fa Azul
+
+FEATURES DIFERENCIADORES QUE DEBEN BRILLAR EN EL LANDING:
+1. Gemelo Potenciado — IA que aprende los patrones del usuario y da insights personalizados
+2. Life OS World — mapa gamificado del mundo donde vives con tu burbuja/avatar
+3. Plan Amigos / Aliados — productividad social, rachas compartidas, presencia social
+4. Rachas de Hábitos — heatmap de constancia, racha diaria, batería de hábito
+5. Sistema de XP y Niveles — cada acción de la app otorga puntos, hay leaderboard
+6. Gamificación total — la vida entera como un RPG: finanzas, salud, mente, agenda
 `.trim();
 
 // ══════════════════════════════════════════════════════════════
 // PROMPT POR GRUPO
 // ══════════════════════════════════════════════════════════════
+function buildLandingPrompt(group) {
+  const shotList = group.shots.map(s => s.name).join('\n  - ');
+  return `${BASE_CONTEXT}
+
+${'═'.repeat(60)}
+ANÁLISIS ESPECIAL: LANDING PAGE — CONVERSIÓN Y PRIMERA IMPRESIÓN
+${'═'.repeat(60)}
+
+Screenshots del landing (${group.shots.length} en total):
+  - ${shotList}
+
+El screenshot 00-landing-fold es el MÁS IMPORTANTE. Muestra lo primero que ve un visitante.
+Analiza PRIMERO ese screenshot con ojo clínico antes de los demás.
+
+${'─'.repeat(60)}
+DIMENSIÓN 1 — BUG DE LAYOUT (PRIORITARIO)
+${'─'.repeat(60)}
+
+Examina 00-landing-fold:
+- ¿Hay un espacio vacío grande en la parte superior? ¿Cuánto espacio (% del viewport) hay antes del primer contenido visible?
+- ¿Los botones "Empezar gratis →" y "Ya tengo cuenta" son visibles sin scroll?
+- ¿El tag "Versión 2.0 — Ahora con IA", el título "El juego / de tu vida" y el subtítulo caben todos above the fold?
+- Si hay espacio vacío: diagnóstica la causa raíz exacta. Estructura HTML: #landing-page (display:flex;flex-direction:column) → .lp-nav (hijo directo, ~53px) → .lp-scroll (flex:1;overflow-y:auto) → .lp-hero (antes tenía min-height:calc(100dvh-53px) con align-items:center — ese cálculo era el culpable). Propón el fix CSS específico con la regla exacta.
+
+${'─'.repeat(60)}
+DIMENSIÓN 2 — PROPUESTA DE ANIMACIÓN (EVALÚA Y MEJORA)
+${'─'.repeat(60)}
+
+IDEA DEL EQUIPO: El título del hero ("El juego / de tu vida") actualmente tiene un gradiente estático cyan→violeta→verde. La propuesta es que ese gradiente CICLE a través de los 8 colores preset de la app con efecto GLITCH entre cada transición.
+
+Los 8 colores preset (en orden que forman una secuencia visual atractiva):
+#00e5ff (Cyan) → #4ade80 (Verde) → #a855f7 (Violeta) → #f472b6 (Rosa) → #ffd700 (Oro) → #fb923c (Naranja) → #ff6b35 (Coral) → #60a5fa (Azul) → vuelta al Cyan
+
+El efecto glitch: momentos breves de "corte digital" — desplazamiento horizontal rápido (transform:translateX) + cambio brusco de color + opacidad fluctuante — justo antes de que el gradiente cambie, durante ~0.15s.
+
+Evalúa:
+1. ¿Esta animación beneficia o perjudica la conversión? ¿Por qué? (Considera: distracción vs engagement, tiempo de atención, mensaje del producto)
+2. ¿Qué ritmo es apropiado? (¿Cada cuántos segundos cambiar? ¿Muy rápido = confuso, muy lento = no se nota?)
+3. ¿Cómo implementarlo en CSS puro? Usa @keyframes para la animación del gradiente, clip-path o transform para el glitch.
+4. ¿Hay otras partes del landing donde aplicar los colores preset comunicaría mejor el "tu app, tu color"? (ej: los puntos de la sección pasos, bordes de módulos, etc.)
+5. Escribe el CSS completo listo para copiar-pegar, aplicado a .lp-gradient-text, con fallback para prefers-reduced-motion.
+
+${'─'.repeat(60)}
+DIMENSIÓN 3 — CONTENIDO Y CONVERSIÓN
+${'─'.repeat(60)}
+
+La landing DEBE comunicar estos 6 features diferenciadores antes de que el visitante haga scroll:
+1. Gemelo Potenciado (IA que aprende TUS patrones)
+2. Life OS World (mapa gamificado donde vives)
+3. Plan Amigos / Aliados (productividad social)
+4. Rachas de Hábitos (heatmap, streaks, batería)
+5. XP y Niveles (toda acción otorga puntos)
+6. Tu vida entera como RPG
+
+Con los screenshots disponibles:
+- ¿Cuál de estos 6 features está bien comunicado?
+- ¿Cuál está ausente o enterrado?
+- ¿El copy del hero ("La única app de productividad que te trata como el protagonista de tu historia...") es suficientemente específico o es genérico? Propón versión mejorada.
+- ¿La sección de módulos (00-landing-modules) muestra bien los módulos con su identidad visual?
+- ¿La sección de pasos/cómo funciona es clara?
+
+${'─'.repeat(60)}
+DIMENSIÓN 4 — SCROLLABILIDAD Y DESCUBRIMIENTO
+${'─'.repeat(60)}
+
+- ¿Hay algún indicador visual de que hay contenido debajo del hero? (flecha animada, fade gradient, texto "↓ Ver más")
+- En mobile (responsive-ios-landing, responsive-android-landing): ¿el hero cabe completo? ¿hay overflow horizontal?
+- ¿El scroll del .lp-scroll funciona con naturalidad o hay hidden overflow que bloquea el scroll?
+
+${'─'.repeat(60)}
+DIMENSIÓN 5 — PRIMERA IMPRESIÓN Y BENCHMARK
+${'─'.repeat(60)}
+
+Compara mentalmente con landings de apps premium 2026 (Linear, Notion, Superhuman, Raycast):
+- ¿La landing de Life OS se siente como un producto de $20/mes?
+- ¿El glassmorphism del nav, las tarjetas de módulos y la sección pricing está bien ejecutado?
+- ¿Hay elementos que se ven template/genérico vs elementos que se ven únicos de Life OS?
+- ¿El CTA principal "Empezar gratis →" es suficientemente prominente y urgente?
+- ¿Hay un "social proof" convincente? ¿Los testimonios se ven auténticos?
+
+${'─'.repeat(60)}
+FORMATO DE RESPUESTA:
+${'─'.repeat(60)}
+
+---PROPOSALS---
+(Entre 8 y 12 propuestas — este grupo merece más porque es la cara pública de la app)
+- [TIPO] Landing: descripción del problema | SOLUCIÓN: CSS/JS/copy exacto | PRIORIDAD: CRÍTICA/ALTA/MEDIA | CATEGORÍA: BUG/DISEÑO/CONVERSIÓN/ANIMACIÓN/COPY/MOBILE
+
+---ANALYSIS---
+
+## Landing Page — Primera Impresión y Conversión
+
+### 👁️ Lo que veo en cada screenshot
+[Para CADA screenshot, 2-3 oraciones. Sé específico sobre posiciones, tamaños, colores, qué se ve y qué falta]
+
+### 🐛 Bug de layout — diagnóstico
+[Análisis detallado del espacio vacío / CTA cut-off. Causa raíz exacta + fix CSS listo para implementar]
+
+### 🎨 Animación de colores glitch — evaluación + implementación
+[Evalúa la propuesta, mejórala si es necesario, escribe el CSS completo]
+
+### 📢 Comunicación de features — qué brilla, qué falta
+[Evalúa los 6 features diferenciadores. Copy mejorado del hero si aplica]
+
+### 📱 Mobile
+[iOS y Android — problemas específicos]
+
+### 🚀 La mejora de mayor impacto para conversión
+[Una sola mejora que más incrementaría registros. Con implementación detallada]
+
+### 💊 Salud: X/10 — [una frase honesta sobre si esta landing convierte o no]`;
+}
+
 function buildGroupPrompt(group) {
+  if (group.id === 'landing-page') return buildLandingPrompt(group);
+
   const shotList = group.shots.map(s => s.name).join('\n  - ');
 
   return `${BASE_CONTEXT}
@@ -367,6 +517,9 @@ FORMATO REQUERIDO:
 
 ### 🔗 Coherencia cross-módulo
 [¿Los módulos se sienten como parte de la misma app o como features sueltas con diseños diferentes?]
+
+### 🌐 Landing page — estado de conversión
+[¿La landing convierte? ¿El bug de hero está resuelto? ¿Los features diferenciadores brillan? ¿La animación de colores ayuda o distrae?]
 
 ### 🗺️ Roadmap sugerido (próximas 2 semanas)
 Semana 1 (quick wins, impacto inmediato):

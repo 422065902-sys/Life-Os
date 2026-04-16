@@ -724,6 +724,104 @@ async function seedUserData() {
 // ══════════════════════════════════════════════════════════════
 // 01 — AUTH
 // ══════════════════════════════════════════════════════════════
+async function testLanding() {
+  log('▶ 00-Landing');
+
+  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+
+  // Esperar que aparezca landing page (nuevo flujo) o auth-screen (flujo viejo)
+  const landingVisible = await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 })
+    .then(() => true).catch(() => false);
+
+  const isLanding = await evalJS(() => {
+    const lp = document.getElementById('landing-page');
+    if (!lp) return false;
+    const cs = window.getComputedStyle(lp);
+    return cs.display !== 'none' && cs.visibility !== 'hidden';
+  });
+
+  addResult('00-Landing', 'Landing page visible al abrir sin sesión', isLanding ? 'PASS' : 'FAIL',
+    isLanding ? '' : 'Se esperaba #landing-page visible, pero está oculto o no existe');
+
+  if (!isLanding) {
+    log('[00-Landing] ⚠️ Landing no visible — tomando screenshot de estado actual de todas formas');
+    await page.screenshot({ path: `${SHOTS_DIR}/00-landing-fold.jpg`, type: 'jpeg', quality: 55 }).catch(() => {});
+    return;
+  }
+
+  // Scroll al top del .lp-scroll para asegurar estado inicial
+  await evalJS(() => {
+    const s = document.querySelector('.lp-scroll');
+    if (s) s.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(800);
+
+  // Screenshot 1 — Hero fold (lo primero que ve un visitante)
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-fold.jpg`, type: 'jpeg', quality: 55 });
+  addResult('00-Landing', 'Screenshot hero fold capturado', 'PASS');
+
+  // Verificar que los botones CTA son visibles en el fold
+  const ctaVisible = await evalJS(() => {
+    const btn = document.querySelector('.lp-btn-primary, .lp-hero-cta button');
+    if (!btn) return false;
+    const r = btn.getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= window.innerHeight;
+  });
+  addResult('00-Landing', 'Botones CTA visibles above the fold sin scroll', ctaVisible ? 'PASS' : 'FAIL',
+    ctaVisible ? '' : 'Los botones CTA están fuera del viewport inicial — bug de layout en hero');
+
+  // Screenshot 2 — Sección módulos / features
+  await evalJS(() => {
+    const s = document.querySelector('.lp-scroll');
+    if (s) s.scrollTop = window.innerHeight;
+    else window.scrollTo(0, window.innerHeight);
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-modules.jpg`, type: 'jpeg', quality: 55 });
+
+  // Screenshot 3 — Sección testimonios / pricing
+  await evalJS(() => {
+    const s = document.querySelector('.lp-scroll');
+    if (s) s.scrollTop = window.innerHeight * 2.5;
+    else window.scrollTo(0, window.innerHeight * 2.5);
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-pricing.jpg`, type: 'jpeg', quality: 55 });
+
+  // Screenshot 4 — Footer / CTA final
+  await evalJS(() => {
+    const s = document.querySelector('.lp-scroll');
+    if (s) s.scrollTop = s.scrollHeight;
+    else window.scrollTo(0, document.body.scrollHeight);
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS_DIR}/00-landing-footer.jpg`, type: 'jpeg', quality: 55 });
+
+  // Screenshot responsive — mobile 390px (iPhone)
+  const origVP = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await evalJS(() => {
+    const s = document.querySelector('.lp-scroll');
+    if (s) s.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-ios-landing.jpg`, type: 'jpeg', quality: 55 });
+  addResult('00-Landing', 'Screenshot landing mobile iOS (390×844) capturado', 'PASS');
+
+  // Screenshot responsive — mobile 360px (Android)
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${SHOTS_DIR}/responsive-android-landing.jpg`, type: 'jpeg', quality: 55 });
+  addResult('00-Landing', 'Screenshot landing mobile Android (360×800) capturado', 'PASS');
+
+  // Restaurar viewport
+  if (origVP) await page.setViewportSize(origVP);
+  await page.waitForTimeout(300);
+}
+
+// ══════════════════════════════════════════════════════════════
 async function testAuth() {
   log('▶ 01-Auth');
 
@@ -1745,6 +1843,7 @@ async function main() {
 
   try {
     // ── Orden por riesgo (CRÍTICO primero) ──
+    await runModule(testLanding,       '00-Landing');
     await runModule(testAuth,          '01-Auth');
     await runModule(testOnboarding,    '02-Onboarding');
     await runModule(testBlackout,      '03-Blackout');
