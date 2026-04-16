@@ -5014,6 +5014,10 @@ async function loginSuccess(userObj) {
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display = '';
 
+  // Mostrar boot screen (estaba oculto hasta auth exitoso para no interferir con la landing page)
+  const bootEl = document.getElementById('boot-screen');
+  if (bootEl) bootEl.style.display = '';
+
   // ── Arrancar boot sequence AHORA, en paralelo con la carga de la nube ──
   // runBootSequence registra el callback pero no lo dispara hasta que AMBOS
   // flags estén en true: animación terminada Y datos listos (_markBootDataReady).
