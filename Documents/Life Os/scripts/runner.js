@@ -1515,27 +1515,119 @@ async function testFAB() {
     }
   }
 
-  // Staging: probar NLP del FAB
+  // ── Suite NLP del FAB ──────────────────────────────────────
   if (!SMOKE_ONLY) {
     await goTo('dashboard');
+    await page.waitForTimeout(500);
+
+    // Abrir FAB
     const fabBtn = await page.$('#fab-btn, .fab-btn, [id*="fab-btn"]');
-    if (fabBtn) {
-      await fabBtn.click().catch(() => {});
-      await page.waitForTimeout(500);
-      await page.waitForTimeout(600);
-      // Screenshot con FAB abierto
-      await takeShot('17-fab-abierto');
-      const fabInput = await page.$('#fab-input, [id*="fab-input"]');
-      if (fabInput) {
-        await safeFill('#fab-input, [id*="fab-input"]', 'tarea comprar leche mañana');
-        await page.keyboard.press('Enter').catch(() => {});
-        await page.waitForTimeout(1500);
-        const chip = await isVisible('[id*="fab-chip"], [class*="confirm-chip"], [id*="chip"]');
-        addResult('17-FAB', 'NLP FAB genera chip de confirmación', chip ? 'PASS' : 'WARN', '"tarea comprar leche mañana"');
-        // Screenshot con chip de confirmación
-        if (chip) await takeShot('17-fab-chip');
-      }
+    if (!fabBtn) {
+      addResult('17-FAB', 'FAB button encontrado para pruebas NLP', 'FAIL', 'Botón no visible en dashboard');
+      return;
     }
+
+    /** Abre el FAB, escribe el texto, lee el preview y ejecuta. Devuelve el texto del preview. */
+    async function fabTest(label, input, expectedModule) {
+      // Asegurar que el FAB está cerrado y abierto limpio
+      await page.keyboard.press('Escape').catch(()=>{});
+      await page.waitForTimeout(200);
+      await fabBtn.click().catch(() => {});
+      await page.waitForTimeout(400);
+
+      const fabInput = await page.$('#fab-input, [id*="fab-input"]');
+      if (!fabInput) { addResult('17-FAB', `NLP: ${label}`, 'SKIP', 'fab-input no encontrado'); return ''; }
+
+      await fabInput.fill('');
+      await fabInput.type(input, { delay: 30 });
+      await page.waitForTimeout(600); // debounce del preview
+
+      // Leer preview
+      const previewText = await evalJS(() => {
+        const p = document.getElementById('fab-preview');
+        return p ? p.textContent.trim() : '';
+      });
+      const previewVisible = await isVisible('#fab-preview');
+
+      const moduleOK = !expectedModule || previewText.toLowerCase().includes(expectedModule.toLowerCase());
+      addResult('17-FAB', `NLP preview "${label}"`,
+        previewVisible && moduleOK ? 'PASS' : 'WARN',
+        `input: "${input}" → preview: "${previewText.substring(0,80)}"`);
+
+      // Ejecutar (Enter)
+      await page.keyboard.press('Enter').catch(() => {});
+      await page.waitForTimeout(1200);
+
+      // Verificar chip de confirmación
+      const chip = await isVisible('#fab-confirm-chip, [id*="fab-chip"], [class*="confirm-chip"]');
+      addResult('17-FAB', `Chip confirmación "${label}"`, chip ? 'PASS' : 'WARN',
+        chip ? '' : 'El chip de confirmación no apareció tras ejecutar');
+
+      return previewText;
+    }
+
+    // Screenshot con FAB abierto (estado inicial)
+    await fabBtn.click().catch(() => {});
+    await page.waitForTimeout(500);
+    await takeShot('17-fab-abierto');
+    await page.keyboard.press('Escape').catch(()=>{});
+    await page.waitForTimeout(200);
+
+    // ── Casos de prueba NLP ──────────────────────────────────
+
+    // 1. TAREA básica
+    await fabTest('tarea básica', 'comprar leche mañana', 'Tarea');
+
+    // 2. GASTO con monto
+    await fabTest('gasto con $', 'gasté 150 en café', 'Finanzas');
+
+    // 3. GASTO con typo: "gaste" sin tilde
+    await fabTest('gasto sin tilde', 'gaste 80 en comida', 'Finanzas');
+
+    // 4. GASTO Uber/transporte
+    await fabTest('gasto Uber', 'uber 95 pesos para ir al aeropuerto', 'Finanzas');
+
+    // 5. INGRESO
+    await fabTest('ingreso cobré', 'cobré 3500 del proyecto freelance', 'Ingreso');
+
+    // 6. INGRESO con typo: "recibi"
+    await fabTest('ingreso recibi', 'recibi 2000 de sueldo', 'Ingreso');
+
+    // 7. CALENDARIO con hora
+    await fabTest('evento con hora', 'reunión con el equipo mañana a las 10am', 'Calendario');
+
+    // 8. CALENDARIO typo: "reunion"
+    await fabTest('reunión sin tilde', 'reunion con cliente el viernes a las 3pm', 'Calendario');
+
+    // 9. IDEA
+    await fabTest('idea', 'idea: agregar modo oscuro automático según la hora del día', 'Ideas');
+
+    // 10. HÁBITO — el usuario dice que ya lo hizo
+    await fabTest('hábito hecho', 'hice mi hábito de lectura', 'Hábito');
+
+    // 11. GYM / hábito físico
+    await fabTest('fui al gym', 'fui al gym esta mañana', 'Hábito');
+
+    // 12. CORRER con typo
+    await fabTest('corrí con typo', 'cori 5km en el parque', 'Hábito');
+
+    // 13. TYPO cosinar
+    await fabTest('typo cosinar', 'cosinar pasta para cenar hoy', 'Calendario');
+
+    // 14. VICTORIA / bitácora
+    await fabTest('victoria', 'victoria: terminé el proyecto antes del deadline', 'Bitácora');
+
+    // 15. META
+    await fabTest('meta nueva', 'meta: leer 12 libros este año', 'Meta');
+
+    // 16. MULTI: gasto + fecha
+    await fabTest('multi gasto+fecha', 'pagar renta 4500 pesos el 1ro', 'Finanzas');
+
+    // 17. TEXTO ambiguo → debe caer en tarea
+    await fabTest('texto ambiguo → tarea', 'revisar correos importantes del trabajo', 'Tarea');
+
+    // Screenshot final con chip visible
+    await takeShot('17-fab-nlp-final');
   }
 }
 

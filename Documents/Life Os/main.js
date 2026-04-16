@@ -6003,6 +6003,10 @@ const MODULE_LABELS = {
   financial: { icon:'💰', label:'Finanzas'      },
   task:      { icon:'✅', label:'Tareas'        },
   idea:      { icon:'💡', label:'Ideas Rápidas' },
+  habit:     { icon:'🔥', label:'Hábitos'       },
+  income:    { icon:'💚', label:'Ingreso'        },
+  mood:      { icon:'📓', label:'Bitácora'      },
+  goal:      { icon:'🎯', label:'Metas'         },
 };
 
 // ── Claude NLP (async, optional) ─────────────────────
@@ -6011,6 +6015,7 @@ async function callClaudeNLP(text) {
   if (!key || !key.startsWith('sk-ant-')) return null;
   try {
     const todayStr = today();
+    const habitNames = (S.habits||[]).filter(h=>!h.deleted).map(h=>h.name).join(', ');
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -6021,23 +6026,44 @@ async function callClaudeNLP(text) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 350,
+        max_tokens: 450,
         messages: [{ role: 'user', content:
-`Analiza este texto en español y extrae la intención. Responde SOLO con JSON válido, sin texto adicional.
+`Eres el motor NLP de Life OS, una app de productividad gamificada en español. Analiza el texto y extrae la intención. Responde SOLO con JSON válido.
 
 Texto: "${text.replace(/"/g,"'")}"
 Fecha de hoy: ${todayStr}
-Sábado próximo: ${getNextWeekday(6)}
-Domingo próximo: ${getNextWeekday(0)}
+Hábitos del usuario: ${habitNames || 'ninguno registrado'}
+Próximo sábado: ${getNextWeekday(6)} | Próximo domingo: ${getNextWeekday(0)}
+Próximo lunes: ${getNextWeekday(1)} | Próximos días: lun=${getNextWeekday(1)}, mar=${getNextWeekday(2)}, mié=${getNextWeekday(3)}, jue=${getNextWeekday(4)}, vie=${getNextWeekday(5)}
 
-Devuelve:
-{"modules":["calendar","financial","task","idea"],"correctedText":"texto con ortografía corregida","calendar":{"text":"nombre evento","date":"YYYY-MM-DD","time":"HH:MM o vacío"},"financial":{"amount":número,"desc":"descripción","type":"salida"},"task":{"name":"nombre tarea"},"idea":{"text":"texto idea"}}
+Módulos disponibles: calendar, financial, income, task, habit, idea, mood, goal
 
-Reglas:
-- modules puede incluir múltiples valores si el texto combina intenciones (ej: gasto + fecha → calendar+financial)
-- ideas: textos que comienzan con "idea:", "nota:", o que son reflexiones/sugerencias sobre la app
-- Usa solo los campos relevantes según modules
-- Para fechas relativas calcula la fecha YYYY-MM-DD correcta` }]
+JSON a devolver:
+{
+  "modules": ["lista de módulos detectados"],
+  "correctedText": "texto con ortografía corregida (conserva el sentido, no parafrasees)",
+  "calendar": {"text": "nombre evento", "date": "YYYY-MM-DD", "time": "HH:MM o vacío"},
+  "financial": {"amount": número, "desc": "descripción limpia", "type": "salida"},
+  "income": {"amount": número, "desc": "fuente del ingreso"},
+  "task": {"name": "nombre de la tarea"},
+  "habit": {"name": "nombre del hábito a marcar como completado hoy"},
+  "idea": {"text": "texto de la idea o nota"},
+  "mood": {"text": "nota de ánimo o victoria del día"},
+  "goal": {"name": "nombre de la meta", "desc": "descripción opcional"}
+}
+
+Reglas de routing:
+- financial: gastos (gasté, pagué, compré, costó, $N, uber, gasolina, comida, renta, café, etc.). type siempre "salida".
+- income: ingresos (cobré, me pagaron, recibí, ingresé, entró, depósito, sueldo, freelance, venta, me transfirieron)
+- calendar: eventos con hora o fecha (agendar, reunión, cita, evento, llamada, comer, cenar, dentista, doctor, viaje, clase, junta, práctica, partido, concierto, ir a, vernos)
+- task: cosas por hacer (recordar, hacer, comprar, pendiente, debo, necesito, agendar sin fecha, traer, llevar)
+- habit: el usuario dice que YA HIZO algo que suena a hábito (hice, fui al gym, corrí, entrené, completé, cumplí, medité, leí, bebí agua, me ejercité). Busca coincidencia con hábitos del usuario.
+- idea: idea:, nota:, apunta:, sugerencia:, o reflexiones sobre la app/vida
+- mood: victoria:, logro:, me siento, ánimo, hoy me di cuenta, hoy fue un día
+- goal: meta:, objetivo:, quiero lograr, propósito, reto de N días
+- Un texto puede tener MÚLTIPLES módulos (ej: "gasté 200 en comida y mañana tengo junta" → financial + calendar)
+- Corrige typos obvios: cosinar→cocinar, jym→gym, aser→hacer, mañna→mañana, etc.
+- Para fechas relativas usa las fechas proporcionadas arriba.` }]
       })
     });
     if (!res.ok) return null;
@@ -6087,13 +6113,83 @@ function formatChipDate(dateStr) {
 }
 
 // ── Local NLP fallback ────────────────────────────────
+
+// Diccionario de corrección de typos — expandido
 const _TYPOS = {
-  cosina:'cocina',cosinando:'cocinando',cosinar:'cocinar',
-  aser:'hacer',acer:'hacer',jym:'gym',gimnacio:'gimnasio',
-  tarea:'tarea',apuntar:'apuntar',recordar:'recordar'
+  // Cocina / comida
+  cosina:'cocina', cosinando:'cocinando', cosinar:'cocinar', cosino:'cocinó',
+  desayune:'desayuné', almorse:'almorcé', sene:'cené', comio:'comió',
+  // Ejercicio / gym
+  jym:'gym', gimnacio:'gimnasio', gimnasio:'gimnasio', entreno:'entrené',
+  enrene:'entrené', ejersicio:'ejercicio', ejersisio:'ejercicio', ejersicios:'ejercicios',
+  cori:'corrí', salí:'salí', rrutina:'rutina', cardio:'cardio',
+  pesa:'pesas', pesass:'pesas', levante:'levanté', lenvante:'levanté',
+  // Verbos comunes con tilde perdida
+  aser:'hacer', acer:'hacer', haer:'hacer', haser:'hacer',
+  fui:'fui', fue:'fue', hise:'hice', hize:'hice',
+  pague:'pagué', gaste:'gasté', compre:'compré', cobre:'cobré',
+  recibi:'recibí', recivi:'recibí', agendi:'agendé', agende:'agendé',
+  llame:'llamé', avise:'avisé', anote:'anoté', apunte:'apunté',
+  complete:'completé', cumplí:'cumplí', cumpli:'cumplí',
+  // Días con typo
+  mañna:'mañana', manana:'mañana', maña:'mañana', manañana:'mañana',
+  sabado:'sábado', miercoles:'miércoles', proximo:'próximo', proxima:'próxima',
+  // Otros frecuentes
+  ojala:'ojalá', despues:'después', tambien:'también', rapido:'rápido',
+  reunon:'reunión', reuion:'reunión', reune:'reúne',
+  dentista:'dentista', medicoo:'médico', medico:'médico',
+  pendinte:'pendiente', recuerda:'recuerda', recueda:'recuerda',
+  uber:'Uber', rappi:'Rappi', didi:'DiDi', spotify:'Spotify',
 };
+
+// Levenshtein para fuzzy correction de palabras desconocidas
+function _levenshtein(a, b) {
+  if (a===b) return 0;
+  const m=a.length, n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i?j?0:i:j));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+const _KNOWN_WORDS = ['hacer','cocinar','gimnasio','mañana','sábado','domingo','lunes','martes','miércoles','jueves','viernes','reunión','cita','evento','gasté','pagué','compré','cobré','recibí','entrené','corrí','cumplí','completé','hábito','tarea','idea','nota','meta','objetivo','ánimo','victoria','logro','ingreso','sueldo'];
+
 function fixTypos(text) {
-  return text.split(/\s+/).map(w => _TYPOS[w.toLowerCase()] || w).join(' ');
+  return text.split(/\s+/).map(w => {
+    const lw = w.toLowerCase();
+    // Exact match en diccionario
+    if (_TYPOS[lw]) return _TYPOS[lw];
+    // Si la palabra tiene ≥5 chars, buscar palabra conocida con distancia 1
+    if (lw.length >= 5) {
+      for (const kw of _KNOWN_WORDS) {
+        if (Math.abs(lw.length - kw.length) <= 2 && _levenshtein(lw, kw) === 1) return kw;
+      }
+    }
+    return w;
+  }).join(' ');
+}
+
+// Utilidad: extraer monto numérico
+function _extractAmount(lower) {
+  const re = /\$?\s*([\d,]+\.?\d*)\s*(?:pesos|mxn|mx|varos|varones|pesitos)?/i;
+  const m = lower.match(re);
+  return m ? parseFloat(m[1].replace(/,/g,'')) : 0;
+}
+
+// Utilidad: limpiar texto de keywords financieros
+function _cleanFinDesc(text, kwRE) {
+  return text.replace(/\$?\s*[\d,]+\.?\d*\s*(?:pesos|mxn|mx|varos)?/gi,'')
+             .replace(kwRE,'').replace(/\s+/g,' ').trim() || 'gasto';
+}
+
+// Fuzzy match de hábito del usuario
+function _findHabit(name) {
+  const q = name.toLowerCase().replace(/^(el|la|mi|un|una)\s+/,'');
+  return (S.habits||[]).find(h => {
+    if (h.deleted) return false;
+    const hn = h.name.toLowerCase().replace(/^[^\w]+/,'');
+    return hn.includes(q) || q.includes(hn) || _levenshtein(q, hn) <= 2;
+  });
 }
 
 function parseLocalNLP(raw) {
@@ -6102,47 +6198,98 @@ function parseLocalNLP(raw) {
   const lower = fixed.toLowerCase();
   const result = { modules:[], correctedText:fixed };
 
-  // IDEAS
-  if (/^(idea|nota|apunta|sugerencia)[:\s]/i.test(lower)) {
+  // ── 1. IDEAS ───────────────────────────────────────────────
+  if (/^(idea|nota|apunta|sugerencia|ocurrencia)[:\s]/i.test(lower)) {
     result.modules.push('idea');
-    result.idea = { text: fixed.replace(/^(idea|nota|apunta|sugerencia)[:\s]+/i,'').trim() };
+    result.idea = { text: fixed.replace(/^(idea|nota|apunta|sugerencia|ocurrencia)[:\s]+/i,'').trim() };
     return result;
   }
 
-  // FINANCIAL signals
-  const hasFinKw = /gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|cobré|cobre|\$\d/.test(lower);
-  const amountRE = /\$?([\d,]+\.?\d*)\s*(?:pesos|mxn|mx)?/i;
-  const hasAmount = amountRE.test(lower);
+  // ── 2. MOOD / BITÁCORA ────────────────────────────────────
+  if (/^(victoria|logro|hoy logré|hoy fué|hoy fue|me siento|ánimo|animo|bitacora|bitácora)[:\s]/i.test(lower) ||
+      /\b(me siento|me sentí|hoy me di cuenta|hoy fue un día|estado de ánimo)\b/i.test(lower)) {
+    result.modules.push('mood');
+    result.mood = { text: fixed.replace(/^(victoria|logro|bitacora|bitácora)[:\s]+/i,'').trim() };
+    return result;
+  }
 
-  // CALENDAR signals
-  const hasCalKw = /\b(agendar|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|dentista|doctor|vuelo|viaje|partido|concierto|ir al|gym)\b/i.test(lower);
-  const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo)\b/i.test(lower);
-  const timeRE   = /(?:a las?|at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
+  // ── 3. META / GOAL ────────────────────────────────────────
+  if (/^(meta|objetivo|propósito|proposito|reto|quiero lograr)[:\s]/i.test(lower)) {
+    result.modules.push('goal');
+    result.goal = { name: fixed.replace(/^(meta|objetivo|propósito|proposito|reto|quiero lograr)[:\s]+/i,'').trim() };
+    return result;
+  }
+
+  // ── 4. INGRESO (income) ──────────────────────────────────
+  const hasIncomeKw = /\b(cobré|cobre|me pagaron|pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|me transfirieron|transferencia)\b/i.test(lower);
+  const hasAmount   = /\$?\s*[\d,]+/.test(lower);
+
+  if (hasIncomeKw && hasAmount) {
+    const amount = _extractAmount(lower);
+    const desc   = _cleanFinDesc(fixed, /cobré|cobre|me pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|me transfirieron|transferencia/gi);
+    result.modules.push('income');
+    result.income = { amount, desc };
+    return result;
+  }
+
+  // ── 5. GASTO FINANCIERO ───────────────────────────────────
+  const hasFinKw = /\b(gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|invertí|invierte|cafe|café|uber|rappi|didi|taxi|gasolina|bencina|comida|renta|gimnasio|gym|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota)\b|\$\d/i.test(lower);
+
+  // ── 6. CALENDARIO ────────────────────────────────────────
+  const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|dentista|doctor|médico|medico|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
+  const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo|esta semana|este fin)\b/i.test(lower);
+  const timeRE   = /(?:a las?|at|@)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
   const timeM    = lower.match(timeRE);
 
-  // MULTI: financial + calendar (e.g. "pagar renta el 1ro, 4500 pesos")
+  // ── 7. HÁBITO ─────────────────────────────────────────────
+  // El usuario dice que YA hizo algo: "hice mi hábito de lectura", "fui al gym", "corrí 5km", "completé meditación"
+  const hasHabitAction = /\b(hice|fui al|fui a|entrené|entrenué|corr[ií]|medité|medite|leí|lei|bebí agua|bebe|cumpli|cumplí|completé|complete|hábito|habito)\b/i.test(lower);
+  if (hasHabitAction) {
+    // Extraer qué hábito es
+    const habitQ = fixed
+      .replace(/\b(hice|mi hábito de|mi habito de|cumplí|cumpli|completé|complete|hoy|ya|por fin)\b/gi,'')
+      .replace(/\b(fui al|fui a la|fui a)\b/gi,'')
+      .trim();
+    const found = _findHabit(habitQ);
+    result.modules.push('habit');
+    result.habit = { name: found ? found.name : habitQ, id: found ? found.id : null };
+    // Si además tiene fecha/hora = también calendario
+    if (hasCalKw || (hasDate && timeM)) {
+      const date = parseRelativeDate(fixed);
+      result.modules.push('calendar');
+      result.calendar = { text: result.habit.name, date, time:'' };
+    }
+    return result;
+  }
+
+  // ── 8. MULTI: gasto + fecha ───────────────────────────────
   if (hasFinKw && hasAmount && hasDate) {
-    const amtM  = lower.match(amountRE);
-    const amount = parseFloat((amtM[1]||'0').replace(/,/g,''));
-    const desc  = fixed.replace(amountRE,'').replace(/pagar|el \d+\S*|mañana|hoy|pesos|mxn/gi,'').trim() || 'pago';
-    const date  = parseRelativeDate(fixed);
+    const amount = _extractAmount(lower);
+    const desc   = _cleanFinDesc(fixed, /gasté|gaste|pagué|pague|en|de|por|pagar|el \d+\S*|hoy|mañana|pesos|mxn/gi);
+    const date   = parseRelativeDate(fixed);
     result.modules.push('calendar','financial');
-    result.calendar  = { text:desc, date, time:'' };
+    result.calendar  = { text: desc, date, time:'' };
     result.financial = { amount, desc, type:'salida' };
     return result;
   }
 
-  // Pure financial
+  // ── 9. GASTO puro ─────────────────────────────────────────
   if (hasFinKw && hasAmount) {
-    const amtM  = lower.match(amountRE);
-    const amount = parseFloat((amtM[1]||'0').replace(/,/g,''));
-    const desc  = fixed.replace(amountRE,'').replace(/gasté|gaste|pagué|pague|en|de|por|pesos|mxn/gi,'').trim() || 'gasto';
+    const amount = _extractAmount(lower);
+    const desc   = _cleanFinDesc(fixed, /gasté|gaste|pagué|pague|costó|costo|compré|compre|en|de|por|pesos|mxn|invertí|invierte/gi);
     result.modules.push('financial');
     result.financial = { amount, desc, type:'salida' };
     return result;
   }
 
-  // Calendar (with or without time)
+  // ── 10. GASTO sin monto (con keyword fuerte) ──────────────
+  if (/\b(gasté|gaste|pagué|pague|costó|costo|compré|compre)\b/i.test(lower)) {
+    result.modules.push('financial');
+    result.financial = { amount:0, desc: fixed.replace(/gasté|gaste|pagué|pague|costó|costo|compré|compre/gi,'').trim()||'gasto', type:'salida' };
+    return result;
+  }
+
+  // ── 11. CALENDARIO puro ───────────────────────────────────
   if (hasCalKw || (hasDate && timeM)) {
     let eventText = fixed;
     let timeStr = '';
@@ -6161,7 +6308,7 @@ function parseLocalNLP(raw) {
     return result;
   }
 
-  // Default: task
+  // ── 12. Default: TAREA ────────────────────────────────────
   result.modules.push('task');
   result.task = { name:fixed };
   return result;
@@ -6195,19 +6342,31 @@ function parseFABPreview(raw) {
   prev.style.display='block';
   prev.style.borderColor=''; prev.style.color='';
 
-  if (p.modules.includes('financial') && p.modules.includes('calendar')) {
+  const mods = p.modules || [];
+  if (mods.includes('income')) {
+    prev.className='fab-preview financial'; prev.style.borderColor='rgba(74,222,128,.35)'; prev.style.color='#4ade80';
+    prev.textContent=`💚 Ingreso: +$${(p.income?.amount||0).toLocaleString()} — "${p.income?.desc||''}"`;
+  } else if (mods.includes('financial') && mods.includes('calendar')) {
     prev.className='fab-preview financial';
     prev.textContent=`📅💰 Calendario + Finanzas — $${(p.financial?.amount||0).toLocaleString()} · "${p.calendar?.text||''}"`;
-  } else if (p.modules.includes('financial')) {
+  } else if (mods.includes('financial')) {
     prev.className='fab-preview financial';
-    prev.textContent=`💰 Finanzas: $${(p.financial?.amount||0).toLocaleString()} — "${p.financial?.desc||''}"`;
-  } else if (p.modules.includes('calendar')) {
-    prev.className='fab-preview task';
-    prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
+    prev.textContent=`💰 Gasto: $${(p.financial?.amount||0).toLocaleString()} — "${p.financial?.desc||''}"`;
+  } else if (mods.includes('habit')) {
+    prev.className='fab-preview task'; prev.style.borderColor='rgba(251,146,60,.35)'; prev.style.color='#fb923c';
+    prev.textContent=`🔥 Hábito completado: "${p.habit?.name||''}"`;
+  } else if (mods.includes('mood')) {
+    prev.className='fab-preview idea'; prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
+    prev.textContent=`📓 Bitácora: "${p.mood?.text||''}"`;
+  } else if (mods.includes('goal')) {
+    prev.className='fab-preview task'; prev.style.borderColor='rgba(0,229,255,.3)'; prev.style.color='var(--accent)';
+    prev.textContent=`🎯 Meta: "${p.goal?.name||''}"`;
+  } else if (mods.includes('calendar')) {
+    prev.className='fab-preview task'; prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
     const d = p.calendar?.date ? ` · ${formatChipDate(p.calendar.date)}` : '';
     const t = p.calendar?.time ? ` ${p.calendar.time}` : '';
     prev.textContent=`📅 "${p.calendar?.text||''}"${d}${t} → Calendario`;
-  } else if (p.modules.includes('idea')) {
+  } else if (mods.includes('idea')) {
     prev.className='fab-preview idea';
     prev.textContent=`💡 "${p.idea?.text||''}" → Ideas Rápidas`;
   } else {
@@ -6241,38 +6400,91 @@ async function executeFAB() {
 function _applyFABResult(p) {
   const routed = [];
   for (const mod of (p.modules||[])) {
+
     if (mod==='financial' && p.financial) {
       const fabTx = { id:uid(), type:'salida', scope:'personal',
-        category:'Otro', amount:p.financial.amount,
-        desc:p.financial.desc, date:today(), cuotas:false,
+        category:'Otro', amount:p.financial.amount||0,
+        desc:p.financial.desc||'gasto', date:today(), cuotas:false,
         deleted:false, createdAt:Date.now() };
       S.transactions.unshift(fabTx);
-      // Cloud-First: write to sub-collection so onSnapshot keeps it
-      if (CLOUD_ENABLED && _db && _auth?.currentUser) {
+      if (CLOUD_ENABLED && _db && _auth?.currentUser)
         _txCollRef(_auth.currentUser.uid).doc(fabTx.id).set(fabTx)
-          .catch(e => console.warn('[Life OS] FAB financial save:', e.message));
-      }
+          .catch(e => console.warn('[FAB] financial save:', e.message));
       if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
-      routed.push({ mod:'financial', detail:`$${(p.financial.amount||0).toLocaleString()}` });
+      routed.push({ mod:'financial', detail:`-$${(p.financial.amount||0).toLocaleString()}` });
     }
+
+    if (mod==='income' && p.income) {
+      const fabTx = { id:uid(), type:'entrada', scope:'personal',
+        category:'Ingreso', amount:p.income.amount||0,
+        desc:p.income.desc||'ingreso', date:today(), cuotas:false,
+        deleted:false, createdAt:Date.now() };
+      S.transactions.unshift(fabTx);
+      if (CLOUD_ENABLED && _db && _auth?.currentUser)
+        _txCollRef(_auth.currentUser.uid).doc(fabTx.id).set(fabTx)
+          .catch(e => console.warn('[FAB] income save:', e.message));
+      if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
+      routed.push({ mod:'income', detail:`+$${(p.income.amount||0).toLocaleString()}` });
+    }
+
     if (mod==='calendar' && p.calendar) {
       const d = p.calendar.date || today();
       if (!S.calEvents[d]) S.calEvents[d]=[];
       const txt = p.calendar.time ? `${p.calendar.text} — ${p.calendar.time}` : p.calendar.text;
       S.calEvents[d].push({ id:uid(), text:txt });
+      if (typeof renderCalendar==='function') renderCalendar();
       routed.push({ mod:'calendar', detail:formatChipDate(p.calendar.date) });
     }
+
     if (mod==='task' && p.task) {
-      S.tasks.unshift({ id:uid(), name:p.task.name, desc:'', date:today(), time:'', done:false });
+      S.tasks.unshift({ id:uid(), name:p.task.name||'tarea', desc:'', date:today(), time:'', done:false });
       if (typeof renderTasks==='function') renderTasks();
       if (typeof updateDashboardTaskCount==='function') updateDashboardTaskCount();
-      routed.push({ mod:'task', detail:(p.task.name||'').substring(0,22) });
+      routed.push({ mod:'task', detail:(p.task.name||'tarea').substring(0,22) });
     }
+
     if (mod==='idea') {
       if (!S.ideas) S.ideas=[];
       const ideaText = p.idea?.text || p.correctedText || '';
       S.ideas.unshift({ id:uid(), text:ideaText, date:today() });
       routed.push({ mod:'idea', detail:ideaText.substring(0,24) });
+    }
+
+    if (mod==='habit' && p.habit) {
+      // Buscar hábito existente por id o fuzzy name
+      let h = p.habit.id ? S.habits.find(x=>x.id===p.habit.id) : _findHabit(p.habit.name||'');
+      if (h && !h.deleted) {
+        if (!h.completedToday) toggleHabit(h.id);
+        routed.push({ mod:'habit', detail:(h.name||'').substring(0,22) });
+      } else {
+        // Crear hábito nuevo y marcarlo completado hoy
+        const newH = { id:uid(), name:p.habit.name||'hábito', streak:1,
+          completedToday:true, lastCompletedDate:today(),
+          history:[today()], battery:25, deleted:false };
+        if (!S.habits) S.habits=[];
+        S.habits.push(newH);
+        gainXP(25);
+        _logActivity('habit', 25, newH.name);
+        if (typeof renderHabits==='function') renderHabits();
+        routed.push({ mod:'habit', detail:(newH.name||'').substring(0,22) });
+      }
+    }
+
+    if (mod==='mood' && p.mood) {
+      // Agregar a bitácora de victorias
+      const moodText = p.mood.text || p.correctedText || '';
+      if (!S.victorias) S.victorias=[];
+      S.victorias.unshift({ id:uid(), text:moodText, date:today() });
+      gainXP(10);
+      routed.push({ mod:'mood', detail:moodText.substring(0,24) });
+    }
+
+    if (mod==='goal' && p.goal) {
+      if (!S.goals) S.goals=[];
+      S.goals.unshift({ id:uid(), name:p.goal.name||'meta', desc:p.goal.desc||'',
+        progress:0, target:100, unit:'%', date:today(), done:false });
+      if (typeof renderGoals==='function') renderGoals();
+      routed.push({ mod:'goal', detail:(p.goal.name||'meta').substring(0,22) });
     }
   }
   showFABChip(routed, p.modules||[]);
