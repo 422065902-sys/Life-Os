@@ -3617,6 +3617,9 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 .plan-feat{font-size:11px;color:var(--text2)}
 .plan-btn{width:100%;padding:11px;font-size:12px;font-weight:900;border-radius:10px;margin-top:auto}
 .plan-btn-soon{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);color:var(--text3);cursor:not-allowed;font-family:'Syne',sans-serif;border-radius:10px;padding:11px;width:100%;font-size:12px}
+.plan-card-estudiante{border:2px solid rgba(168,85,247,.45);background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(168,85,247,.03));transition:box-shadow .2s;cursor:pointer}
+.plan-card-estudiante:hover{box-shadow:0 0 24px rgba(168,85,247,.18);border-color:rgba(168,85,247,.7)}
+.plan-btn-estudiante{background:linear-gradient(135deg,#9333ea,#7c3aed);color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif;font-weight:900}
 
 /* ── iOS safe area — home indicator (bottom) ───────────────────
    viewport-fit=cover extiende la app a pantalla completa;

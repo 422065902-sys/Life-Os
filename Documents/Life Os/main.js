@@ -9611,6 +9611,101 @@ async function irAPagarStripe() {
   openUrl(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid));
 }
 
+// ── Verificación de plan Estudiante ──────────────────────────────────────────
+
+/** Dominios educativos válidos (México + latam principales) */
+const STUDENT_DOMAINS = [
+  // Genéricos
+  '.edu.mx', '.edu.co', '.edu.ar', '.edu.pe', '.edu.cl', '.edu.ec', '.edu.ve',
+  '.edu.gt', '.edu.hn', '.edu.sv', '.edu.ni', '.edu.cr', '.edu.pa', '.edu.bo',
+  '.edu.py', '.edu.uy', '.edu.br', '.edu',
+  // Universidades mexicanas con dominio propio
+  'unam.mx', 'itesm.mx', 'ipn.mx', 'uam.mx', 'ibero.mx',
+  'anahuac.mx', 'lasalle.mx', 'udlap.mx', 'udg.mx', 'uabc.mx',
+  'uanl.mx', 'buap.mx', 'uv.mx', 'uaslp.mx', 'uacj.mx',
+  'umich.mx', 'uam.mx', 'uca.edu', 'uprm.edu',
+];
+
+function isStudentDomain(email) {
+  if (!email || !email.includes('@')) return false;
+  const domain = email.split('@')[1].toLowerCase().trim();
+  return STUDENT_DOMAINS.some(d => domain === d.replace(/^\./, '') || domain.endsWith(d));
+}
+
+function iniciarVerificacionEstudiante() {
+  closeModal('modal-pago');
+  document.getElementById('verif-email-estudiantil').value = '';
+  document.getElementById('verif-error').style.display = 'none';
+  document.getElementById('verif-ok').style.display = 'none';
+  // Pre-llenar con email del usuario si ya está logueado
+  const userEmail = _auth?.currentUser?.email || '';
+  if (userEmail) document.getElementById('verif-email-estudiantil').value = userEmail;
+  openModal('modal-verif-estudiante');
+  setTimeout(() => document.getElementById('verif-email-estudiantil').focus(), 300);
+}
+
+function limpiarErrorVerif() {
+  const err = document.getElementById('verif-error');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+}
+
+async function verificarEmailEstudiante() {
+  const emailEl = document.getElementById('verif-email-estudiantil');
+  const errEl   = document.getElementById('verif-error');
+  const okEl    = document.getElementById('verif-ok');
+  const email   = (emailEl?.value || '').trim().toLowerCase();
+
+  if (!email) {
+    errEl.textContent = '⚠️ Ingresa tu correo institucional.';
+    errEl.style.display = 'block'; return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errEl.textContent = '⚠️ Formato de correo inválido.';
+    errEl.style.display = 'block'; return;
+  }
+  if (!isStudentDomain(email)) {
+    errEl.textContent = '❌ Dominio no reconocido como institucional. Usa tu correo .edu.mx o universitario oficial.';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Email válido
+  errEl.style.display = 'none';
+  okEl.style.display = 'block';
+  emailEl.disabled = true;
+
+  await irAPagarStripeEstudiante(email);
+}
+
+async function irAPagarStripeEstudiante(emailEstudiantil) {
+  const openUrl = _preparePaymentWindow();
+  if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
+    try {
+      const createSession = _functions.httpsCallable('createStripeCheckoutSession');
+      const result = await createSession({
+        priceId:   STRIPE_PRICE_ESTUDIANTE,
+        metadata:  { plan: 'estudiante', emailEstudiantil }
+      });
+      if (result.data?.url) {
+        closeModal('modal-verif-estudiante');
+        openUrl(result.data.url);
+        return;
+      }
+    } catch(e) {
+      console.warn('[Life OS] createStripeCheckoutSession estudiante error:', e);
+      document.getElementById('verif-ok').style.display = 'none';
+      const errEl = document.getElementById('verif-error');
+      errEl.textContent = '⚠️ Error al iniciar pago. Intenta de nuevo.';
+      errEl.style.display = 'block';
+      document.getElementById('verif-email-estudiantil').disabled = false;
+      return;
+    }
+  }
+  // Fallback: URL estática
+  const _uid = S.userId || (_auth?.currentUser?.uid) || 'anonimo';
+  closeModal('modal-verif-estudiante');
+  openUrl(STRIPE_CHECKOUT_URL + '?client_reference_id=' + encodeURIComponent(_uid) + '&plan=estudiante');
+}
+
 function activarPlanPro() {
   S.plan = 'pro'; S.trialExpired = false; S.planActivedAt = today();
   guardarDatos();

@@ -3282,24 +3282,54 @@
         <button onclick="event.stopPropagation();irAPagarStripe()" class="btn btn-a plan-btn">🔒 Activar ahora</button>
       </div>
 
-      <!-- Plan Estudiantes — PRÓXIMAMENTE -->
-      <div class="plan-card plan-card-soon">
-        <div class="plan-badge plan-badge-purple">PRÓXIMAMENTE</div>
-        <div class="plan-name" style="color:var(--text3)">ESTUDIANTES</div>
-        <div class="plan-price" style="color:var(--text2)">$49</div>
-        <div class="plan-period" style="color:var(--text3)">MXN / mes</div>
+      <!-- Plan Estudiantes — ACTIVO -->
+      <div class="plan-card plan-card-estudiante" onclick="iniciarVerificacionEstudiante()">
+        <div class="plan-badge plan-badge-purple">ESTUDIANTES</div>
+        <div class="plan-name" style="color:#a855f7">ESTUDIANTES</div>
+        <div class="plan-price" style="color:#a855f7">$49</div>
+        <div class="plan-period" style="color:var(--text2)">MXN / mes</div>
         <div class="plan-features">
-          <div class="plan-feat" style="color:var(--text3)">✅ Todo lo del plan General</div>
-          <div class="plan-feat" style="color:var(--text3)">✅ Precio especial</div>
-          <div class="plan-feat" style="color:var(--text3)">✅ Verificación estudiantil</div>
-          <div class="plan-feat" style="color:var(--text3)">🔜 Disponible muy pronto</div>
+          <div class="plan-feat">✅ Todo lo del plan General</div>
+          <div class="plan-feat">✅ 50% de descuento</div>
+          <div class="plan-feat">✅ Verificación instantánea</div>
+          <div class="plan-feat">🎓 Solo correo institucional</div>
         </div>
-        <button disabled class="plan-btn plan-btn-soon">Próximamente</button>
+        <button onclick="event.stopPropagation();iniciarVerificacionEstudiante()" class="btn plan-btn plan-btn-estudiante">🎓 Verificar y activar</button>
       </div>
     </div>
 
     <div style="font-size:10px;color:var(--text3);margin-bottom:14px;font-family:'JetBrains Mono',monospace">🔐 Pago seguro · SSL · Powered by Stripe</div>
     <button class="btn btn-g" onclick="closeModal('modal-pago')" style="width:100%;padding:10px;font-size:13px">Cancelar</button>
+  </div>
+</div>
+
+<!-- Modal Verificación Estudiante -->
+<div class="modal" id="modal-verif-estudiante">
+  <div class="modal-box pop-in" style="max-width:420px;text-align:center">
+    <div style="font-size:44px;margin-bottom:10px;line-height:1">🎓</div>
+    <div class="f-display" style="font-size:17px;font-weight:900;color:#a855f7;margin-bottom:6px;letter-spacing:.04em">VERIFICACIÓN ESTUDIANTIL</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6">Ingresa tu correo institucional.<br>Aceptamos dominios <code style="color:#a855f7">.edu.mx</code> y universidades reconocidas.</div>
+
+    <input class="inp" id="verif-email-estudiantil" type="email"
+      placeholder="tu.nombre@universidad.edu.mx"
+      style="text-align:center;margin-bottom:8px;border-color:rgba(168,85,247,.4)"
+      oninput="limpiarErrorVerif()"
+      onkeydown="if(event.key==='Enter')verificarEmailEstudiante()"/>
+    <div id="verif-error" style="font-size:11px;color:#f87171;min-height:18px;margin-bottom:10px;display:none"></div>
+
+    <div id="verif-ok" style="display:none;padding:10px 14px;border-radius:10px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.35);font-size:12px;color:#a855f7;margin-bottom:14px">
+      ✅ Correo válido · Redirigiendo a pago seguro...
+    </div>
+
+    <button onclick="verificarEmailEstudiante()" class="btn plan-btn-estudiante"
+      style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;margin-bottom:10px">
+      🔐 Verificar correo
+    </button>
+    <button class="btn btn-g" onclick="closeModal('modal-verif-estudiante')" style="width:100%;padding:10px;font-size:12px">Cancelar</button>
+
+    <div style="font-size:10px;color:var(--text3);margin-top:12px;line-height:1.5">
+      Solo para uso personal del estudiante verificado · Un dispositivo por cuenta
+    </div>
   </div>
 </div>
 

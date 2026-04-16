@@ -756,20 +756,31 @@ async function scrollToSection(selector) {
 async function testLanding() {
   log('▶ 00-Landing');
 
-  // Cerrar sesión activa antes de cargar la landing — el pre-check deja al usuario logueado
-  // y la landing solo se muestra a visitantes sin sesión.
+  // Cerrar sesión activa antes de cargar la landing.
+  // Firebase usa IndexedDB (LOCAL persistence) — hay que hacer signOut ASYNC y eliminar IndexedDB.
   await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
-  await evalJS(() => {
-    // Cerrar sesión de Firebase si está disponible
+
+  // 1. SignOut propiamente esperado + limpiar todo el storage incluyendo IndexedDB
+  await page.evaluate(async () => {
     try {
-      const auth = firebase?.auth?.();
-      if (auth?.currentUser) auth.signOut().catch(() => {});
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        const auth = firebase.auth();
+        if (auth.currentUser) await auth.signOut();
+      }
     } catch(e) {}
-    // Limpiar tokens de sesión local
-    localStorage.removeItem('lifeos_session');
-    sessionStorage.removeItem('lifeos_session_temp');
+    try { localStorage.clear(); } catch(e) {}
+    try { sessionStorage.clear(); } catch(e) {}
+    // IndexedDB — Firebase guarda tokens aquí con LOCAL persistence
+    try {
+      const dbs = await (window.indexedDB.databases?.() || Promise.resolve([]));
+      await Promise.all(dbs.map(db => new Promise(res => {
+        const r = window.indexedDB.deleteDatabase(db.name);
+        r.onsuccess = r.onerror = res;
+      })));
+    } catch(e) {}
   });
-  // Recargar sin caché para que _checkLocalSession no encuentre sesión y muestre la landing
+
+  // 2. Recargar — sin sesión en ningún storage, onAuthStateChanged dará null → landing
   await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#landing-page, #auth-screen', { timeout: 12000 }).catch(() => {});
 
@@ -1795,6 +1806,16 @@ async function testPWA() {
 
   // Verificar offline básico (interceptar red y recargar)
   if (!SMOKE_ONLY) {
+    // Dar tiempo al SW para instalar y pre-cachear offline.html antes de cortar la red
+    await page.waitForTimeout(3500);
+    // Verificar que el SW está activo
+    const swActive = await page.evaluate(async () => {
+      if (!navigator.serviceWorker) return false;
+      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      return !!reg?.active;
+    }).catch(() => false);
+    log(`[20-PWA] Service Worker activo: ${swActive}`);
+
     await page.context().setOffline(true);
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(3000);
