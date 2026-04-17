@@ -147,7 +147,12 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
       desc: 'Mente tiene tres tabs: Bitácora (diario personal, victorias del día, modo editorial), ' +
             'Gemelo (IA que analiza patrones del usuario — avanza progresivamente según uso, ' +
             'NO se muestra hasta que hay datos suficientes), Poder (aliados, solicitudes de amistad, presencia social). ' +
-            'El Gemelo es el feature más diferenciador de la app — debe comunicar que crece con el usuario.',
+            'El Gemelo es el feature más diferenciador de la app — debe comunicar que crece con el usuario.\n\n' +
+            'IMPORTANTE — Biblioteca de Mente: El screenshot 15-mente-biblioteca muestra la tab de Biblioteca ' +
+            'con una LISTA DE LIBROS (título, autor, barra de progreso de lectura, botón "Leer"). ' +
+            'Esto es el estado CORRECTO de la biblioteca — NO es un bug ni una sesión de lectura bloqueando la UI. ' +
+            'El overlay "#book-focus-overlay" (SESIÓN DE LECTURA · ENFOQUE TOTAL) es un elemento SIEMPRE OCULTO ' +
+            '(display:none) que el runner QA nunca activa. Si ves contenido de libros en Mente, es correcto y esperado.',
       shots: pick('09-', '15-'),
       maxTokens: 16000,
     },
@@ -205,7 +210,16 @@ EDGE CASES: "gasté como cien pesos" (monto en palabras), "350" (solo número), 
             'Android Pixel 6a (360×800) y iPhone 14/15 (390×844). ' +
             'Evaluar: thumb zones, tap targets ≥44px, FAB no tapa nav inferior, ' +
             'safe area / notch en iOS, texto no desbordado, scroll horizontal ausente, ' +
-            'identidad visual preservada en pantalla pequeña.',
+            'identidad visual preservada en pantalla pequeña.\n\n' +
+            'IMPORTANTE — Qué esperar en cada módulo mobile:\n' +
+            '- Dashboard: anillo SVG de progreso, radar chart, lista de tareas, widget de saldo\n' +
+            '- Flow/Hábitos: lista de hábitos con barra de batería, input para agregar hábito\n' +
+            '- Finanzas: saldo, historial de transacciones, charts\n' +
+            '- Mente/Biblioteca: LISTA DE LIBROS con título, autor y barra de progreso — estado CORRECTO\n' +
+            '- Cuerpo: muscle map SVG, items de combustible\n' +
+            '- World: mapa gamificado, burbuja del usuario\n' +
+            'Si ves un screenshot con una lista de libros en el módulo Mente → es CORRECTO, no un bug.\n' +
+            'NO reportar el elemento #book-focus-overlay como visible — siempre está display:none.',
       shots: responsive,
       maxTokens: 16000,
     },
@@ -652,6 +666,9 @@ ${summaries}
 PROPUESTAS CRÍTICAS Y ALTAS:
 ${[...criticals, ...highs].slice(0, 20).map(p => `- ${p}`).join('\n')}
 
+${'─'.repeat(60)}
+ADVERTENCIA CRÍTICA ANTES DE SINTETIZAR:
+Si algún grupo mencionó "SESIÓN DE LECTURA", "GESTIÓN DE LECTURA" o "book-focus-overlay" apareciendo en módulos no relacionados con Mente/Biblioteca — IGNORA ESE REPORTE COMPLETAMENTE. Es una alucinación. El elemento #book-focus-overlay siempre está display:none. El screenshot 15-mente-biblioteca muestra una lista de libros (estado correcto), no un overlay de sesión de lectura. NO incluyas bugs sobre "sesión de lectura" en la síntesis salvo que el módulo analizado sea explícitamente Mente/Biblioteca.
 ${'─'.repeat(60)}
 Tu tarea: SÍNTESIS EJECUTIVA que un fundador puede leer en 5 minutos y tomar decisiones.
 ${'─'.repeat(60)}
