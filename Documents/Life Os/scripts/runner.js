@@ -523,6 +523,7 @@ async function doLogin(email = QA_EMAIL, pass = QA_PASS, attempt = 1) {
 async function goTo(moduleId) {
   await evalJS(`navigate('${moduleId}')`);
   await page.waitForTimeout(1000);
+  await closeAllModals(); // cierra cualquier overlay/modal tras cada navegación
 }
 
 /** Verificar ausencia de NaN/undefined en el texto de la página */
