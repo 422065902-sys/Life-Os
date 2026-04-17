@@ -261,9 +261,9 @@ CONVENCIÓN DE SCREENSHOTS:
 
 LANDING PAGE — CONTEXTO CLAVE:
 La landing vive en <div id="landing-page"> con display:flex y flex-direction:column.
-Nav (`.lp-nav`) es hijo DIRECTO de #landing-page (~53px height).
-El scroll container (`.lp-scroll`) tiene flex:1 y overflow-y:auto.
-La sección hero (`.lp-hero`) está dentro de `.lp-scroll`.
+Nav (\`.lp-nav\`) es hijo DIRECTO de #landing-page (~53px height).
+El scroll container (\`.lp-scroll\`) tiene flex:1 y overflow-y:auto.
+La sección hero (\`.lp-hero\`) está dentro de \`.lp-scroll\`.
 
 COLORES PRESET DE LA APP (ACCENT_PRESETS en main.js) — estos son los 8 colores que el usuario puede elegir al registrarse, y son el corazón visual del sistema:
 #00e5ff Cyan, #4ade80 Verde, #a855f7 Violeta, #fb923c Naranja, #f472b6 Rosa, #ffd700 Oro, #ff6b35 Coral, #60a5fa Azul
