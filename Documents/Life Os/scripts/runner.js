@@ -297,6 +297,9 @@ async function closeAllModals() {
   await evalJS(() => {
     document.querySelectorAll('.modal.open, [id$="-overlay"].open, [id$="-overlay"][style*="flex"]')
       .forEach(m => { m.classList.remove('open'); m.style.display = ''; });
+    // nav-reminder-overlay es un div fijo dinámico — no usa .modal ni .open
+    const nro = document.getElementById('nav-reminder-overlay');
+    if (nro) nro.remove();
   }).catch(() => {});
   await page.waitForTimeout(150);
 }

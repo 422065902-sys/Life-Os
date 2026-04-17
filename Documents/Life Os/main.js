@@ -6133,9 +6133,12 @@ const _TYPOS = {
   desayune:'desayuné', almorse:'almorcé', sene:'cené', comio:'comió',
   // Ejercicio / gym
   jym:'gym', gimnacio:'gimnasio', gimnasio:'gimnasio', entreno:'entrené',
-  enrene:'entrené', ejersicio:'ejercicio', ejersisio:'ejercicio', ejersicios:'ejercicios',
+  entrene:'entrené', enrene:'entrené', ejersicio:'ejercicio', ejersisio:'ejercicio', ejersicios:'ejercicios',
   cori:'corrí', salí:'salí', rrutina:'rutina', cardio:'cardio',
   pesa:'pesas', pesass:'pesas', levante:'levanté', lenvante:'levanté',
+  // Verbos comunes con tilde perdida (hábitos)
+  bebi:'bebí', tomi:'tomé', tome:'tomé', dormi:'dormí', dorme:'dormí',
+  medite:'medité', lei:'leí',
   // Verbos comunes con tilde perdida
   aser:'hacer', acer:'hacer', haer:'hacer', haser:'hacer',
   fui:'fui', fue:'fue', hise:'hice', hize:'hice',
@@ -6152,6 +6155,8 @@ const _TYPOS = {
   dentista:'dentista', medicoo:'médico', medico:'médico',
   pendinte:'pendiente', recuerda:'recuerda', recueda:'recuerda',
   uber:'Uber', rappi:'Rappi', didi:'DiDi', spotify:'Spotify',
+  // Inglés mezclado (spanglish)
+  gasoline:'gasolina', meeting:'reunión', lunch:'comida', breakfast:'desayuno',
 };
 
 // Levenshtein para fuzzy correction de palabras desconocidas
@@ -6164,7 +6169,7 @@ function _levenshtein(a, b) {
   return dp[m][n];
 }
 
-const _KNOWN_WORDS = ['hacer','cocinar','gimnasio','mañana','sábado','domingo','lunes','martes','miércoles','jueves','viernes','reunión','cita','evento','gasté','pagué','compré','cobré','recibí','entrené','corrí','cumplí','completé','hábito','tarea','idea','nota','meta','objetivo','ánimo','victoria','logro','ingreso','sueldo'];
+const _KNOWN_WORDS = ['hacer','cocinar','gimnasio','mañana','sábado','domingo','lunes','martes','miércoles','jueves','viernes','reunión','cita','evento','gasté','pagué','compré','cobré','recibí','entrené','corrí','cumplí','completé','hábito','tarea','idea','nota','meta','objetivo','ánimo','victoria','logro','ingreso','sueldo','bebí','dormí','tomé','medité','gasolina'];
 
 function fixTypos(text) {
   return text.split(/\s+/).map(w => {
@@ -6181,11 +6186,25 @@ function fixTypos(text) {
   }).join(' ');
 }
 
-// Utilidad: extraer monto numérico
+// Utilidad: extraer monto numérico (dígitos o palabras)
 function _extractAmount(lower) {
+  // 1. Dígitos primero
   const re = /\$?\s*([\d,]+\.?\d*)\s*(?:pesos|mxn|mx|varos|varones|pesitos)?/i;
   const m = lower.match(re);
-  return m ? parseFloat(m[1].replace(/,/g,'')) : 0;
+  if (m) return parseFloat(m[1].replace(/,/g,''));
+  // 2. Números escritos (sin dígitos en el texto)
+  const numMap = [
+    [/\bdos mil\b/,'2000'],[/\btres mil\b/,'3000'],[/\bcinco mil\b/,'5000'],
+    [/\bdiez mil\b/,'10000'],[/\b(un mil|mil)\b/,'1000'],
+    [/\bnovecientos\b/,'900'],[/\bochocientos\b/,'800'],[/\bsetecientos\b/,'700'],
+    [/\bseiscientos\b/,'600'],[/\bquinientos\b/,'500'],[/\bcuatrocientos\b/,'400'],
+    [/\btrescientos\b/,'300'],[/\bdoscientos\b/,'200'],
+    [/\bciento\b/,'100'],[/\bcien\b/,'100'],
+  ];
+  for (const [re2, val] of numMap) {
+    if (re2.test(lower)) return parseFloat(val);
+  }
+  return 0;
 }
 
 // Utilidad: limpiar texto de keywords financieros
@@ -6234,7 +6253,8 @@ function parseLocalNLP(raw) {
 
   // ── 4. INGRESO (income) ──────────────────────────────────
   const hasIncomeKw = /\b(cobré|cobre|me pagaron|pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|me transfirieron|transferencia)\b/i.test(lower);
-  const hasAmount   = /\$?\s*[\d,]+/.test(lower);
+  const hasAmount   = /\$?\s*[\d,]+/.test(lower) ||
+    /\b(cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|mil|dos mil|tres mil|cinco mil|diez mil)\b/i.test(lower);
 
   if (hasIncomeKw && hasAmount) {
     const amount = _extractAmount(lower);
@@ -6245,7 +6265,7 @@ function parseLocalNLP(raw) {
   }
 
   // ── 5. GASTO FINANCIERO ───────────────────────────────────
-  const hasFinKw = /\b(gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|invertí|invierte|cafe|café|uber|rappi|didi|taxi|gasolina|bencina|comida|renta|gimnasio|gym|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota)\b|\$\d/i.test(lower);
+  const hasFinKw = /\b(gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|invertí|invierte|cafe|café|uber|rappi|didi|taxi|gasolina|gasoline|bencina|comida|renta|gimnasio|gym|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota|varos|varones|lana|feria)\b|\$\d/i.test(lower);
 
   // ── 6. CALENDARIO ────────────────────────────────────────
   const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|dentista|doctor|médico|medico|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
@@ -6255,7 +6275,8 @@ function parseLocalNLP(raw) {
 
   // ── 7. HÁBITO ─────────────────────────────────────────────
   // El usuario dice que YA hizo algo: "hice mi hábito de lectura", "fui al gym", "corrí 5km", "completé meditación"
-  const hasHabitAction = /\b(hice|fui al|fui a|entrené|entrenué|corr[ií]|medité|medite|leí|lei|bebí agua|bebe|cumpli|cumplí|completé|complete|hábito|habito)\b/i.test(lower);
+  const hasHabitAction = /\b(hice|fui al|fui a|entrené|entrenué|corr[ií]|medité|medite|leí|lei|beb[ií]|bebe|tom[eé]|dorm[ií]|cumpli|cumplí|completé|complete|hábito|habito|gym|ejercicio|yoga|nadar|natación|natacion|ciclismo|meditación|meditacion)\b/i.test(lower) ||
+    /🏋|🏃|🚴|🧘|🏊|💪/.test(lower);
   if (hasHabitAction) {
     // Extraer qué hábito es
     const habitQ = fixed
