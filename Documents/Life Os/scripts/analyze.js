@@ -91,8 +91,15 @@ function loadScreenshots(shotsDir) {
     !f.startsWith('responsive-') && !f.includes('auth')
   );
 
-  const ordered = [...foldShots, ...responsiveShots, ...scrollShots, ...otherShots, ...authShots];
-  const files = ordered; // sin límite — se envían TODOS los screenshots (Gemini 2.5 Flash soporta hasta 3600 imágenes)
+  // Limitar a las imágenes más útiles para evitar alucinaciones por exceso de contexto visual.
+  // Fold = primera vista de cada módulo (la más importante). Responsive = mobile key.
+  // Los FAB (17-fab-*) son +50 shots redundantes para el análisis ligero → excluir.
+  const foldFiltered      = foldShots.filter(f => !f.startsWith('17-'));
+  const responsiveFiltered = responsiveShots.filter(f =>
+    !f.startsWith('responsive-android-17') && !f.startsWith('responsive-ios-17')
+  ).slice(0, 12); // máx 12 responsive
+  const ordered = [...foldFiltered, ...responsiveFiltered];
+  const files = ordered.slice(0, 35); // cap absoluto: nunca más de 35 imágenes al análisis ligero
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
