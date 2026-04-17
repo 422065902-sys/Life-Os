@@ -295,13 +295,25 @@ async function safeClick(selector, timeout = 6000) {
 /** Cierra todas las modales abiertas via JS — evita que un modal olvidado cubra la UI */
 async function closeAllModals() {
   await evalJS(() => {
-    document.querySelectorAll('.modal.open, [id$="-overlay"].open, [id$="-overlay"][style*="flex"]')
-      .forEach(m => { m.classList.remove('open'); m.style.display = ''; });
-    // nav-reminder-overlay es un div fijo dinámico — no usa .modal ni .open
+    // Modales con clase .open → quitar clase (CSS lo oculta)
+    document.querySelectorAll('.modal.open')
+      .forEach(m => m.classList.remove('open'));
+    // Overlays inline con display:flex → forzar display:none (no '' — evita quedarse en block)
+    document.querySelectorAll('[id$="-overlay"].open, [id$="-overlay"][style*="flex"]')
+      .forEach(m => { m.classList.remove('open'); m.style.display = 'none'; });
+    // nav-reminder-overlay es un div dinámico — eliminarlo del DOM
     const nro = document.getElementById('nav-reminder-overlay');
     if (nro) nro.remove();
+    // Overlays de sesión que podrían quedar abiertos — forzar ocultos explícitamente
+    const forceHide = ['book-focus-overlay', 'pomo-ascension', 'gym-mode-overlay', 'focus-chamber-overlay'];
+    forceHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    // Restaurar body overflow por si un overlay lo bloqueó
+    document.body.style.overflow = '';
   }).catch(() => {});
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
 }
 
 /** page.fill con timeout corto */
