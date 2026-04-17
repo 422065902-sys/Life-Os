@@ -7,7 +7,7 @@
  * - Agrupa módulos relacionados en 9 llamadas temáticas
  * - Cada llamada recibe TODOS los screenshots del grupo
  * - Filtra screenshots de login para no gastar tokens en ellos
- * - maxOutputTokens: 16 000 por módulo (análisis real profundo)
+ * - maxOutputTokens: 5 000-6 000 por módulo + 5 000 síntesis (thinking deshabilitado)
  * - Síntesis ejecutiva final cross-módulo
  *
  * Uso:
@@ -88,7 +88,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
         ...files.filter(f => f.filename.startsWith('responsive-') && f.filename.includes('landing')),
         ...loginOnly,
       ],
-      maxTokens: 14000,
+      maxTokens: 6000,
     },
     {
       id: 'auth-onboarding',
@@ -97,7 +97,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
       desc: 'Pantalla de login/registro, flujo de onboarding, estado BLACKOUT (puntos críticos perdidos) y paywall. ' +
             'Es la PRIMERA experiencia del usuario — define si se queda o se va.',
       shots: [...loginOnly, ...pick('02-', '03-', '04-')],
-      maxTokens: 8000,
+      maxTokens: 5000,
     },
     {
       id: 'dashboard-stats',
@@ -107,7 +107,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'focus bars, check-in diario, widget de saldo, lista de tareas. ' +
             'Stats/Gamificación = leaderboard, XP total, nivel, logros, métricas de uso.',
       shots: pick('05-', '11-'),
-      maxTokens: 16000,
+      maxTokens: 6000,
     },
     {
       id: 'finanzas',
@@ -117,7 +117,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'deudas, cards. Los números son protagonistas — tipografía monospace, tamaños grandes. ' +
             'El usuario debe ver de un vistazo si va bien o mal con su dinero.',
       shots: pick('06-'),
-      maxTokens: 16000,
+      maxTokens: 5000,
     },
     {
       id: 'flow-completo',
@@ -128,7 +128,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'Ideas: captura rápida vía FAB. Metas: progreso global, objetivos de vida con fecha límite. ' +
             'Todas las tabs deben tener identidad propia dentro del acento verde neón.',
       shots: pick('07-', '13-', '14-'),
-      maxTokens: 16000,
+      maxTokens: 6000,
     },
     {
       id: 'cuerpo',
@@ -138,7 +138,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'volumen de entrenamiento por grupo, rutinas frecuentes, check-in de combustible diario (proteína, desayuno, sueño). ' +
             'Debe sentirse oscuro, muscular, energético — como una app de gym premium.',
       shots: pick('08-'),
-      maxTokens: 16000,
+      maxTokens: 5000,
     },
     {
       id: 'mente-gemelo',
@@ -154,7 +154,7 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'El overlay "#book-focus-overlay" (SESIÓN DE LECTURA · ENFOQUE TOTAL) es un elemento SIEMPRE OCULTO ' +
             '(display:none) que el runner QA nunca activa. Si ves contenido de libros en Mente, es correcto y esperado.',
       shots: pick('09-', '15-'),
-      maxTokens: 16000,
+      maxTokens: 6000,
     },
     {
       id: 'world-tienda',
@@ -164,33 +164,19 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
             'sistema de presencia social. Tienda = catálogo de muebles/rooms para el apartamento virtual, ' +
             'compra con XP (NO coins). Apartamento = espacio personalizable del usuario.',
       shots: pick('12-', '16-'),
-      maxTokens: 16000,
+      maxTokens: 5000,
     },
     {
       id: 'fab-nlp',
       name: 'FAB Consola Universal — NLP, Semántica y Routing',
       accent: 'Cyan #00e5ff — es el feature más "Jarvis" de la app',
-      desc: `La FAB es la consola universal de Life OS. El usuario escribe en lenguaje natural y la app detecta automáticamente adónde enviar la información.
-
-ARQUITECTURA NLP ACTUAL (parseLocalNLP en main.js):
-- 8 módulos de destino: financial (gasto), income (ingreso), calendar, task, habit, mood/bitácora, goal/meta, idea
-- Corrección de typos: diccionario estático de ~50 palabras + algoritmo Levenshtein (distancia=1) para palabras ≥5 chars
-- Claude API (claude-haiku) como fallback premium si el usuario tiene API key configurada
-
-CASOS QUE SE PRUEBAN EN ESTE RUN (los screenshots 17-fab-* muestran los previews):
-TAREAS: "comprar leche mañana", "llamar al médico", "traer el cargador"
-GASTOS: "gasté 150 en café", "gaste" (sin tilde), "uber 95 pesos", "rappi 230", "farmacia 340", "varos", "pagué el estacionamiento" (sin monto)
-INGRESOS: "cobré 3500 freelance", "recibi 2000" (sin tilde), "me pagaron 1500", "venta de 800", "deposito de 5000"
-CALENDARIO: "reunión con equipo mañana 10am", "reunion" (sin tilde), "cita doctor jueves", "cumpleaños de Ana el domingo", "vuelo a GDL lunes 7am"
-HÁBITOS: "hice mi hábito de lectura", "fui al gym", "cori 5km" (typo), "medite 15 minutos", "bebi 2 litros", "dormi 8 horas"
-IDEAS: "idea: ...", "nota: ...", "sugerencia: ..."
-BITÁCORA: "victoria: ...", "logro: ...", "me siento muy productivo"
-METAS: "meta: leer 12 libros", "objetivo: bajar 5 kilos", "reto: 30 días sin azúcar"
-MULTI-MÓDULO: "pagar renta 4500 el 1ro", "entrené a las 7am en el gym"
-TYPOS DIFÍCILES: "cosinar", "manana", "aser", "jym", "spnglish meeting"
-EDGE CASES: "gasté como cien pesos" (monto en palabras), "350" (solo número), emoji "🏋️", texto en MAYÚSCULAS, "gym" (una sola palabra)`,
+      desc: 'La FAB es la consola universal de Life OS. El usuario escribe en lenguaje natural y la app detecta automáticamente adónde enviar la información.\n' +
+            'NLP detecta: gastos, ingresos, tareas, hábitos, eventos, ideas, metas, bitácora.\n' +
+            'Typo correction: diccionario ~50 palabras + Levenshtein(distancia=1).\n' +
+            'Los screenshots 17-fab-* muestran el resultado visual de cada batería de casos NLP.\n' +
+            'Evalúa: routing correcto, preview claro, feedback de error, gaps semánticos en español mexicano.',
       shots: pick('17-'),
-      maxTokens: 14000,
+      maxTokens: 6000,
     },
     {
       id: 'tech-settings',
@@ -200,7 +186,7 @@ EDGE CASES: "gasté como cien pesos" (monto en palabras), "350" (solo número), 
             'Admin: panel de agencias para el rol admin. ' +
             'FCM: service worker de notificaciones. PWA: manifest, offline mode.',
       shots: pick('10-', '18-', '19-', '20-'),
-      maxTokens: 10000,
+      maxTokens: 5000,
     },
     {
       id: 'mobile-responsive',
@@ -221,7 +207,7 @@ EDGE CASES: "gasté como cien pesos" (monto en palabras), "350" (solo número), 
             'Si ves un screenshot con una lista de libros en el módulo Mente → es CORRECTO, no un bug.\n' +
             'NO reportar el elemento #book-focus-overlay como visible — siempre está display:none.',
       shots: responsive,
-      maxTokens: 16000,
+      maxTokens: 6000,
     },
   ].filter(g => g.shots.length > 0);
 }
@@ -727,6 +713,7 @@ function callGeminiOnce(parts, maxTokens) {
       generationConfig: {
         temperature: 0.2,
         maxOutputTokens: maxTokens,
+        thinkingConfig: { thinkingBudget: 0 }, // deshabilitar thinking — evita costo $3.50/1M tokens
       }
     });
     const options = {
@@ -819,7 +806,7 @@ async function main() {
 
   // Estimación de costo (Gemini 2.5 Flash: ~$0.075/1M input, ~$0.30/1M output)
   const estInputTokens  = totalShots * 258 + groups.length * 3000;
-  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 8000;
+  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 5000;
   const estCost = (estInputTokens / 1e6 * 0.075) + (estOutputTokens / 1e6 * 0.30);
   log(`Estimación de costo: ~$${estCost.toFixed(3)} USD`);
   log('Iniciando análisis...\n');
@@ -864,7 +851,7 @@ async function main() {
   let synthesis = '';
   try {
     const synthParts = [{ text: buildSynthesisPrompt(groupResults, totalShots) }];
-    synthesis = await callGemini(synthParts, 8000);
+    synthesis = await callGemini(synthParts, 5000);
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);
