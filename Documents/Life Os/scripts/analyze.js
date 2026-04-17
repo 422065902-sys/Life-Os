@@ -15,6 +15,7 @@
 'use strict';
 
 require('dotenv').config({ path: '/opt/openclaw/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const fs   = require('fs');
 const path = require('path');
@@ -449,9 +450,9 @@ REGLA ABSOLUTA: Propuestas SIEMPRE antes de ---ANALYSIS---. Nunca omitas ninguna
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A GEMINI API (multimodal)
+// LLAMAR A GEMINI API (multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callGemini(parts) {
+function callGeminiOnce(parts) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       contents: [{ parts }],
@@ -477,9 +478,10 @@ function callGemini(parts) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
+          if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
           const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta inesperada: ${data.slice(0, 300)}`));
+          else reject(new Error(`Respuesta inesperada (${res.statusCode}): ${data.slice(0, 300)}`));
         } catch (e) {
           reject(new Error(`Error parseando respuesta: ${e.message}`));
         }
@@ -490,6 +492,24 @@ function callGemini(parts) {
     req.write(body);
     req.end();
   });
+}
+
+async function callGemini(parts, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await callGeminiOnce(parts);
+    } catch (e) {
+      const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503');
+      if (attempt < retries && isRetryable) {
+        const wait = isRateLimit ? 30000 : 8000 * attempt;
+        log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
+        await new Promise(r => setTimeout(r, wait));
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════

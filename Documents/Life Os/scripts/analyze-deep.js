@@ -17,6 +17,7 @@
 'use strict';
 
 require('dotenv').config({ path: '/opt/openclaw/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const fs    = require('fs');
 const path  = require('path');
@@ -695,9 +696,9 @@ Semana 2 (mejoras estructurales):
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR GEMINI
+// LLAMAR GEMINI (con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callGemini(parts, maxTokens) {
+function callGeminiOnce(parts, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       contents: [{ parts }],
@@ -721,10 +722,10 @@ function callGemini(parts, maxTokens) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.error) return reject(new Error(`API error: ${json.error.message}`));
+          if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
           const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía: ${data.slice(0, 300)}`));
+          else reject(new Error(`Respuesta vacía (${res.statusCode}): ${data.slice(0, 300)}`));
         } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
       });
     });
@@ -732,6 +733,24 @@ function callGemini(parts, maxTokens) {
     req.write(body);
     req.end();
   });
+}
+
+async function callGemini(parts, maxTokens, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await callGeminiOnce(parts, maxTokens);
+    } catch (e) {
+      const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503');
+      if (attempt < retries && isRetryable) {
+        const wait = isRateLimit ? 30000 : 8000 * attempt;
+        log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
+        await new Promise(r => setTimeout(r, wait));
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -810,7 +829,7 @@ async function main() {
 
       // Pausa entre llamadas (evitar rate limiting)
       if (groups.indexOf(group) < groups.length - 1) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 4000));
       }
     } catch(e) {
       log(`❌ ${group.name} — Error: ${e.message}`);
