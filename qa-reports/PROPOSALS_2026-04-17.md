@@ -31,3 +31,18 @@
 
 ---
 
+## Run: 2026-04-17_13-18.md
+
+- [ ] [BUG] GLOBAL: "SESION DE LECTURA" timer reemplaza contenido de módulos | SOLUCIÓN: En `main.js`, revisar la función `renderModule()` y el ciclo de vida de los componentes. Asegurar que el componente del temporizador (`<pomodoro-timer>` o similar) solo se monte y sea visible en el módulo o estado de "Focus Mode" designado, y que no sea un fallback global. Usar `display: none;` o `v-if` (si fuera un framework) condicionalmente en el CSS o JS principal para ocultarlo cuando no esté activo. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] GAMIFICACIÓN: Completar tarea no suma XP | SOLUCIÓN: En `main.js`, dentro de la función `completeTask(taskId)`, verificar que se invoca `awardXP(amount, 'TASK_COMPLETION')` y que la actualización de XP en Firestore se realiza correctamente. Añadir `try-catch` y `console.error` para detectar fallos silenciosos en la escritura de Firestore. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] UX: FAB NLP clasifica mal entradas (gastos, hábitos, calendario como tareas) | SOLUCIÓN: En `main.js`, refactorizar la función `parseFABInput(text)`. Implementar un sistema de reconocimiento de patrones más sofisticado (regex + keywords) antes de la clasificación por defecto. Priorizar: 1. Gastos (ej: `/\b(gasté|pagué|costó|compré)\s+(\d+)\s*(en|para)?\s*(.+)/i`), 2. Hábitos (ej: "corrí", "medité", "bebí"), 3. Calendario (ej: "esta semana", "mañana"), 4. Tareas genéricas. Asegurar que Gemini AI sea entrenado con más ejemplos de cada categoría. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] MOBILE: Hero de Landing Page incompleto y touch target pequeño en mobile | SOLUCIÓN: En `styles.css`, añadir media queries para `max-width: 768px`. Asegurar que el `headline`, `subheadline` y el CTA principal "Empezar gratis →" sean visibles y con tamaño de fuente adecuado. Aumentar el `padding` del botón "Iniciar Sesión →" a un mínimo de `12px 20px` para alcanzar un touch target de al menos 44px de altura/ancho. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [ANIMACIÓN] DISEÑO: Landing Page carece de animaciones premium | SOLUCIÓN:
+- [ ] [BUG] PWA: Pantalla en blanco en modo offline | SOLUCIÓN:
+- [ ] [ANIMACIÓN] UX: Falta de micro-animaciones en modal "Calibración Diaria" | SOLUCIÓN:
+- [ ] [RETENCIÓN] LANDING PAGE: Implementar sección "Demo Visual" | SOLUCIÓN: En `index.html` (dentro de `#landing-page`), crear una sección `id="landing-demo-visual"`. Incluir un `div` con un `mockup` de dispositivo (CSS o SVG) y un `img` que rote entre 3-4 screenshots clave de módulos (ej. Dashboard, Flow-Hábitos, Finanzas, Mente-Bitácora). En `main.js`, implementar un carrusel JS simple con `setInterval` y `fade` transitions. El fondo de la sección debe transicionar suavemente al color de acento del módulo activo. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] DASHBOARD: Definir opt-in y estructura de datos para Dashboard Dinámico | SOLUCIÓN:
+- [ ] [IDENTIDAD-VISUAL] GLOBAL: Implementar y verificar identidad visual única por módulo | SOLUCIÓN: Una vez resuelto el bug del temporizador, realizar una auditoría visual completa. En `styles.css`, para cada módulo (`[data-module="nombre-modulo"]`), definir variables CSS para su `accent-color`, `font-family-secondary`, `background-gradient` y `box-shadow-color`. Aplicar estas variables a elementos clave: títulos, tabs activas, botones primarios, bordes de cards. Asegurar que el glassmorphism se adapte al color de acento de cada módulo. | PRIORIDAD: MEDIA | CATEGORÍA: ARQUITECTURA
+
+---
+
