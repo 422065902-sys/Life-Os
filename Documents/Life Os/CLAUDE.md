@@ -29,21 +29,70 @@ Reportar al usuario y esperar autorización antes de eliminar.
 - R7. Si algo está raro → PARA y avísame antes de actuar
 - R8. Actualizar este archivo al terminar cada sesión
 
+## RUTAS ABSOLUTAS — CRÍTICO
+
+### En el VPS (srv1535845 / root@187.77.219.106)
+El repo de git está clonado en `/opt/openclaw/repo/lifeos/` pero el código del proyecto
+vive en una subcarpeta dentro de ese clone:
+
+```
+/opt/openclaw/
+├── .env                          ← credenciales (QA_USER_EMAIL, QA_USER_PASSWORD, GEMINI_API_KEY)
+├── runner.js                     ← copia de trabajo del runner (actualizar con sync)
+├── analyze.js                    ← copia de trabajo
+├── analyze-deep.js               ← copia de trabajo
+└── repo/
+    └── lifeos/                   ← git clone raíz
+        └── Documents/
+            └── Life Os/          ← aquí están los archivos del proyecto
+                ├── main.js
+                ├── index.html
+                ├── scripts/
+                │   ├── runner.js        ← fuente original
+                │   ├── analyze.js
+                │   └── analyze-deep.js
+                └── qa-reports/
+```
+
+### Comandos exactos para sync VPS (copiar/pegar completo)
+```bash
+cd /opt/openclaw/repo/lifeos
+git pull origin main
+cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
+cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js
+cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js
+```
+
+### Correr OpenClaw en el VPS
+```bash
+cd /opt/openclaw
+node runner.js
+# o directo desde el repo (sin copiar):
+node "/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/runner.js"
+```
+
+### En Windows (desarrollo local)
+```
+c:\Users\wence\Documents\Life Os\   ← raíz del proyecto
+c:\Users\wence\Documents\Life Os\scripts\runner.js
+c:\Users\wence\Documents\Life Os\scripts\analyze.js
+c:\Users\wence\Documents\Life Os\scripts\analyze-deep.js
+```
+
 ## PASOS PARA CORRER OPENCLAW
 
 ### Verificación previa (siempre antes de ejecutar)
-1. Confirmar que `.env` existe en `/opt/openclaw/.env` (VPS) con `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `GEMINI_API_KEY`
+1. Confirmar que `/opt/openclaw/.env` existe con `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `GEMINI_API_KEY`
 2. Confirmar que `qa-test@mylifeos-staging.com` existe en Firebase staging
 3. Confirmar que Firebase CLI apunta a staging: `firebase use` → debe mostrar `mylifeos-staging`
 
-### Ejecución
+### Ejecución (desde /opt/openclaw en el VPS)
 ```bash
-# Runner E2E diario
-node scripts/runner.js
+node runner.js
 
 # Análisis post-run (elegir uno)
-node scripts/analyze-deep.js   # profundo — más tokens, más tiempo
-node scripts/analyze.js        # ligero — más rápido
+node analyze-deep.js   # profundo — más tokens, más tiempo
+node analyze.js        # ligero — más rápido
 ```
 
 ### Post-ejecución
@@ -99,7 +148,7 @@ node scripts/analyze.js        # ligero — más rápido
 - ✅ Eliminado: app.js legacy (desactivado, versión antigua — historial disponible en git)
 - ✅ runner.js corre end-to-end: 215 tests, 0 FAILs, 93% pass rate
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
-- ⚠️ Pendiente: VPS sync — git pull + copiar scripts al VPS
+- ⚠️ Pendiente: VPS sync — ver sección RUTAS ABSOLUTAS para comandos exactos
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-17
@@ -126,4 +175,4 @@ node scripts/analyze.js        # ligero — más rápido
   - Coma en montos rompe detección de ingreso ("1,500")
   - "cori", "bebi", "dormi" (sin tilde) no reconocidos como hábitos
   - "7am" parseado como "$7" en lugar de hora
-- Próximo: `git pull` en VPS + copiar runner.js/analyze.js/analyze-deep.js a `/opt/openclaw/`
+- Próximo: VPS sync con comandos de sección RUTAS ABSOLUTAS (las rutas correctas ya están documentadas)
