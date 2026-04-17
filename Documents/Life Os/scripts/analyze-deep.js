@@ -259,6 +259,11 @@ CONVENCIÓN DE SCREENSHOTS:
 ⚠️ Si _fold está vacío (solo fondo, sin contenido) = BUG DE LAYOUT crítico.
 ⚠️ Si en 00-landing-fold los botones CTA no se ven = BUG CRÍTICO de conversión.
 
+ELEMENTOS SIEMPRE OCULTOS — NO REPORTAR COMO BUGS:
+- #book-focus-overlay ("📖 SESIÓN DE LECTURA · ENFOQUE TOTAL") → display:none permanente. El runner QA nunca activa enterBookFocus(). Si lo ves en un screenshot es una anomalía del screenshot, no un bug de la app.
+- #pomo-ascension → solo visible cuando el usuario inicia un Pomodoro manualmente.
+- Si ves "SESIÓN DE LECTURA", "GESTIÓN DE LECTURA" o "ENFOQUE TOTAL" en módulos que no son Biblioteca/Mente → es una alucinación. NO reportarlo como bug global.
+
 LANDING PAGE — CONTEXTO CLAVE:
 La landing vive en <div id="landing-page"> con display:flex y flex-direction:column.
 Nav (\`.lp-nav\`) es hijo DIRECTO de #landing-page (~53px height).
