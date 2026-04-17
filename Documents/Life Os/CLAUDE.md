@@ -175,18 +175,44 @@ node analyze.js        # ligero — más rápido
 - ✅ Corregido: seedDemoUser.js usa variables de entorno + advertencia si corre contra prod
 - ✅ Eliminado: app.js legacy (desactivado, versión antigua — historial disponible en git)
 - ✅ runner.js corre end-to-end: 215 tests, 0 FAILs, 93% pass rate
+- ✅ goTo() llama closeAllModals() — overlays ya no aparecen en screenshots
+- ✅ analyze.js limitado a 35 shots clave (fold+responsive) — elimina alucinaciones Gemini
+- ✅ analyze-deep.js y analyze.js con retry+backoff (3 intentos, 30s en rate limit)
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
-- ⚠️ Pendiente: VPS sync — ver sección RUTAS ABSOLUTAS para comandos exactos
+
+## FLUJO RECOMENDADO POST-RUN
+```bash
+# 1. Correr runner (toma ~15-20 min, genera screenshots + reporte + analyze.js ligero automático)
+cd /opt/openclaw && node runner.js
+
+# 2. Análisis profundo con Gemini Vision (correr manualmente después del runner)
+cd /opt/openclaw && node analyze-deep.js
+```
+El runner ya llama analyze.js automáticamente al final.
+analyze-deep.js se corre manualmente cuando se quiere análisis profundo por grupos temáticos.
+
+## DIAGNÓSTICO DE ALUCINACIONES GEMINI
+- **analyze.js** enviaba 100+ imágenes en una sola llamada → Gemini confundía screenshots entre sí
+- Síntoma: reportaba bugs que no existían ("SESION DE LECTURA en dashboard") 
+- Fix: analyze.js ahora limita a 35 imágenes (solo _fold + responsive clave, sin FAB)
+- **analyze-deep.js** agrupa en 11 temas temáticos — menos riesgo de alucinación por diseño
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-17
-- Qué se hizo: Runner completo sin crashes — 215 tests, 0 FAILs, 93% pass rate
-- Commits: 5c27839, 6671fed, 3637ec1
+- Commits: b77a791, eb74747, 0255d17, 88040d6
 - Correcciones aplicadas:
-  1. `closeAllModals()` helper — cierra modales olvidados que bloquean UI (z-index 200 backdrop)
-  2. `testFinanzas`: JS `openTxModal()` + JS `addTransaction()` (botón dice "Registrar" no "Guardar")
-  3. `testHabitos`: JS `addHabit()` + selector real `.habit-item`
-  4. `testCalendario`: JS `renderCalendar()` + JS `calNext()` (antes bloqueado por modal abierto)
+  1. `goTo()` ahora llama `closeAllModals()` → elimina overlays en screenshots (calibración, nav-reminder)
+  2. `analyze-deep.js`: retry+backoff Gemini (rate limit 30s, red 8s×attempt), pausa entre grupos 2s→4s
+  3. `analyze.js`: retry+backoff Gemini, dotenv multi-path, cap 35 screenshots, excluye FAB shots
+  4. NLP parser (`main.js`): typos bebi/dormi/tome/medite/gasoline/meeting, hasFinKw+varos/lana/feria,
+     hasAmount detecta números escritos (cien/quinientos/mil), _extractAmount con fallback escrito,
+     hasHabitAction amplía beb[ií]/dorm[ií]/gym/yoga/nadar
+  5. evalJS(fn, arg): segundo argumento ahora se pasa correctamente a page.evaluate
+  6. closeAllModals(): elimina #nav-reminder-overlay además de .modal.open
+- Patrón confirmado: analyze.js (ligero) = health check rápido post-run automático.
+  analyze-deep.js (profundo) = análisis manual cuando se quiere diagnóstico real por módulo.
+- Alucinación identificada: "SESION DE LECTURA" era Gemini confundiendo el book-focus-overlay
+  (display:none, nunca activado por el runner) con otros screenshots por exceso de imágenes.
   5. `testStripe`: selector `#settings-plan-badge` específico (evita falso negativo con badge oculto)
   6. `testMente` aliados: WARN→INFO (sección dinámica, requiere usuarios reales)
   7. FAB NLP: `closeAllModals()` + JS click — elimina 30s Playwright timeout por elemento cubierto
