@@ -588,45 +588,47 @@ async function seedUserData() {
   if (txCount < 4) {
     const txs = [
       { monto: '15000', tipo: 'entrada', desc: 'Sueldo mensual' },
-      { monto: '3500',  tipo: 'gasto',   desc: 'Renta'          },
-      { monto: '850',   tipo: 'gasto',   desc: 'Despensa'       },
+      { monto: '3500',  tipo: 'salida',  desc: 'Renta'          },
+      { monto: '850',   tipo: 'salida',  desc: 'Despensa'       },
       { monto: '2200',  tipo: 'entrada', desc: 'Proyecto freelance' },
-      { monto: '450',   tipo: 'gasto',   desc: 'Membresía gym'  },
+      { monto: '450',   tipo: 'salida',  desc: 'Membresía gym'  },
     ];
     for (const tx of txs) {
-      // Abrir modal — esperar a que sea visible antes de continuar
-      const addBtn = await page.$('[onclick*="openTxModal"], #add-tx-btn, [onclick*="abrirTx"], button:has-text("+ Transacción"), button:has-text("Nueva")');
-      if (!addBtn) { log('[SEED] ⚠️ Botón add-tx no encontrado — saltando tx'); break; }
-      await addBtn.click().catch(() => {});
+      // Abrir modal via JS para evitar problemas de actionability
+      await evalJS(() => { if (typeof openTxModal === 'function') openTxModal(); });
+      // Esperar a que el modal esté abierto
+      await page.waitForFunction(
+        () => { const m = document.getElementById('modal-tx'); return m && m.classList.contains('open'); },
+        { timeout: 4000 }
+      ).catch(() => {});
+      await page.waitForTimeout(200);
 
-      // Esperar a que el input de monto esté visible (modal abierto)
-      const montoEl = await page.waitForSelector(
-        '[id*="tx-amount"], [id*="monto"], [id*="amount"], input[placeholder*="monto"], input[placeholder*="Monto"], input[placeholder*="cantidad"]',
-        { timeout: 8000, state: 'visible' }
-      ).catch(() => null);
+      const montoEl = await page.waitForSelector('#tx-amount', { timeout: 3000, state: 'visible' }).catch(() => null);
 
       if (!montoEl) {
         log('[SEED] ⚠️ Input de monto no apareció — cerrando modal y continuando');
-        await page.keyboard.press('Escape').catch(() => {});
-        await page.waitForTimeout(400);
+        await closeAllModals();
         continue;
       }
 
       await montoEl.fill(tx.monto);
 
-      await page.evaluate((tipo) => {
-        const sel = document.querySelector('select[id*="tipo"], [id*="tx-type"], select[id*="type"], select[id*="category"]');
+      await evalJS((tipo) => {
+        const sel = document.getElementById('tx-type');
         if (sel) sel.value = tipo;
       }, tx.tipo);
 
-      const descEl = await page.waitForSelector(
-        '[id*="tx-desc"], [id*="descripcion"], [id*="desc"], input[placeholder*="escr"], input[placeholder*="desc"], input[placeholder*="Desc"]',
-        { timeout: 5000, state: 'visible' }
-      ).catch(() => null);
+      const descEl = await page.$('#tx-desc').catch(() => null);
       if (descEl) await descEl.fill(tx.desc);
 
-      await safeClick('[onclick*="addTransaction"], [onclick*="guardarTx"], [onclick*="saveTx"], button:has-text("Guardar"), button:has-text("Agregar")');
-      await page.waitForTimeout(1000);
+      // Guardar via JS directo — el botón dice "Registrar" (no "Guardar"/"Agregar")
+      await evalJS(() => { if (typeof addTransaction === 'function') addTransaction(); });
+      await page.waitForTimeout(800);
+      // Asegurar que el modal cerró (addTransaction llama closeModal)
+      await page.waitForFunction(
+        () => { const m = document.getElementById('modal-tx'); return !m || !m.classList.contains('open'); },
+        { timeout: 3000 }
+      ).catch(() => closeAllModals());
     }
     log('[SEED] ✅ Transacciones sembradas');
   } else {
@@ -635,10 +637,9 @@ async function seedUserData() {
 
   // ── HÁBITOS — 3 hábitos en productividad ─────────────────────────────────
   log('[SEED] Sembrando hábitos...');
+  await closeAllModals(); // Cerrar cualquier modal olvidado antes de navegar
   await goTo('productividad');
   await page.waitForTimeout(1000);
-  const habitsTab = await page.$('[onclick*="habits"], [onclick*="habitos"], .tab-habits');
-  if (habitsTab) { await habitsTab.click().catch(() => {}); await page.waitForTimeout(700); }
 
   const habitCount = await evalJS(() => {
     const l = document.querySelector('#habit-list');
@@ -647,8 +648,9 @@ async function seedUserData() {
 
   if (habitCount < 2) {
     for (const h of ['Ejercicio diario 💪', 'Leer 30 minutos 📚', 'Meditar 10 min 🧘']) {
-      await safeFill('#new-habit, [id*="new-habit"], input[placeholder*="hábito"]', h);
-      await safeClick('[onclick*="addHabit"], [onclick*="saveHabit"], button:has-text("Agregar")');
+      await safeFill('#new-habit', h);
+      // Usar JS directo para evitar seleccionar el botón "Agregar" equivocado
+      await evalJS(() => { if (typeof addHabit === 'function') addHabit(); });
       await page.waitForTimeout(900);
     }
     log('[SEED] ✅ Hábitos sembrados');
