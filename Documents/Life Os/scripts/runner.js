@@ -1666,7 +1666,21 @@ async function testFAB() {
       });
       const previewVisible = await isVisible('#fab-preview');
 
-      const moduleOK = !expectedModule || previewText.toLowerCase().includes(expectedModule.toLowerCase());
+      // Mapa: módulo esperado → términos que aparecen en el preview
+      const moduleTerms = {
+        'finanzas': ['gasto', 'finanzas', '💰', 'salida'],
+        'ingreso':  ['ingreso', '💚', 'entrada'],
+        'hábito':   ['hábito', '🔥', 'habit'],
+        'calendario': ['calendario', '📅'],
+        'ideas':    ['ideas', '💡'],
+        'bitácora': ['bitácora', '📓', 'diario'],
+        'meta':     ['meta', '🎯'],
+        'tarea':    ['tarea', '✅'],
+      };
+      const key = expectedModule ? expectedModule.toLowerCase() : '';
+      const terms = moduleTerms[key] || (key ? [key] : []);
+      const preview = previewText.toLowerCase();
+      const moduleOK = !expectedModule || terms.some(t => preview.includes(t));
       addResult('17-FAB', `NLP preview "${label}"`,
         previewVisible && moduleOK ? 'PASS' : 'WARN',
         `input: "${input}" → preview: "${previewText.substring(0,80)}"`);
