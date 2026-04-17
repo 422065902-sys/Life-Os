@@ -507,7 +507,7 @@ async function callGemini(parts, retries = 3) {
       return await callGeminiOnce(parts);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
