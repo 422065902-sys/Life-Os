@@ -192,41 +192,29 @@ El runner ya llama analyze.js automáticamente al final.
 analyze-deep.js se corre manualmente cuando se quiere análisis profundo por grupos temáticos.
 
 ## DIAGNÓSTICO DE ALUCINACIONES GEMINI
-- **analyze.js** enviaba 100+ imágenes en una sola llamada → Gemini confundía screenshots entre sí
-- Síntoma: reportaba bugs que no existían ("SESION DE LECTURA en dashboard") 
-- Fix: analyze.js ahora limita a 35 imágenes (solo _fold + responsive clave, sin FAB)
-- **analyze-deep.js** agrupa en 11 temas temáticos — menos riesgo de alucinación por diseño
+- **Síntoma**: Gemini reporta "SESIÓN DE LECTURA aparece en todos los módulos" — no es real
+- **Causa**: screenshot `15-mente-biblioteca` muestra lista de libros (estado correcto del SEED).
+  Gemini confunde esa UI de biblioteca con el `#book-focus-overlay` y lo atribuye a toda la app.
+- **Fix en analyze.js**: limita a 35 imágenes (solo _fold + responsive clave, sin FAB screenshots)
+- **Fix en analyze-deep.js**: 4 capas de protección en los prompts:
+  1. BASE_CONTEXT: aclara que `#book-focus-overlay` siempre está `display:none`
+  2. Grupo Mente: explica que `15-mente-biblioteca` = lista de libros (correcto, no bug)
+  3. Grupo Mobile: describe qué esperar en cada módulo para no confundir Gemini
+  4. Síntesis final: instrucción de ignorar cualquier mención de "SESIÓN DE LECTURA" fuera de Mente
+- **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-17
-- Commits: b77a791, eb74747, 0255d17, 88040d6
-- Correcciones aplicadas:
-  1. `goTo()` ahora llama `closeAllModals()` → elimina overlays en screenshots (calibración, nav-reminder)
-  2. `analyze-deep.js`: retry+backoff Gemini (rate limit 30s, red 8s×attempt), pausa entre grupos 2s→4s
-  3. `analyze.js`: retry+backoff Gemini, dotenv multi-path, cap 35 screenshots, excluye FAB shots
-  4. NLP parser (`main.js`): typos bebi/dormi/tome/medite/gasoline/meeting, hasFinKw+varos/lana/feria,
-     hasAmount detecta números escritos (cien/quinientos/mil), _extractAmount con fallback escrito,
-     hasHabitAction amplía beb[ií]/dorm[ií]/gym/yoga/nadar
-  5. evalJS(fn, arg): segundo argumento ahora se pasa correctamente a page.evaluate
-  6. closeAllModals(): elimina #nav-reminder-overlay además de .modal.open
-- Patrón confirmado: analyze.js (ligero) = health check rápido post-run automático.
-  analyze-deep.js (profundo) = análisis manual cuando se quiere diagnóstico real por módulo.
-- Alucinación identificada: "SESION DE LECTURA" era Gemini confundiendo el book-focus-overlay
-  (display:none, nunca activado por el runner) con otros screenshots por exceso de imágenes.
-  5. `testStripe`: selector `#settings-plan-badge` específico (evita falso negativo con badge oculto)
-  6. `testMente` aliados: WARN→INFO (sección dinámica, requiere usuarios reales)
-  7. FAB NLP: `closeAllModals()` + JS click — elimina 30s Playwright timeout por elemento cubierto
-  8. SEED finanzas: JS `openTxModal()` + `evalJS(addTransaction)`, tipo='salida'/'entrada' (no 'gasto')
-  9. SEED hábitos: `closeAllModals()` + `evalJS(addHabit)`
-  10. FAB NLP matching: mapa de términos (Finanzas→busca 'Gasto'/'💰' en preview)
-  11. dotenv: carga multi-path (VPS `/opt/openclaw/.env` + local Windows)
-- Patrón establecido: usar `evalJS(() => appFunction())` para cualquier operación donde Playwright
-  pueda fallar por actionability checks (elemento cubierto, z-index alto). `safeClick()` solo para
-  clicks verdaderamente interactivos.
-- NLP issues encontrados (14 WARNs reales del parser — no son bugs del runner):
-  - "gasoline", "varos" no reconocidos como gastos
-  - Números escritos ("cien pesos") no parseados como montos
-  - Coma en montos rompe detección de ingreso ("1,500")
-  - "cori", "bebi", "dormi" (sin tilde) no reconocidos como hábitos
-  - "7am" parseado como "$7" en lugar de hora
-- Próximo: VPS sync con comandos de sección RUTAS ABSOLUTAS (las rutas correctas ya están documentadas)
+- Commits: b77a791, eb74747, 0255d17, 88040d6, e75ac20, 02b009b, 9cfb86f, 7be86b9, c5faf2e
+- Correcciones aplicadas esta sesión:
+  1. `goTo()` llama `closeAllModals()` tras cada navegación → elimina overlays en screenshots
+  2. `analyze-deep.js`: retry+backoff (rate limit 30s, red 8s×attempt), pausa 2s→4s entre grupos
+  3. `analyze-deep.js`: escapar backticks en BASE_CONTEXT (causaba ReferenceError en Node.js)
+  4. `analyze-deep.js`: retry cubre respuestas vacías Gemini (200 sin texto)
+  5. `analyze-deep.js`: 4 capas anti-alucinación en prompts (ver sección DIAGNÓSTICO)
+  6. `analyze.js`: retry+backoff, dotenv multi-path, cap 35 screenshots, excluye FAB shots
+  7. `analyze.js`: retry cubre respuestas vacías Gemini
+- Patrón confirmado:
+  - `analyze.js` (ligero) = health check automático al final de cada runner.js
+  - `analyze-deep.js` (profundo) = análisis manual cuando se quiere diagnóstico real por módulo
+- Pendiente: verificar con próximo run que la alucinación SESION-DE-LECTURA ya no aparece
