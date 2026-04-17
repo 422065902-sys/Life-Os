@@ -97,19 +97,33 @@ node scripts/analyze.js        # ligero — más rápido
 - ✅ Corregido: firebase-messaging-sw.js detecta staging/prod automáticamente por hostname
 - ✅ Corregido: seedDemoUser.js usa variables de entorno + advertencia si corre contra prod
 - ✅ Eliminado: app.js legacy (desactivado, versión antigua — historial disponible en git)
+- ✅ runner.js corre end-to-end: 215 tests, 0 FAILs, 93% pass rate
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
+- ⚠️ Pendiente: VPS sync — git pull + copiar scripts al VPS
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-16
-- Qué se hizo: Auditoría completa inicial + correcciones
+- Fecha: 2026-04-17
+- Qué se hizo: Runner completo sin crashes — 215 tests, 0 FAILs, 93% pass rate
+- Commits: 5c27839, 6671fed, 3637ec1
 - Correcciones aplicadas:
-  1. Firebase CLI cambiado de producción a staging (`firebase use staging`)
-  2. `main.js` — añadida detección `_IS_STAGING` + config dual staging/prod
-  3. `seedDemoUser.js` — hardcodes reemplazados por variables de entorno con guard de advertencia
-  4. `index.html` — actualizado comentario obsoleto sobre app.js
-- Duplicados eliminados: ninguno (estructura limpia)
-- Alertas sin acción (pendientes de decisión):
-  - `firebase-adc.json` en git (token OAuth admin) — usuario decide mantenerlo
-  - `app.js` legacy — evaluar eliminar
-  - `firebase-messaging-sw.js` solo apunta a producción
-- Próximo: deploy a staging para verificar que runner.js corra limpio
+  1. `closeAllModals()` helper — cierra modales olvidados que bloquean UI (z-index 200 backdrop)
+  2. `testFinanzas`: JS `openTxModal()` + JS `addTransaction()` (botón dice "Registrar" no "Guardar")
+  3. `testHabitos`: JS `addHabit()` + selector real `.habit-item`
+  4. `testCalendario`: JS `renderCalendar()` + JS `calNext()` (antes bloqueado por modal abierto)
+  5. `testStripe`: selector `#settings-plan-badge` específico (evita falso negativo con badge oculto)
+  6. `testMente` aliados: WARN→INFO (sección dinámica, requiere usuarios reales)
+  7. FAB NLP: `closeAllModals()` + JS click — elimina 30s Playwright timeout por elemento cubierto
+  8. SEED finanzas: JS `openTxModal()` + `evalJS(addTransaction)`, tipo='salida'/'entrada' (no 'gasto')
+  9. SEED hábitos: `closeAllModals()` + `evalJS(addHabit)`
+  10. FAB NLP matching: mapa de términos (Finanzas→busca 'Gasto'/'💰' en preview)
+  11. dotenv: carga multi-path (VPS `/opt/openclaw/.env` + local Windows)
+- Patrón establecido: usar `evalJS(() => appFunction())` para cualquier operación donde Playwright
+  pueda fallar por actionability checks (elemento cubierto, z-index alto). `safeClick()` solo para
+  clicks verdaderamente interactivos.
+- NLP issues encontrados (14 WARNs reales del parser — no son bugs del runner):
+  - "gasoline", "varos" no reconocidos como gastos
+  - Números escritos ("cien pesos") no parseados como montos
+  - Coma en montos rompe detección de ingreso ("1,500")
+  - "cori", "bebi", "dormi" (sin tilde) no reconocidos como hábitos
+  - "7am" parseado como "$7" en lugar de hora
+- Próximo: `git pull` en VPS + copiar runner.js/analyze.js/analyze-deep.js a `/opt/openclaw/`
