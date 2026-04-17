@@ -71,12 +71,40 @@ node runner.js
 node "/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/runner.js"
 ```
 
+### Salida del runner mientras corre (VPS)
+```bash
+# Ver logs en tiempo real si corre en background (&):
+tail -f /opt/openclaw/repo/lifeos/qa-reports/YYYY-MM-DD_HH-MM.md
+
+# Ver el reporte más reciente (cualquier nombre):
+ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
+
+# Ver solo WARNs y FAILs del reporte activo:
+ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs grep -E "❌|⚠️"
+
+# Ver progreso del runner (qué módulo va):
+ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -20
+```
+
+### Archivos generados por cada run
+```
+/opt/openclaw/repo/lifeos/qa-reports/
+├── YYYY-MM-DD_HH-MM.md              ← reporte QA de ese run
+├── PROPOSALS_YYYY-MM-DD.md          ← propuestas generadas por analyze
+└── screenshots/
+    └── YYYY-MM-DD_HH-MM/            ← carpeta de capturas de ese run
+        ├── 00-landing-fold.jpg
+        ├── 05-dashboard_fold.jpg
+        └── ... (una por módulo)
+```
+
 ### En Windows (desarrollo local)
 ```
-c:\Users\wence\Documents\Life Os\   ← raíz del proyecto
+c:\Users\wence\Documents\Life Os\               ← raíz del proyecto
 c:\Users\wence\Documents\Life Os\scripts\runner.js
 c:\Users\wence\Documents\Life Os\scripts\analyze.js
 c:\Users\wence\Documents\Life Os\scripts\analyze-deep.js
+c:\Users\wence\Documents\Life Os\qa-reports\    ← reportes locales
 ```
 
 ## PASOS PARA CORRER OPENCLAW
