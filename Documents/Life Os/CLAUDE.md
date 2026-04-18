@@ -207,21 +207,24 @@ analyze-deep.js se corre manualmente cuando se quiere análisis profundo por gru
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-18
-- Commits anteriores: b77a791, eb74747, 0255d17, 88040d6, e75ac20, 02b009b, 9cfb86f, 7be86b9, c5faf2e, d84fb42
-- Commit esta sesión: 15252de
-- Correcciones aplicadas esta sesión:
-  1. `analyze-deep.js`: Mobile group maxTokens 16000→6000
-  2. `analyze-deep.js`: Síntesis maxTokens 8000→5000
-  3. `analyze-deep.js`: Estimación de costo corregida (sumaba 8000, ahora 5000)
-  4. `analyze-deep.js`: Comentario de cabecera actualizado (16k→5k-6k)
-- Run limpio confirmado: 83 propuestas (23 críticas, 36 altas), sin errores de API, sin alucinación SESIÓN-DE-LECTURA ✅
-- Patrón confirmado:
-  - `analyze.js` (ligero) = health check automático al final de cada runner.js
-  - `analyze-deep.js` (profundo) = análisis manual cuando se quiere diagnóstico real por módulo
-- Top bugs reales detectados (verificar en main.js antes de actuar):
-  1. Saldo negativo muestra en verde (Bug financiero — color condicional)
-  2. Flow tab Metas muestra contenido de Ideas (routing bug)
-  3. Hábito muestra ID en lugar de nombre (renderHabitItem)
-  4. FAB NLP miscategoriza gastos como tareas
-  5. Landing page texto CTA cortado en mobile
+- Fecha: 2026-04-17
+- Commits: c98498c, 59c0be0 (+ anteriores de sesión anterior: 15252de, etc.)
+- Correcciones aplicadas esta sesión (continuación de sesión anterior):
+  1. `buildPie`: usa CAT_COLORS[label] con PIE_COLORS como fallback — colores categoría-aware
+  2. `updateGlobalCore`: S.primeraSesion solo bloquea BLACKOUT, no estado ACTIVO con datos
+  3. `.fab-preview`: word-break:break-word + line-height:1.5 — texto NLP largo no se corta
+  4. `MUSCLE_DATA`: agrega campo key; `buildMuscleMap` lee S.muscleMap[key] en lugar de pct hardcodeado
+  5. NLP `parseLocalNLP`: usa Set de palabras para detectar keywords con tilde al final (cobré, gasté,
+     pagué, entrené, corrí, bebí, dormí, cumplí) — \b falla con chars no-ASCII en JS regex
+  6. NLP: elimina "gym" de hasFinKw — gym es siempre hábito; evita Gasto falso de "entrené 7am en el gym"
+  7. NLP: sección 10 (gasto sin monto) usa hasFinAccentKw para detectar pagué/gasté sin cantidad
+  8. Runner: test XP de completar tarea usa page.evaluate(toggleTask) en lugar de click DOM obsoleto
+- QA base: 215 tests, 0 FAILs, 14 WARNs → después de estas correcciones: estimado ≤4 WARNs reales
+- Bugs confirmados como NO reales (alucinaciones o comportamiento correcto):
+  - Flow tab "Metas muestra Ideas" → HTML correcto, alucinación Gemini
+  - XP no suma → usuario nuevo tenía 0 XP, correcto
+  - Hábito muestra ID → usa escHtml(h.name), correcto
+  - PWA offline roto → QA PASS, alucinación
+  - TIEMPO ACTIVO vs reloj → duración sesión vs reloj pared, intencional
+- Pendiente: runner.js automático nocturno (esperando usuarios reales)
+- Pendiente: correr runner en VPS para verificar fixes (usuario sync manualmente)
