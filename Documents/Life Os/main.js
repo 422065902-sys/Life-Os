@@ -290,19 +290,29 @@ const NAV = [
   {id:'settings',     icon:'⚙️', label:'Ajustes'},
 ];
 
-/* Bottom nav móvil — 5 iconos SVG limpios, estilo Instagram */
-const BN_ITEMS = [
-  { id:'dashboard',     label:'Tablero',
-    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11.293 2.293a1 1 0 0 1 1.414 0l8 8A1 1 0 0 1 20 12h-1v7a1 1 0 0 1-1 1h-4v-5h-4v5H6a1 1 0 0 1-1-1v-7H4a1 1 0 0 1-.707-1.707l8-8z"/></svg>' },
-  { id:'productividad', label:'Flow',
-    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>' },
-  { id:'cuerpo',        label:'Cuerpo',
-    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' },
-  { id:'financial',     label:'Finanzas',
-    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1H2V7zm0 3h20v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8zm14 3a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2h-2z"/></svg>' },
-  { id:'_drawer',       label:'Más',
-    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>' },
+/* ─── Bottom Nav Carrusel Infinito ───────────────────────────────────────────
+   Dashboard siempre en el centro. Los demás módulos orbitan izquierda/derecha.
+   Al deslizar, el ítem que queda en el centro se navega automáticamente.
+   Al tocar uno lateral, se jala al centro.
+   Scroll infinito: 3 copias del array, el loop corrige la posición en silencio.
+────────────────────────────────────────────────────────────────────────────── */
+const BN_ORDER = [
+  // Izquierda → más lejano primero, más cercano al dashboard último
+  {id:'settings',     icon:'⚙️', label:'Ajustes'},
+  {id:'aprende',      icon:'📖', label:'Aprende'},
+  {id:'stats',        icon:'📊', label:'Análisis'},
+  {id:'mente',        icon:'🧠', label:'Mente'},
+  {id:'world',        icon:'🗺️', label:'World'},
+  // ── CENTRO (índice 5) ──
+  {id:'dashboard',    icon:'⚡', label:'Tablero'},
+  // Derecha → más cercano al dashboard primero, más lejano último
+  {id:'productividad',icon:'🌊', label:'Flow'},
+  {id:'cuerpo',       icon:'💪', label:'Cuerpo'},
+  {id:'financial',    icon:'💰', label:'Finanzas'},
 ];
+const BN_CTR = 5;           // índice de dashboard en BN_ORDER
+const BN_LEN = BN_ORDER.length; // 9
+const BN_IW  = 56;          // ancho de cada ítem en px
 
 function buildNav() {
   // Desktop sidebar
@@ -327,25 +337,117 @@ function buildNav() {
 function buildBottomNav() {
   const bn = document.getElementById('bn-scroll');
   if (!bn) return;
-  bn.innerHTML = BN_ITEMS.map(n => {
-    const isActive = n.id === S.currentPage;
-    const onclick = n.id === '_drawer' ? 'toggleDrawer()' : `navigate('${n.id}')`;
-    return `<button class="bn-tab${isActive?' active':''}" onclick="${onclick}" aria-label="${n.label}" title="${n.label}">
-      <span class="bn-tab-icon">${n.svg}</span>
-    </button>`;
-  }).join('');
-}
-
-function _scrollBottomNavActive() {
-  /* no-op: con 5 ítems fijos no hay scroll necesario */
-}
-
-function updateBottomNav(pageId) {
-  const bn = document.getElementById('bn-scroll');
-  if (!bn) return;
-  bn.querySelectorAll('.bn-tab').forEach((el, i) => {
-    el.classList.toggle('active', BN_ITEMS[i]?.id === pageId);
+  // 3 copias para scroll infinito
+  const items = [...BN_ORDER, ...BN_ORDER, ...BN_ORDER];
+  bn.innerHTML = `<div id="bn-track">${
+    items.map((n, i) => {
+      const local = i % BN_LEN;
+      return `<button class="bn-tab" data-local="${local}" onclick="bnTap(${local})" aria-label="${n.label}" title="${n.label}"><span class="bn-tab-icon">${n.icon}</span></button>`;
+    }).join('')
+  }</div>`;
+  requestAnimationFrame(() => {
+    _bnJumpTo(BN_LEN + BN_CTR, false); // iniciar en dashboard de la copia central
+    _bnMarkActive(S.currentPage);
+    const track = document.getElementById('bn-track');
+    if (track) track.addEventListener('scroll', _bnOnScroll, {passive:true});
   });
+}
+
+/* Desplaza el track para centrar el ítem en posición absoluta `itemIndex` */
+function _bnJumpTo(itemIndex, animate) {
+  const track = document.getElementById('bn-track');
+  if (!track) return;
+  const cw = track.clientWidth || track.offsetWidth;
+  const target = itemIndex * BN_IW - cw / 2 + BN_IW / 2;
+  if (animate) track.scrollTo({left: target, behavior:'smooth'});
+  else         track.scrollLeft = target;
+}
+
+/* Marca el active en TODOS los clones del ítem */
+function _bnMarkActive(pageId) {
+  const track = document.getElementById('bn-track');
+  if (!track) return;
+  const localIdx = BN_ORDER.findIndex(n => n.id === pageId);
+  track.querySelectorAll('.bn-tab').forEach(el => {
+    el.classList.toggle('active', +el.dataset.local === localIdx);
+  });
+}
+
+/* El usuario tocó un ícono: jalarlo al centro y navegar */
+let _bnTapLock = false;
+function bnTap(localIndex) {
+  if (_bnTapLock) return;
+  _bnTapLock = true;
+  const track = document.getElementById('bn-track');
+  if (!track) { _bnTapLock = false; return; }
+  const cw    = track.clientWidth || track.offsetWidth;
+  const sl    = track.scrollLeft;
+  const cItem = (sl + cw / 2 - BN_IW / 2) / BN_IW; // ítem actualmente centrado (float)
+  // Encuentra la copia más cercana del ítem tocado
+  let best = BN_LEN + localIndex, bestDist = Infinity;
+  for (let c = 0; c < 3; c++) {
+    const idx = c * BN_LEN + localIndex;
+    const d   = Math.abs(idx - cItem);
+    if (d < bestDist) { bestDist = d; best = idx; }
+  }
+  _bnJumpTo(best, true);
+  navigate(BN_ORDER[localIndex].id);
+  setTimeout(() => { _bnTapLock = false; }, 500);
+}
+
+/* Listener de scroll: actualiza activo + loop infinito + navega al soltar */
+let _bnScrollT = null, _bnJumping = false, _bnLastLocal = BN_CTR;
+function _bnOnScroll() {
+  if (_bnJumping) return;
+  const track = document.getElementById('bn-track');
+  if (!track) return;
+  const cw    = track.clientWidth || track.offsetWidth;
+  const sl    = track.scrollLeft;
+  const cItem = Math.round((sl + cw / 2 - BN_IW / 2) / BN_IW);
+  const local = ((cItem % BN_LEN) + BN_LEN) % BN_LEN;
+  // Actualizar highlight en tiempo real
+  track.querySelectorAll('.bn-tab').forEach(el => {
+    el.classList.toggle('active', +el.dataset.local === local);
+  });
+  // Loop infinito: si entró en copia 0 o 2, saltar a la equivalente en copia 1
+  const copyIdx = Math.floor(cItem / BN_LEN);
+  if (copyIdx === 0 || copyIdx === 2) {
+    _bnJumping = true;
+    track.scrollLeft += (copyIdx === 0 ? 1 : -1) * BN_LEN * BN_IW;
+    setTimeout(() => { _bnJumping = false; }, 50);
+  }
+  // Navegar al soltar (debounce 200ms)
+  if (local !== _bnLastLocal) {
+    _bnLastLocal = local;
+    clearTimeout(_bnScrollT);
+    _bnScrollT = setTimeout(() => {
+      if (!_bnTapLock) navigate(BN_ORDER[local].id);
+    }, 200);
+  }
+}
+
+function _scrollBottomNavActive() { /* handled by carousel */ }
+
+/* Llamado desde navigate() para sincronizar el carrusel con la página activa */
+function updateBottomNav(pageId) {
+  if (_bnTapLock) return; // tap ya lo manejó
+  _bnMarkActive(pageId);
+  const localIdx = BN_ORDER.findIndex(n => n.id === pageId);
+  if (localIdx < 0) return;
+  const track = document.getElementById('bn-track');
+  if (!track) return;
+  const cw    = track.clientWidth || track.offsetWidth;
+  const sl    = track.scrollLeft;
+  const cItem = (sl + cw / 2 - BN_IW / 2) / BN_IW;
+  // Copia más cercana
+  let best = BN_LEN + localIdx, bestDist = Infinity;
+  for (let c = 0; c < 3; c++) {
+    const idx = c * BN_LEN + localIdx;
+    const d   = Math.abs(idx - cItem);
+    if (d < bestDist) { bestDist = d; best = idx; }
+  }
+  _bnJumpTo(best, true);
+  _bnLastLocal = localIdx;
 }
 
 function toggleDrawer() {
