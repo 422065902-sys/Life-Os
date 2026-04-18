@@ -37,15 +37,25 @@ function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
 // CARGAR Y AGRUPAR SCREENSHOTS
 // ══════════════════════════════════════════════════════════════
 function loadLatestScreenshots() {
-  const base = path.join(REPORTS_DIR, 'screenshots');
-  if (!fs.existsSync(base)) return { dir: null, files: [] };
-  const dirs = fs.readdirSync(base)
-    .filter(d => fs.statSync(path.join(base, d)).isDirectory())
-    .sort().reverse();
-  if (!dirs.length) return { dir: null, files: [] };
+  // Si runner pasó QA_SHOTS_DIR, usar esa carpeta exacta (screenshots frescos del run actual)
+  const explicitDir = process.env.QA_SHOTS_DIR;
 
-  const shotsDir = path.join(base, dirs[0]);
-  log(`Run de screenshots: ${dirs[0]}`);
+  let shotsDir, runLabel;
+  if (explicitDir && fs.existsSync(explicitDir)) {
+    shotsDir = explicitDir;
+    runLabel  = path.basename(explicitDir);
+  } else {
+    const base = path.join(REPORTS_DIR, 'screenshots');
+    if (!fs.existsSync(base)) return { dir: null, files: [] };
+    const dirs = fs.readdirSync(base)
+      .filter(d => fs.statSync(path.join(base, d)).isDirectory())
+      .sort().reverse();
+    if (!dirs.length) return { dir: null, files: [] };
+    shotsDir = path.join(base, dirs[0]);
+    runLabel  = dirs[0];
+  }
+
+  log(`Run de screenshots: ${runLabel}`);
 
   const files = fs.readdirSync(shotsDir)
     .filter(f => f.match(/\.(jpg|png)$/))
@@ -57,7 +67,7 @@ function loadLatestScreenshots() {
       data: fs.readFileSync(path.join(shotsDir, f)).toString('base64'),
     }));
 
-  return { dir: dirs[0], files };
+  return { dir: runLabel, files };
 }
 
 function buildGroups(files) {

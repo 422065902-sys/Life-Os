@@ -2264,13 +2264,25 @@ async function main() {
     log(`[WARN] Error al hacer commit/push: ${e.message.split('\n')[0]}`);
   }
 
-  // Análisis IA con Gemini
+  // Análisis IA ligero (siempre)
   try {
-    log('Ejecutando análisis IA con Gemini...');
+    log('Ejecutando análisis IA ligero (analyze.js)...');
     const analyzeEnv = { ...process.env, QA_SHOTS_DIR: SHOTS_DIR };
     execSync(`node "${path.join(__dirname, 'analyze.js')}"`, { stdio: 'inherit', env: analyzeEnv });
   } catch (e) {
-    log(`[WARN] Análisis IA falló: ${e.message.split('\n')[0]}`);
+    log(`[WARN] Análisis ligero falló: ${e.message.split('\n')[0]}`);
+  }
+
+  // Análisis profundo (solo si se pasa --deep)
+  const DEEP = process.argv.includes('--deep');
+  if (DEEP) {
+    try {
+      log('\n▶ Iniciando análisis DEEP con Gemini Vision (analyze-deep.js)...');
+      const deepEnv = { ...process.env, QA_SHOTS_DIR: SHOTS_DIR };
+      execSync(`node "${path.join(__dirname, 'analyze-deep.js')}"`, { stdio: 'inherit', env: deepEnv });
+    } catch (e) {
+      log(`[WARN] Análisis deep falló: ${e.message.split('\n')[0]}`);
+    }
   }
 
   log('═══ OpenClaw QA Suite completado ═══');
