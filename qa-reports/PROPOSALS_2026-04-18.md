@@ -31,3 +31,18 @@
 
 ---
 
+## Run: 2026-04-18_07-26.md
+
+- [ ] [BUG] NLP: Preview de tarea con verbo ambiguo | SOLUCIÓN: Modificar `nlpService.js` para que "esta semana" no se resuelva a "Hoy". En su lugar, sugerir un rango (ej. "Esta semana: L-D"), pedir clarificación, o por defecto al próximo día hábil. Actualizar `fabComponent.js` para mostrar el output refinado. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [BUG] FINANCIERO: Gráfico de gastos personales con datos incorrectos/vacíos | SOLUCIÓN: En `finanzas.js`, depurar la lógica de obtención y agregación de datos para `Chart.js`. Asegurar que `chartData.labels` y `chartData.datasets[0].data` se pueblen con categorías y sumas reales de transacciones. Si no hay datos, mostrar un estado vacío informativo (ej. "Aún no tienes gastos categorizados"). | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [UX] CUERPO: Estados vacíos para Peso y Volumen | SOLUCIÓN: En `cuerpo.js`, implementar lógica para mostrar mensajes contextuales (ej. "Registra tu peso" o "Añadir volumen") en lugar de "- kg" o "0 kg" cuando no haya datos. Añadir un CTA claro para introducir la información. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [QA] FLOW: Hábito de prueba visible | SOLUCIÓN: Eliminar o filtrar el "Hábito QA 1776395743410" de la lista de hábitos en `habitos.js` para entornos de staging/producción. Implementar un script de limpieza de datos de prueba o un filtro en el frontend. | PRIORIDAD: BAJA | CATEGORÍA: MICRO
+- [ ] [MOBILE] GENERAL: Barra superior "MODO PRUEBA" ocupa mucho espacio en móvil | SOLUCIÓN: En `styles.css` o `header.css`, aplicar media queries para reducir la altura (`height` y `padding`) de la barra `.top-banner` o `.mode-prueba-bar` en viewports móviles (`@media (max-width: 768px)`). Considerar hacerla colapsable o usar un tamaño de fuente más pequeño. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] FINANCIERO: Legibilidad de valores secundarios en móvil | SOLUCIÓN: En `finanzas.css`, aumentar el `font-size` de los valores secundarios (ej. "$133,250.00") bajo "SALDO PERSONAL" dentro de una media query para dispositivos móviles, garantizando contraste (WCAG AA). | PRIORIDAD: BAJA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] LANDING PAGE: Implementación completa de la página de aterrizaje | SOLUCIÓN: Priorizar la construcción de la `section#landing-page` en `index.html` y `styles.css` siguiendo la visión detallada.
+- [ ] [ARQUITECTURA] DASHBOARD: Implementación del Dashboard Dinámico (Opt-in) | SOLUCIÓN:
+- [ ] [MOBILE] WORLD MAP: Optimización para modo retrato en móvil | SOLUCIÓN: En `worldMap.js`, implementar funcionalidad de pan y zoom para el mapa en modo retrato. Asegurar que los touch targets de los edificios/POIs sean de al menos 44px. La frase "Gira tu pantalla..." debe ser una sugerencia, no un requisito para la usabilidad básica. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] MENTE & PODER: Reforzar el rol activo del Gemelo | SOLUCIÓN: En `mente.js`, mejorar la sección "Gemelo Potenciado" para enfatizar las *salidas* y *insights accionables*. A��adir una sección "Insights Recientes" o "Recomendaciones del Gemelo" con ejemplos concretos de lo que el Gemelo sugiere o detecta, conectando visualmente las "Fases" con resultados tangibles. | PRIORIDAD: MEDIA | CATEGORÍA: ARQUITECTURA
+
+---
+
