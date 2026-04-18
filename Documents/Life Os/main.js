@@ -5295,10 +5295,24 @@ function _showLandingPage() {
   if (lp) {
     lp.style.display = 'flex';
     lp.style.flexDirection = 'column';
-    // Activar animaciones de entrada con un tick de delay
+    // Animaciones de entrada del hero
     requestAnimationFrame(() => {
       lp.querySelectorAll('.lp-anim').forEach(el => el.classList.add('lp-anim-in'));
     });
+    // Scroll-reveal para secciones inferiores
+    const lpScroll = lp.querySelector('.lp-scroll');
+    if (lpScroll && !lp._revealObserver) {
+      lp._revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((e, i) => {
+          if (e.isIntersecting) {
+            const delay = (e.target.dataset.revealDelay || 0);
+            setTimeout(() => e.target.classList.add('lp-reveal-in'), delay);
+            lp._revealObserver.unobserve(e.target);
+          }
+        });
+      }, { root: lpScroll, threshold: 0.12 });
+      lp.querySelectorAll('.lp-reveal').forEach(el => lp._revealObserver.observe(el));
+    }
   }
   if (as) as.style.display = 'none';
 }
