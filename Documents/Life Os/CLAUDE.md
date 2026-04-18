@@ -174,10 +174,13 @@ node analyze.js        # ligero — más rápido
 - ✅ Corregido: firebase-messaging-sw.js detecta staging/prod automáticamente por hostname
 - ✅ Corregido: seedDemoUser.js usa variables de entorno + advertencia si corre contra prod
 - ✅ Eliminado: app.js legacy (desactivado, versión antigua — historial disponible en git)
-- ✅ runner.js corre end-to-end: 215 tests, 0 FAILs, 93% pass rate
+- ✅ runner.js corre end-to-end: 154 tests, 0 FAILs, 95% pass rate (último run 2026-04-17)
 - ✅ goTo() llama closeAllModals() — overlays ya no aparecen en screenshots
 - ✅ analyze.js limitado a 35 shots clave (fold+responsive) — elimina alucinaciones Gemini
 - ✅ analyze-deep.js y analyze.js con retry+backoff (3 intentos, 30s en rate limit)
+- ✅ analyze-deep.js: thinkingBudget=0 en todos los grupos y síntesis — costo controlado
+- ✅ analyze-deep.js: maxTokens 5k-6k por grupo (antes 14k-16k) — sin basura de relleno
+- ✅ Run deep limpio: 83 propuestas, 0 errores API (2026-04-18)
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
 
 ## FLUJO RECOMENDADO POST-RUN
@@ -204,17 +207,21 @@ analyze-deep.js se corre manualmente cuando se quiere análisis profundo por gru
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-17
-- Commits: b77a791, eb74747, 0255d17, 88040d6, e75ac20, 02b009b, 9cfb86f, 7be86b9, c5faf2e
+- Fecha: 2026-04-18
+- Commits anteriores: b77a791, eb74747, 0255d17, 88040d6, e75ac20, 02b009b, 9cfb86f, 7be86b9, c5faf2e, d84fb42
+- Commit esta sesión: 15252de
 - Correcciones aplicadas esta sesión:
-  1. `goTo()` llama `closeAllModals()` tras cada navegación → elimina overlays en screenshots
-  2. `analyze-deep.js`: retry+backoff (rate limit 30s, red 8s×attempt), pausa 2s→4s entre grupos
-  3. `analyze-deep.js`: escapar backticks en BASE_CONTEXT (causaba ReferenceError en Node.js)
-  4. `analyze-deep.js`: retry cubre respuestas vacías Gemini (200 sin texto)
-  5. `analyze-deep.js`: 4 capas anti-alucinación en prompts (ver sección DIAGNÓSTICO)
-  6. `analyze.js`: retry+backoff, dotenv multi-path, cap 35 screenshots, excluye FAB shots
-  7. `analyze.js`: retry cubre respuestas vacías Gemini
+  1. `analyze-deep.js`: Mobile group maxTokens 16000→6000
+  2. `analyze-deep.js`: Síntesis maxTokens 8000→5000
+  3. `analyze-deep.js`: Estimación de costo corregida (sumaba 8000, ahora 5000)
+  4. `analyze-deep.js`: Comentario de cabecera actualizado (16k→5k-6k)
+- Run limpio confirmado: 83 propuestas (23 críticas, 36 altas), sin errores de API, sin alucinación SESIÓN-DE-LECTURA ✅
 - Patrón confirmado:
   - `analyze.js` (ligero) = health check automático al final de cada runner.js
   - `analyze-deep.js` (profundo) = análisis manual cuando se quiere diagnóstico real por módulo
-- Pendiente: verificar con próximo run que la alucinación SESION-DE-LECTURA ya no aparece
+- Top bugs reales detectados (verificar en main.js antes de actuar):
+  1. Saldo negativo muestra en verde (Bug financiero — color condicional)
+  2. Flow tab Metas muestra contenido de Ideas (routing bug)
+  3. Hábito muestra ID en lugar de nombre (renderHabitItem)
+  4. FAB NLP miscategoriza gastos como tareas
+  5. Landing page texto CTA cortado en mobile
