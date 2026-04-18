@@ -1692,17 +1692,19 @@ function buildPie(canvasId, emptyId, legendId, txs) {
   const labels=Object.keys(map), data=Object.values(map);
   const key = canvasId==='piePersonal'?'pieP':'pieA';
   if (S.charts[key]) S.charts[key].destroy();
+  // Usar colores de categoría cuando existen, PIE_COLORS como fallback
+  const colors = labels.map((l,i) => CAT_COLORS[l] || PIE_COLORS[i % PIE_COLORS.length]);
   S.charts[key] = new Chart(canvas, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:PIE_COLORS, borderWidth:0, hoverOffset:4 }] },
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:0, hoverOffset:4 }] },
     options:{ plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed)}`}}}, cutout:'60%' }
   });
   if (legendEl) {
     legendEl.innerHTML = labels.slice(0,5).map((l,i)=>`
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <div style="width:8px;height:8px;border-radius:2px;background:${PIE_COLORS[i]};flex-shrink:0"></div>
+        <div style="width:8px;height:8px;border-radius:2px;background:${colors[i]};flex-shrink:0"></div>
         <span style="font-size:10px;flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span>
-        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${PIE_COLORS[i]}">${fmt(data[i])}</span>
+        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${colors[i]}">${fmt(data[i])}</span>
       </div>`).join('');
   }
 }
@@ -6732,11 +6734,11 @@ function updateGlobalCore() {
     // Modo Recuperación: estado pacífico independiente del progreso real
     state='recovery'; badgeClass='state-recovery';
     labelText='MODO RECUPERACIÓN'; badgeText='💜 DESCANSANDO';
-  } else if (!hasData || S.primeraSesion) {
-    // Sin datos aún, o primera sesión activa: nunca Blackout
+  } else if (!hasData) {
+    // Sin hábitos ni tareas aún: estado inactivo
     state='idle'; badgeClass='state-idle'; labelText='SIN ACTIVIDAD'; badgeText='NÚCLEO INACTIVO';
-  } else if (combined === 0 && S.blackoutOverrideToday !== todayStr) {
-    // Blackout solo si combined=0 Y no hubo acción XP real hoy (Fix 1.5)
+  } else if (combined === 0 && S.blackoutOverrideToday !== todayStr && !S.primeraSesion) {
+    // Blackout solo si combined=0, sin XP real hoy, y onboarding completado (Fix 1.5 + primera sesión)
     state='blackout'; badgeClass='state-blackout'; labelText='SYSTEM BLACKOUT'; badgeText='⚠ BLACKOUT ACTIVO';
   } else if (combined === 0) {
     // XP real ganado hoy → Blackout desactivado, mostrar como activo
