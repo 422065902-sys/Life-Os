@@ -63,6 +63,14 @@ cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js
 cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js
 ```
 
+### Deploy a staging (Firebase Hosting)
+```bash
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging --token "1//05eYwHkIxLrx0CgYIARAAGAUSNwF-L9IrSi8bt-Uc1kKz0-rKnFQDr9KHxgRE_gt8FIHYIshOMo9efG_8lUOIZ8k4hsWLM8T5YMs"
+```
+- Token CI generado 2026-04-18 — si expira, correr `firebase login:ci --no-localhost` y actualizar
+- Target `staging → mylifeos-staging` ya configurado en el VPS
+- firebase.json debe estar en `Documents/Life Os/` (no en la raíz del repo)
+
 ### Correr OpenClaw en el VPS
 ```bash
 cd /opt/openclaw
@@ -181,6 +189,10 @@ node analyze.js        # ligero — más rápido
 - ✅ analyze-deep.js: thinkingBudget=0 en todos los grupos y síntesis — costo controlado
 - ✅ analyze-deep.js: maxTokens 5k-6k por grupo (antes 14k-16k) — sin basura de relleno
 - ✅ Run deep limpio: 83 propuestas, 0 errores API (2026-04-18)
+- ✅ analyze.js y analyze-deep.js: BASE_CONTEXT incluye que $99 es MXN (~$5 USD) — evita falso positivo de precio prohibitivo
+- ✅ NLP: médico/doctor/dentista retirados de hasCalKw — eran falsos positivos en tareas tipo "llamar al médico"
+- ✅ Cuerpo: bio-vol y bio-entrenos muestran '—' cuando no hay datos (antes mostraban "0 kg" / "0")
+- ✅ Runner: limpia hábito QA después del test (deleteHabit) — staging ya no se contamina
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
 
 ## FLUJO RECOMENDADO POST-RUN
@@ -207,24 +219,18 @@ analyze-deep.js se corre manualmente cuando se quiere análisis profundo por gru
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-17
-- Commits: c98498c, 59c0be0 (+ anteriores de sesión anterior: 15252de, etc.)
-- Correcciones aplicadas esta sesión (continuación de sesión anterior):
-  1. `buildPie`: usa CAT_COLORS[label] con PIE_COLORS como fallback — colores categoría-aware
-  2. `updateGlobalCore`: S.primeraSesion solo bloquea BLACKOUT, no estado ACTIVO con datos
-  3. `.fab-preview`: word-break:break-word + line-height:1.5 — texto NLP largo no se corta
-  4. `MUSCLE_DATA`: agrega campo key; `buildMuscleMap` lee S.muscleMap[key] en lugar de pct hardcodeado
-  5. NLP `parseLocalNLP`: usa Set de palabras para detectar keywords con tilde al final (cobré, gasté,
-     pagué, entrené, corrí, bebí, dormí, cumplí) — \b falla con chars no-ASCII en JS regex
-  6. NLP: elimina "gym" de hasFinKw — gym es siempre hábito; evita Gasto falso de "entrené 7am en el gym"
-  7. NLP: sección 10 (gasto sin monto) usa hasFinAccentKw para detectar pagué/gasté sin cantidad
-  8. Runner: test XP de completar tarea usa page.evaluate(toggleTask) en lugar de click DOM obsoleto
-- QA base: 215 tests, 0 FAILs, 14 WARNs → después de estas correcciones: estimado ≤4 WARNs reales
-- Bugs confirmados como NO reales (alucinaciones o comportamiento correcto):
-  - Flow tab "Metas muestra Ideas" → HTML correcto, alucinación Gemini
-  - XP no suma → usuario nuevo tenía 0 XP, correcto
-  - Hábito muestra ID → usa escHtml(h.name), correcto
-  - PWA offline roto → QA PASS, alucinación
-  - TIEMPO ACTIVO vs reloj → duración sesión vs reloj pared, intencional
+- Fecha: 2026-04-18
+- Commits: 1ab7946, 166127a (+ sesión anterior: c98498c, 59c0be0, etc.)
+- Correcciones aplicadas esta sesión:
+  1. `analyze.js` + `analyze-deep.js`: BASE_CONTEXT instruye a Gemini que $99 = MXN (~$5 USD) — ya no reporta precio como problema
+  2. NLP `parseLocalNLP`: retira médico/doctor/dentista de `hasCalKw` — eran personas, no tipos de evento; "llamar al médico esta semana" ya no se clasifica como Calendario
+  3. `updateBioVol`: muestra '—' cuando vol === 0 (antes "0 kg")
+  4. `buildFreqHeatmap` (bio-entrenos): muestra '—' cuando gymCount === 0 (antes "0"); HTML default actualizado
+  5. Runner `testHabitos`: guarda nombre del hábito QA, llama `deleteHabit()` post-test para limpiar staging
+  6. iOS bottom nav implementado: frosted glass, scrollable, pill indicator, FAB reposicionado
+  7. Landing: animaciones gradient-shift, glow-pulse, scroll-reveal con IntersectionObserver
+  8. Gemelo IA card: texto corregido con descripción real de funcionalidad
+  9. lp-nav-login: touch target 44px mínimo
+- QA run (2026-04-18_05-54): 10 propuestas Gemini, salud 6/10 — fixes de NLP y Cuerpo apuntan a subir a 8/10
+- Pendiente: correr runner en VPS para verificar fixes de esta sesión
 - Pendiente: runner.js automático nocturno (esperando usuarios reales)
-- Pendiente: correr runner en VPS para verificar fixes (usuario sync manualmente)
