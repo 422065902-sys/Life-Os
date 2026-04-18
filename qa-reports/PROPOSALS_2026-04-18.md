@@ -46,3 +46,18 @@
 
 ---
 
+## Run: 2026-04-18_08-46.md
+
+- [ ] [BUG] FAB: Previsualización de tarea NLP redundante | SOLUCIÓN: Ajustar la lógica de `renderTaskPreview()` en `main.js` para que, si el input es "esta semana" o similar sin día específico, muestre "Esta semana" en lugar de "Hoy". Eliminar el sufijo "→ Calendario" que es redundante. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] FINANZAS: Valor "Otro" excesivamente grande en gráfico de gastos | SOLUCIÓN: En `main.js`, función `renderFinancesChart()`, implementar manejo de errores o valores `NaN`/`undefined` en los datos de `Chart.js`. Si un valor es inválido o desproporcionado, mostrar "Sin categorizar" o "N/A" con un valor de 0, o un tooltip explicando la anomalía, en lugar de un número inflado. QA debe verificar la fuente de datos. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] CUERPO: Campo "PESO" vacío en módulo Cuerpo | SOLUCIÓN: En `main.js`, componente `CuerpoModule`, si `userData.peso` es `null` o `undefined`, mostrar un estado vacío claro como "Registra tu peso" con un botón CTA para añadirlo. Implementar un `skeleton loader` si el dato está cargando. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] FINANZAS: Superposición de contenido con barra de navegación inferior en Android | SOLUCIÓN: Añadir `padding-bottom` al contenedor principal scrollable del módulo Financiero (`.module-content-wrapper[data-module="financiero"]`) en `styles.css`. El valor debe ser igual o ligeramente superior a la altura de la barra de navegación inferior (ej. `padding-bottom: calc(var(--bottom-nav-height) + 16px);`). | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] FLOW: Touch targets de tabs "Metas", "Ideas", "Agenda" demasiado pequeños en Android | SOLUCIÓN: En `styles.css`, para los elementos `.flow-tabs .tab-item`, aumentar el `min-width` y/o `padding-left`/`padding-right` para asegurar un área de toque mínima de 44px. Considerar un `overflow-x: auto` con `white-space: nowrap` si hay demasiadas tabs. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [UX] WORLD: Pérdida de impacto visual del mapa en mobile | SOLUCIÓN: Implementar funcionalidad de "zoom y pan" táctil para el mapa pixel art en `main.js` (usando `touch events` y `transform: scale`/`translate`). Alternativamente, al cargar en mobile, mostrar una vista simplificada del mapa con un botón "Explorar en pantalla completa" que abra un modal inmersivo con el mapa interactivo. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [RETENCIÓN] LANDING-PAGE: Mensaje legal crítico ausente en Hero y CTA principal | SOLUCIÓN: En `index.html`, sección `#landing-page .hero`, añadir el texto "Sin tarjeta de crédito. 30 días gratis. Cancela cuando quieras." debajo del botón "Empezar gratis →" con un tamaño de fuente legible. Asegurar que este texto también esté presente y prominente en la sección de Pricing. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] LANDING-PAGE: Hero estático y sin impacto visual de "juego" | SOLUCIÓN: En `styles.css`, para `#landing-page .hero`, implementar un fondo con gradiente animado (`@keyframes`) o partículas ligeras (CSS o JS minimalista). Añadir animaciones de entrada (`fade-in` y `translate-Y`) en cascada para el logo, headline, subheadline y botones al cargar la página. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] LANDING-PAGE: Implementación completa de la Landing Page | SOLUCIÓN:
+- [ ] [ARQUITECTURA] DASHBOARD-DINÁMICO: Implementación de Opt-in y lógica de reordenamiento | SOLUCIÓN:
+
+---
+
