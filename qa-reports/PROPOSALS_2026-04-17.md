@@ -61,3 +61,16 @@
 
 ---
 
+## Run: 2026-04-17_20-01.md
+
+- [ ] [BUG] GAMIFICACIÓN: Completar tarea no suma XP | SOLUCIÓN: Revisar `main.js` en la función `completeTask()` para asegurar que `addXP(amount, reason)` sea llamado con un `amount` > 0 y que la actualización en Firestore se persista correctamente. Posiblemente un `await` faltante o un valor de XP inicializado a 0. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] PWA: Pantalla en blanco al estar offline | SOLUCIÓN: Implementar un `service-worker.js` robusto. Asegurar que el `fetch` handler utilice una estrategia `cache-first` para los assets críticos (HTML, CSS, JS, imágenes) y un `fallback` HTML para todas las navegaciones offline. Pre-cachear `index.html` y `main.js` durante la fase `install`. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [UX] MOBILE: Navegación lateral en mobile | SOLUCIÓN: Reemplazar la barra de navegación lateral (`#sidebar`) por una barra de navegación inferior (`<nav id="bottom-nav">`) en viewports <= 768px. Esta debe contener los 5-6 módulos más usados y un botón "Más" para el resto. Asegurar touch targets de 44px. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] MOBILE: Contenido truncado y elementos pequeños | SOLUCIÓN: Aplicar CSS responsivo a todos los módulos (`.module-content`, `.card`, `.button`) utilizando `flexbox` o `grid` con `gap`, unidades relativas (`rem`, `vw`) y media queries para ajustar `font-size`, `padding` y `margin` en viewports de 360px y 390px. Especial atención a 05-dashboard, 06-finanzas, 08-cuerpo, 11-gamificacion y 13-flow-agenda. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] NLP: FAB misclasifica inputs como "Tarea" | SOLUCIÓN: Refinar el modelo NLP (Gemini AI) con más ejemplos de entrenamiento para intents específicos como "Gasto" (ej: "gasté X en Y", "pagué Z") y "Hábito" (ej: "medité X", "bebí Y"). Ajustar la lógica de `parseFABInput()` en `main.js` para priorizar intents específicos sobre el genérico "Tarea" cuando la confianza es alta. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] LANDING PAGE: Falta de animaciones premium | SOLUCIÓN: Implementar las animaciones requeridas: gradiente animado en hero (`@keyframes` en `styles.css`), `Intersection Observer` para `scroll-reveal` en secciones de módulos y pasos, `box-shadow` animado (`glow-pulse`) en CTA primarios (`.btn-primary`) y `hover` en cards de módulos. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [PRODUCTO] LANDING PAGE: Card "Gemelo IR" desalineada | SOLUCIÓN: Corregir la descripción de la card "Gemelo IR" en la sección de módulos de la landing page. Debe reflejar que es una *tab* dentro de "Mente & Poder", no un módulo standalone. Texto sugerido: "Gemelo IA: Tu versión digital aprende tus patrones y te da insights reales (dentro de Mente & Poder)". | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] DASHBOARD: Implementación de "Dashboard Inteligente" | SOLUCIÓN:
+
+---
+
