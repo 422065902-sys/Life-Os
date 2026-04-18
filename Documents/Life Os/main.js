@@ -1206,7 +1206,7 @@ function buildFreqHeatmap() {
   const y = now.getFullYear(), m = now.getMonth();
   const prefix = `${y}-${String(m+1).padStart(2,'0')}-`;
   const gymCount = Object.keys(S.gymDays).filter(k => k.startsWith(prefix)).length;
-  document.getElementById('bio-entrenos') && (document.getElementById('bio-entrenos').textContent = gymCount);
+  document.getElementById('bio-entrenos') && (document.getElementById('bio-entrenos').textContent = gymCount || '—');
 
   _buildHeatmapGrid(el, S.gymDays, 1, totalDays, cols, { binaryMode: true });
 }
@@ -1259,7 +1259,7 @@ async function updateBioVol() {
   el.textContent = '…';
   const semanas = await calcularVolumenSemanal(uid);
   const vol = semanas[5] || 0;
-  el.textContent = vol >= 1000 ? (vol / 1000).toFixed(1) + ' t' : vol.toLocaleString() + ' kg';
+  el.textContent = vol > 0 ? (vol >= 1000 ? (vol / 1000).toFixed(1) + ' t' : vol.toLocaleString() + ' kg') : '—';
 }
 
 async function initVolumeChart() {
@@ -6330,7 +6330,8 @@ function parseLocalNLP(raw) {
     /\b(gaste|pague|costo|gasto|compre|invierte|cafe|uber|rappi|didi|taxi|gasolina|gasoline|bencina|comida|renta|gimnasio|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota|varos|varones|lana|feria)\b|\$\d/i.test(lower);
 
   // ── 6. CALENDARIO ────────────────────────────────────────
-  const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|dentista|doctor|médico|medico|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
+  // médico/doctor/dentista se retiraron — son personas, no tipos de evento (evita falsos positivos en tareas tipo "llamar al médico")
+  const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
   const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo|esta semana|este fin)\b/i.test(lower);
   const timeRE   = /(?:a las?|at|@)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
   const timeM    = lower.match(timeRE);

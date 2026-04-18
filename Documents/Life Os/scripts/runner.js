@@ -1234,7 +1234,8 @@ async function testHabitos() {
 
   // Staging: agregar hábito via JS para evitar click-blocking
   if (!SMOKE_ONLY && habitInput) {
-    await safeFill('#new-habit', `Hábito QA ${Date.now()}`);
+    const qaHabitName = `Hábito QA ${Date.now()}`;
+    await safeFill('#new-habit', qaHabitName);
     await evalJS(() => { if (typeof addHabit === 'function') addHabit(); });
     await page.waitForTimeout(2500); // espera renderHabits + guardarDatos
     // Re-asegurar panel de hábitos activo por si el save causó navegación
@@ -1242,6 +1243,16 @@ async function testHabitos() {
     if (habitsTabRefresh) { await habitsTabRefresh.click().catch(() => {}); await page.waitForTimeout(500); }
     const cards = await page.$$('.habit-item, [class*="habit-item"]');
     addResult('07-Habitos', 'Hábito de prueba aparece en lista', cards.length > 0 ? 'PASS' : 'WARN', `${cards.length} hábitos`);
+
+    // Cleanup: eliminar el hábito QA para no contaminar staging
+    const deleted = await page.evaluate((name) => {
+      if (!window.S || !window.S.habits) return false;
+      const h = window.S.habits.find(x => x.name && x.name.includes('Hábito QA') && !x.deleted);
+      if (h && typeof deleteHabit === 'function') { deleteHabit(h.id); return true; }
+      return false;
+    }, qaHabitName).catch(() => false);
+    if (deleted) await page.waitForTimeout(1000);
+    log(deleted ? '[07] ✅ Hábito QA eliminado (cleanup)' : '[07] ⚠️ No se pudo eliminar hábito QA');
   }
 
   // Verificar que algún hábito tiene indicador de batería
