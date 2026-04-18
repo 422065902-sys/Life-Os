@@ -78,7 +78,7 @@ function buildGroups(files) {
 Objetivo: convertir visitantes escépticos en registros en menos de 10 segundos.
 Features diferenciadores que DEBEN estar destacados: Gemelo Potenciado (IA personalizada), Life OS World (mapa gamificado), Plan Amigos (productividad social), Rachas de hábitos (heatmap + streaks), XP y niveles, toda la vida como RPG.
 
-BUG CONOCIDO A REPORTAR: En la última versión desplegada, la sección hero (#landing-page > .lp-scroll > .lp-hero) muestra un ESPACIO VACÍO ENORME en la parte superior del viewport. El tag "Versión 2.0", el título "El juego de tu vida" y los botones CTA aparecen desplazados hacia el fondo de la pantalla — o los botones quedan cortados fuera del fold. Esto es un bug crítico de layout que causa una tasa de conversión cercana a cero porque el visitante no sabe qué hacer. Analiza el screenshot 00-landing-fold con esta información y propón la solución de CSS/layout que realmente lo resuelva.
+LAYOUT STATUS: El bug del espacio vacío en el hero YA ESTÁ CORREGIDO. La sección hero (.lp-hero) ahora tiene padding:56px 24px 64px y el contenido aparece justo debajo del nav. Si aún ves espacio vacío en el screenshot 00-landing-fold, diagnostica la causa residual específica y propón el fix.
 
 PROPUESTA A EVALUAR Y MEJORAR: El usuario quiere que el título del hero (actualmente con gradiente estático cyan→purple→green) tenga una animación que CICLA a través de los 8 colores preset de la app con efecto glitch entre transiciones. Esto comunicaría visualmente que "tu color puede ser cualquiera de estos" y haría la landing memorable. Evalúa si esta idea es buena para conversión, cómo implementarla en CSS (keyframes + @property para el gradiente, clip-path glitch), y qué ajustes de timing/suavidad harían que se vea premium en lugar de genérico.
 
@@ -265,11 +265,12 @@ ELEMENTOS SIEMPRE OCULTOS — NO REPORTAR COMO BUGS:
 - #pomo-ascension → solo visible cuando el usuario inicia un Pomodoro manualmente.
 - Si ves "SESIÓN DE LECTURA", "GESTIÓN DE LECTURA" o "ENFOQUE TOTAL" en módulos que no son Biblioteca/Mente → es una alucinación. NO reportarlo como bug global.
 
-LANDING PAGE — CONTEXTO CLAVE:
-La landing vive en <div id="landing-page"> con display:flex y flex-direction:column.
-Nav (\`.lp-nav\`) es hijo DIRECTO de #landing-page (~53px height).
-El scroll container (\`.lp-scroll\`) tiene flex:1 y overflow-y:auto.
-La sección hero (\`.lp-hero\`) está dentro de \`.lp-scroll\`.
+LANDING PAGE — CONTEXTO CLAVE (layout actual, post-fix):
+La landing vive en <div id="landing-page"> con display:block; position:fixed; inset:0; overflow:hidden.
+Nav (\`.lp-nav\`) tiene position:absolute; top:0; left:0; right:0; z-index:10 — altura real ~68px.
+El scroll container (\`.lp-scroll\`) tiene position:absolute; top:68px; left:0; right:0; bottom:0; overflow-y:auto.
+La sección hero (\`.lp-hero\`) está dentro de \`.lp-scroll\` con padding:56px 24px 64px.
+BUG DEL ESPACIO VACÍO: YA CORREGIDO en esta versión. El hero ya NO tiene min-height ni align-items:center. El contenido aparece justo debajo del nav.
 
 COLORES PRESET DE LA APP (ACCENT_PRESETS en main.js) — estos son los 8 colores que el usuario puede elegir al registrarse, y son el corazón visual del sistema:
 #00e5ff Cyan, #4ade80 Verde, #a855f7 Violeta, #fb923c Naranja, #f472b6 Rosa, #ffd700 Oro, #ff6b35 Coral, #60a5fa Azul
@@ -372,7 +373,7 @@ ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (Entre 8 y 12 propuestas — este grupo merece más porque es la cara pública de la app)
-- [TIPO] Landing: descripción del problema | SOLUCIÓN: CSS/JS/copy exacto | PRIORIDAD: CRÍTICA/ALTA/MEDIA | CATEGORÍA: BUG/DISEÑO/CONVERSIÓN/ANIMACIÓN/COPY/MOBILE
+- [TIPO] Landing: descripción del problema | SOLUCIÓN: pega el CSS/JS/copy exacto listo para copiar | PRIORIDAD: CRÍTICA/ALTA/MEDIA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: BUG/DISEÑO/CONVERSIÓN/ANIMACIÓN/COPY/MOBILE
 
 ---ANALYSIS---
 
@@ -503,7 +504,7 @@ ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (8-12 propuestas — mezcla de fixes de semántica con código listo, mejoras de UX y features)
-- [TIPO] FAB-NLP: descripción | SOLUCIÓN: código o descripción exacta | PRIORIDAD: CRÍTICA/ALTA/MEDIA | CATEGORÍA: NLP/UX/FEATURE/BUG
+- [TIPO] FAB-NLP: descripción | SOLUCIÓN: regex/código exacto listo para pegar en parseLocalNLP() o descripción precisa | PRIORIDAD: CRÍTICA/ALTA/MEDIA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: NLP/UX/FEATURE/BUG
 
 ---ANALYSIS---
 
@@ -598,8 +599,9 @@ ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (Lista de propuestas específicas — entre 5 y 10, solo las que realmente se justifican con lo que ves)
-- [TIPO] Nombre del módulo: descripción concisa del problema | SOLUCIÓN: qué cambiar exactamente, en qué archivo o sección del CSS/JS | PRIORIDAD: CRÍTICA/ALTA/MEDIA/BAJA | CATEGORÍA: BUG/DISEÑO/GAMIFICACIÓN/RETENCIÓN/MOBILE/ARQUITECTURA
+- [TIPO] Nombre del módulo: descripción concisa del problema | SOLUCIÓN: código CSS/JS exacto listo para pegar, o descripción precisa de línea/función a cambiar en main.js o styles.css | PRIORIDAD: CRÍTICA/ALTA/MEDIA/BAJA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: BUG/DISEÑO/GAMIFICACIÓN/RETENCIÓN/MOBILE/ARQUITECTURA
 (TIPO puede ser: BUG, DISEÑO, UX, MOBILE, RETENCIÓN, GAMIFICACIÓN, PERFORMANCE, ARQUITECTURA)
+(IMPACTO: 5=cambia retención/conversión, 1=cosmético. ESFUERZO: 1=10min, 5=día completo)
 
 ---ANALYSIS---
 
@@ -689,19 +691,21 @@ FORMATO REQUERIDO:
 ### 🌐 Landing page — estado de conversión
 [¿La landing convierte? ¿El bug de hero está resuelto? ¿Los features diferenciadores brillan? ¿La animación de colores ayuda o distrae?]
 
-### 🗺️ Roadmap sugerido (próximas 2 semanas)
-Semana 1 (quick wins, impacto inmediato):
-- [ ] ...
-- [ ] ...
+### 🗺️ Sprint plan — próximas 2 semanas
+Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo exacto (main.js o styles.css):
+
+**Día 1-2 (quick wins ≤2h cada uno):**
+- [ ] [módulo] — [qué hacer] — archivo: [main.js línea ~X / styles.css] — ROI: [impacto/esfuerzo]
 - [ ] ...
 
-Semana 2 (mejoras estructurales):
+**Día 3-5 (mejoras de medio día):**
 - [ ] ...
-- [ ] ...
+
+**Semana 2 (estructurales, ≥1 día):**
 - [ ] ...
 
 ### 💊 Salud global de Life OS: X/10
-[Una sola frase honesta. No suavices.]`;
+[Una sola frase honesta. Di si la app está lista para adquirir 100 usuarios o no.]`;
 }
 
 // ══════════════════════════════════════════════════════════════
