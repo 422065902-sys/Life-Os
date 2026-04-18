@@ -231,21 +231,50 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-18
-- Commits principales: 9c430bb, 799abe7, 533d7c6, 395b31d, 4af77f3, 00ad232 (entre otros)
+- Fecha: 2026-04-18 (continuación)
+- Commits principales: 5551061, e9869b0, 9edc349, 4533336, 9f711ab, 9c2e6cc
 
 ### Fixes de app (main.js + styles.css + index.html)
-1. **Boot flash**: `body.booting` en CSS oculta FAB+nav hasta `_tryCompleteBoot()` — ya no parpadean al abrir
-2. **Gemelo 0%**: fix Firestore Timestamp serialization con parser multi-formato + fallback xpHistory
-3. **Focus circle 68%**: `initFocusBars()` llamado en onSnapshot(!firstLoad) y post-boot — ya no muestra defaults
-4. **NLP**: médico/doctor/dentista fuera de hasCalKw — "llamar al médico" ya no va a Calendario
-5. **Cuerpo**: bio-vol y bio-entrenos muestran '—' cuando no hay datos (antes "0 kg" / "0")
-6. **Runner cleanup**: hábito QA se borra después de cada test vía deleteHabit()
-7. **iOS bottom nav**: pill flotante liquid glass, emojis grayscale/color, FAB arriba del pill
-8. **Landing hero**: nav position:absolute top:0, lp-scroll position:absolute top:68px — elimina espacio fantasma
-9. **Landing LIFE OS**: logo cicla 8 colores de la app con keyframe lp-logo-color
-10. **Landing nav**: dos botones (Iniciar Sesión outline + Empieza gratis filled)
-11. **Landing CTA**: botón urgencia morado "¿No tienes el control aún? — Empieza a tenerlo ahora →"
+1. **Boot flash**: `body.booting` oculta FAB+nav hasta `_tryCompleteBoot()`
+2. **Gemelo 0%**: fix Firestore Timestamp serialization
+3. **Focus circle 68%**: `initFocusBars()` post-boot y post-onSnapshot
+4. **NLP**: médico/doctor/dentista fuera de hasCalKw
+5. **Cuerpo**: bio-vol y bio-entrenos muestran '—' cuando no hay datos
+6. **Runner cleanup**: hábito QA se borra vía deleteHabit()
+7. **Trial banner mobile**: offset 34px→56px en ≤480px
+8. **inner-tab touch targets**: min-height:44px en móvil
+9. **FAB placeholder + feedback**: ejemplos reales + hint <3 chars
+
+### Bottom nav — carrusel infinito (esta sesión)
+- **Concepto**: dashboard ⚡ siempre centrado, módulos orbitan izquierda/derecha
+- **3 copias** del array BN_ORDER para scroll infinito sin fin visible
+- **Emojis**: grayscale inactivo → color+scale(1.15) activo (como era antes, no SVGs)
+- **Al deslizar**: ítem centrado navega automáticamente (debounce 220ms)
+- **Al tocar lateral**: se jala al centro con smooth scroll
+- **Loop infinito**: si entra en copia 0 o 2, salta en silencio a copia 1
+- **`_bnAnimating` flag**: bloquea `_bnOnScroll` durante animaciones programáticas — fix del bug donde el carrusel se quedaba trabado en dashboard al navegar desde dentro de la app
+- **`updateBottomNav`**: siempre va a copia central (`BN_LEN + localIdx`) — simple y confiable
+- **SW cache**: bumped a v4 para forzar descarga en PWA
+
+### BN_ORDER (orden fijo, más usados cerca del dashboard):
+```
+[settings, aprende, stats, mente, world] [⚡ dashboard] [productividad, cuerpo, financial]
+```
+
+### Landing v3.0 (esta sesión)
+- Hero 2 columnas: texto izq + app preview card CSS derecha (mini dashboard animado)
+- App preview: XP bar animada, stats de racha/hábitos/ahorro, hábitos con checks, Gemelo IA hint
+- Floating badges sobre el card: "🏆 Leaderboard #3" y "💳 -$850 deuda"
+- Grid de fondo sutil, tag con dot pulsante
+- Feature chips: ⚡ Hábitos · 🤖 IA · 💰 Finanzas · 🏆 Leaderboard
+- Module cards: header coloreado + tag pill de color por módulo
+- Steps: círculos numerados + línea gradient conectora
+- Testimonials: ★★★★★ + métrica por persona
+- Pricing: badge "MÁS POPULAR" en Pro
+- Footer: headline grande + glow radial
+
+### Estado del carrusel (pendiente verificar)
+- **BUG PENDIENTE**: al navegar desde dentro de la app (no desde el nav), el carrusel debe moverse al módulo activo. Fix aplicado con `_bnAnimating` — pendiente confirmar en PWA que funciona correctamente.
 
 ### Mejoras OpenClaw (scripts)
 1. **analyze-deep v2.1**: propuestas con IMPACTO/ESFUERZO 1-5 + código exacto listo para pegar
@@ -254,12 +283,20 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 4. **Pipeline `--deep`**: `node runner.js --deep` hace E2E+screenshots+analyze+analyze-deep en un comando
 5. **QA_SHOTS_DIR**: analyze-deep recibe la carpeta exacta del runner → nunca analiza fotos viejas
 
-### Estado del run actual (2026-04-18 ~14:47 VPS)
-- Runner corriendo con `node runner.js --deep` — incluirá todos los fixes de esta sesión
-- Resultado pendiente — pegar output aquí cuando termine
-- Este será el PRIMER run con pipeline completo --deep
+### Deploy realizado esta sesión
+- Staging (`mylifeos-staging`): ✅ deploy exitoso con todos los fixes
+- Producción (`life-os-prod-3a590`): ✅ deploy autorizado y exitoso con todos los fixes
+- Ambos deployados con: `firebase deploy --only hosting:staging` y `firebase deploy --only hosting:production`
+
+### Alucinaciones Gemini detectadas en deep run (NO implementadas — runner las descarta)
+- "fold y scroll idénticos" en múltiples módulos → artefacto de screenshot, no bug real
+- "Settings no tiene sección Stripe" → sí existe, Gemini no la detectó en foto
+- "Mente missing purple accent" → `--mente-accent:#a855f7` está en `:root`, Gemini alucinó
+- Health score 2/10 del deep vs runner ~6-7/10 → runner es autoridad (154 tests)
 
 ### Pendientes próxima sesión
-- Revisar output del deep run y priorizar propuestas por ROI
-- Atacar las propuestas CRÍTICAS del analyze-deep
+- **VERIFICAR** carrusel bottom nav en PWA — confirmar que el bug del dashboard trabado está resuelto con `_bnAnimating` flag
+- **Orden dinámico** del carrusel según frecuencia de uso real (guardar conteo en localStorage/Firestore)
+- Sincronizar VPS: `git pull && cp scripts` (ver comandos sync arriba)
+- Correr `node runner.js --deep` post-fixes para validar estado real
 - runner.js automático nocturno (esperando usuarios reales)
