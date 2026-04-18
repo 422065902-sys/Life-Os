@@ -1655,9 +1655,11 @@ async function addTransaction() {
 
 function updateFinancialDisplay() {
   // Mostrar skeleton mientras el listener de Firestore no ha entregado su primer snapshot
-  const balText = _finListenerReady ? fmt(personalBalance) : '…';
-  document.getElementById('fin-personal-bal').textContent = balText;
-  document.getElementById('db-personal-bal').textContent = balText;
+  const balText  = _finListenerReady ? fmt(personalBalance) : '…';
+  const balColor = _finListenerReady ? (personalBalance < 0 ? 'var(--red)' : 'var(--accent)') : '';
+  const _setbal = id => { const el = document.getElementById(id); if (el) { el.textContent = balText; el.style.color = balColor; } };
+  _setbal('fin-personal-bal');
+  _setbal('db-personal-bal');
   const pIn  = S.transactions.filter(t=>t.scope==='personal'&&t.type==='entrada'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
   const pOut = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
   document.getElementById('fin-p-in').textContent = fmt(pIn);
@@ -6252,7 +6254,7 @@ function parseLocalNLP(raw) {
   }
 
   // ── 4. INGRESO (income) ──────────────────────────────────
-  const hasIncomeKw = /\b(cobré|cobre|me pagaron|pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|me transfirieron|transferencia)\b/i.test(lower);
+  const hasIncomeKw = /\b(cobré|cobre|me pagaron|pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|vendí|vendi|me transfirieron|transferencia|me cayó|me cayo|me prestaron|abonaron|me depositaron|gané|gane|ganancia|beca|comisión|comision|renta cobrada|pago recibido)\b/i.test(lower);
   const hasAmount   = /\$?\s*[\d,]+/.test(lower) ||
     /\b(cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|mil|dos mil|tres mil|cinco mil|diez mil)\b/i.test(lower);
 
@@ -6277,7 +6279,7 @@ function parseLocalNLP(raw) {
   // El usuario dice que YA hizo algo: "hice mi hábito de lectura", "fui al gym", "corrí 5km", "completé meditación"
   const hasHabitAction = /\b(hice|fui al|fui a|entrené|entrenué|corr[ií]|medité|medite|leí|lei|beb[ií]|bebe|tom[eé]|dorm[ií]|cumpli|cumplí|completé|complete|hábito|habito|gym|ejercicio|yoga|nadar|natación|natacion|ciclismo|meditación|meditacion)\b/i.test(lower) ||
     /🏋|🏃|🚴|🧘|🏊|💪/.test(lower);
-  if (hasHabitAction) {
+  if (hasHabitAction && !(hasFinKw && hasAmount)) {
     // Extraer qué hábito es
     const habitQ = fixed
       .replace(/\b(hice|mi hábito de|mi habito de|cumplí|cumpli|completé|complete|hoy|ya|por fin)\b/gi,'')

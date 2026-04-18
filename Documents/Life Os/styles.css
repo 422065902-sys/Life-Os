@@ -3813,13 +3813,13 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 .lp-anim-4.lp-anim-in{transition-delay:.46s}
 .lp-anim-5.lp-anim-in{transition-delay:.60s}
 .lp-hero{position:relative;z-index:1;padding:40px 24px 36px;text-align:center}
-.lp-hero-inner{max-width:680px;width:100%}
+.lp-hero-inner{max-width:680px;width:100%;margin:0 auto}
 .lp-hero-tag{display:inline-block;padding:4px 12px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:20px;font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:16px;letter-spacing:.04em}
 .lp-hero-title{font-family:'Orbitron',monospace;font-size:clamp(28px,5.5vw,58px);font-weight:900;color:var(--text);line-height:1.1;margin-bottom:14px;letter-spacing:-.02em}
 .lp-gradient-text{background:linear-gradient(135deg,var(--accent) 0%,#a855f7 60%,#4ade80 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .lp-hero-sub{font-size:clamp(13px,2vw,16px);color:var(--text2);line-height:1.6;max-width:540px;margin:0 auto 20px}
 .lp-hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
-.lp-cta-legal{font-size:12px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.lp-cta-legal{font-size:12px;color:var(--text3);font-family:'JetBrains Mono',monospace;overflow-wrap:break-word;white-space:normal;padding:0 8px;line-height:1.6}
 .lp-btn-primary{display:inline-flex;align-items:center;gap:6px;padding:14px 28px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));border:none;border-radius:12px;color:#000;font-family:'Orbitron',monospace;font-size:13px;font-weight:900;letter-spacing:.04em;cursor:pointer;transition:all .2s;box-shadow:0 0 24px rgba(0,229,255,.3)}
 .lp-btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 32px rgba(0,229,255,.45)}
 .lp-btn-secondary{display:inline-flex;align-items:center;padding:14px 28px;background:transparent;border:1px solid rgba(0,229,255,.3);border-radius:12px;color:var(--text2);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
