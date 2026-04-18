@@ -81,12 +81,13 @@
 <!-- ══ LANDING PAGE ══ -->
 <div id="landing-page" style="display:none">
 
-  <!-- ── Fondo con partículas CSS ── -->
+  <!-- ── Fondo animado ── -->
   <div class="lp-bg-glow lp-glow-1"></div>
   <div class="lp-bg-glow lp-glow-2"></div>
   <div class="lp-bg-glow lp-glow-3"></div>
+  <div class="lp-bg-grid"></div>
 
-  <!-- ── Navbar mínimo ── -->
+  <!-- ── Navbar ── -->
   <nav class="lp-nav">
     <div class="lp-nav-logo">LIFE OS</div>
     <div class="lp-nav-actions">
@@ -99,55 +100,164 @@
 
     <!-- ══ HERO ══ -->
     <section class="lp-hero">
-      <div class="lp-hero-inner">
-        <div class="lp-hero-tag lp-anim lp-anim-1">⚡ Versión 2.0 — Ahora con IA</div>
-        <h1 class="lp-hero-title lp-anim lp-anim-2">El juego<br><span class="lp-gradient-text">de tu vida</span></h1>
-        <p class="lp-hero-sub lp-anim lp-anim-3">La única app de productividad que te trata como el protagonista de tu historia. Gamifica tus hábitos, finanzas, salud y mente en un solo sistema.</p>
-        <div class="lp-hero-cta lp-anim lp-anim-4">
-          <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
-          <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">Ya tengo cuenta</button>
+      <div class="lp-hero-layout">
+
+        <!-- Columna texto -->
+        <div class="lp-hero-text">
+          <div class="lp-hero-tag lp-anim lp-anim-1">
+            <span class="lp-tag-dot"></span>⚡ Versión 2.0 — Inteligencia Artificial incluida
+          </div>
+          <h1 class="lp-hero-title lp-anim lp-anim-2">
+            Juega en serio.<br><span class="lp-gradient-text">Domina tu vida.</span>
+          </h1>
+          <p class="lp-hero-sub lp-anim lp-anim-3">
+            Life OS gamifica tus hábitos, finanzas, salud y mente. Gana XP real cada día. Sube de nivel. Conviértete en tu mejor versión.
+          </p>
+          <div class="lp-hero-cta lp-anim lp-anim-4">
+            <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">🚀 Empezar gratis</button>
+            <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">Ya tengo cuenta →</button>
+          </div>
+          <p class="lp-cta-legal lp-anim lp-anim-5">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
+          <!-- Chips de features -->
+          <div class="lp-feature-chips lp-anim lp-anim-6">
+            <span class="lp-chip">⚡ Hábitos gamificados</span>
+            <span class="lp-chip">🤖 IA incluida</span>
+            <span class="lp-chip">💰 Control financiero</span>
+            <span class="lp-chip">🏆 Leaderboard</span>
+          </div>
         </div>
-        <p class="lp-cta-legal lp-anim lp-anim-5">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
-        <div class="lp-hero-urgency lp-anim lp-anim-6">
-          <button class="lp-btn-urgency" onclick="showAuthFromLanding('register')">¿No tienes el control aún? — Empieza a tenerlo ahora →</button>
+
+        <!-- Columna preview — mini dashboard animado -->
+        <div class="lp-hero-preview lp-anim lp-anim-3">
+          <div class="lp-preview-window">
+            <div class="lp-preview-bar">
+              <span class="lp-dot lp-dot-r"></span>
+              <span class="lp-dot lp-dot-y"></span>
+              <span class="lp-dot lp-dot-g"></span>
+              <span class="lp-preview-bar-title">Life OS — Tablero</span>
+            </div>
+            <div class="lp-preview-body">
+              <!-- Header usuario -->
+              <div class="lp-preview-header">
+                <div class="lp-preview-avatar-wrap">
+                  <div class="lp-preview-avatar">W</div>
+                  <div>
+                    <div class="lp-preview-name">Wences M.</div>
+                    <div class="lp-preview-lvl">⚡ Nivel 12 · Flow State</div>
+                  </div>
+                </div>
+                <div class="lp-preview-xp-badge">2,840 XP</div>
+              </div>
+              <!-- Barra XP -->
+              <div class="lp-preview-xp-wrap">
+                <div class="lp-preview-xp-bar"><div class="lp-preview-xp-fill"></div></div>
+                <span class="lp-preview-xp-txt">68% → Nivel 13</span>
+              </div>
+              <!-- Stats fila -->
+              <div class="lp-preview-stats">
+                <div class="lp-preview-stat lp-stat-orange">
+                  <div class="lp-preview-stat-val">🔥 8</div>
+                  <div class="lp-preview-stat-lbl">días racha</div>
+                </div>
+                <div class="lp-preview-stat lp-stat-green">
+                  <div class="lp-preview-stat-val">4/5</div>
+                  <div class="lp-preview-stat-lbl">hábitos hoy</div>
+                </div>
+                <div class="lp-preview-stat lp-stat-gold">
+                  <div class="lp-preview-stat-val">$3.2k</div>
+                  <div class="lp-preview-stat-lbl">ahorrado</div>
+                </div>
+              </div>
+              <!-- Hábitos -->
+              <div class="lp-preview-habits">
+                <div class="lp-preview-habit lp-habit-done">
+                  <div class="lp-preview-check">✓</div>
+                  <span>Gym matutino</span>
+                  <span class="lp-preview-xp-pill">+15 XP</span>
+                </div>
+                <div class="lp-preview-habit lp-habit-done">
+                  <div class="lp-preview-check">✓</div>
+                  <span>Leer 30 min</span>
+                  <span class="lp-preview-xp-pill">+10 XP</span>
+                </div>
+                <div class="lp-preview-habit">
+                  <div class="lp-preview-check lp-check-empty">○</div>
+                  <span style="opacity:.5">Meditación</span>
+                  <span class="lp-preview-xp-pill lp-xp-dim">+8 XP</span>
+                </div>
+              </div>
+              <!-- Gemelo IA hint -->
+              <div class="lp-preview-gemelo">
+                <span>🤖</span>
+                <span>Tu Gemelo IA: "A 2 días de tu racha máxima. ¡No pares!"</span>
+              </div>
+            </div>
+          </div>
+          <!-- Floating badges -->
+          <div class="lp-float-badge lp-float-1">🏆 Leaderboard #3</div>
+          <div class="lp-float-badge lp-float-2">💳 -$850 deuda pagada</div>
         </div>
+
+      </div><!-- /hero-layout -->
+
+      <!-- Urgency CTA -->
+      <div class="lp-hero-urgency lp-anim lp-anim-6" style="margin-top:32px">
+        <button class="lp-btn-urgency" onclick="showAuthFromLanding('register')">¿Sigues sin el control? — Empieza a tenerlo ahora →</button>
       </div>
     </section>
 
-    <!-- ══ MÓDULOS ══ -->
+    <!-- ══ MÓDULOS VISUALES ══ -->
     <section class="lp-section">
-      <div class="lp-section-label lp-reveal">MÓDULOS</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Todo tu mundo, en un sistema</h2>
+      <div class="lp-section-label lp-reveal">9 MÓDULOS</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Todo tu mundo.<br>Un solo sistema.</h2>
       <div class="lp-modules-grid">
         <div class="lp-module-card lp-module-cyan lp-reveal" data-reveal-delay="0">
-          <div class="lp-module-icon">⚡</div>
-          <div class="lp-module-name">Productividad</div>
-          <div class="lp-module-desc">Tareas, hábitos, metas y calendario gamificados con XP</div>
+          <div class="lp-module-header lp-mh-cyan"><span class="lp-module-icon">⚡</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Productividad</div>
+            <div class="lp-module-desc">Tareas, hábitos y calendario gamificados. Cada acción = XP.</div>
+            <div class="lp-module-tag">+ 3 submodulos</div>
+          </div>
         </div>
         <div class="lp-module-card lp-module-green lp-reveal" data-reveal-delay="60">
-          <div class="lp-module-icon">💪</div>
-          <div class="lp-module-name">Cuerpo</div>
-          <div class="lp-module-desc">Gym tracker, nutrición, salud física y métricas corporales</div>
+          <div class="lp-module-header lp-mh-green"><span class="lp-module-icon">💪</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Cuerpo</div>
+            <div class="lp-module-desc">Gym tracker, nutrición, salud y métricas corporales.</div>
+            <div class="lp-module-tag">Conectado al XP</div>
+          </div>
         </div>
         <div class="lp-module-card lp-module-purple lp-reveal" data-reveal-delay="120">
-          <div class="lp-module-icon">🧠</div>
-          <div class="lp-module-name">Mente & Poder</div>
-          <div class="lp-module-desc">Pomodoro, aliados, bitácora emocional y modo Blackout</div>
+          <div class="lp-module-header lp-mh-purple"><span class="lp-module-icon">🧠</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Mente & Poder</div>
+            <div class="lp-module-desc">Pomodoro, bitácora emocional y modo Blackout Focus.</div>
+            <div class="lp-module-tag">Gemelo IA aquí</div>
+          </div>
         </div>
         <div class="lp-module-card lp-module-gold lp-reveal" data-reveal-delay="180">
-          <div class="lp-module-icon">💰</div>
-          <div class="lp-module-name">Finanzas</div>
-          <div class="lp-module-desc">Control de gastos, deudas, tarjetas y balance personal</div>
+          <div class="lp-module-header lp-mh-gold"><span class="lp-module-icon">💰</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Finanzas</div>
+            <div class="lp-module-desc">Gastos, deudas, tarjetas y balance personal en tiempo real.</div>
+            <div class="lp-module-tag">NLP inteligente</div>
+          </div>
         </div>
         <div class="lp-module-card lp-module-cyan lp-reveal" data-reveal-delay="240">
-          <div class="lp-module-icon">🤖</div>
-          <div class="lp-module-name">Gemelo IA</div>
-          <div class="lp-module-desc">Tu versión digital aprende tus patrones y te da insights reales (en Mente &amp; Poder)</div>
+          <div class="lp-module-header lp-mh-cyan"><span class="lp-module-icon">🤖</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Gemelo IA</div>
+            <div class="lp-module-desc">Tu versión digital. Aprende tus patrones y da insights reales.</div>
+            <div class="lp-module-tag">Powered by Gemini</div>
+          </div>
         </div>
         <div class="lp-module-card lp-module-purple lp-reveal" data-reveal-delay="300">
-          <div class="lp-module-icon">🗺️</div>
-          <div class="lp-module-name">Life OS World</div>
-          <div class="lp-module-desc">Apartamento virtual, leaderboard y conexión con aliados</div>
+          <div class="lp-module-header lp-mh-purple"><span class="lp-module-icon">🗺️</span></div>
+          <div class="lp-module-body">
+            <div class="lp-module-name">Life OS World</div>
+            <div class="lp-module-desc">Leaderboard, apartamento virtual y aliados de progreso.</div>
+            <div class="lp-module-tag">Multiplayer life</div>
+          </div>
         </div>
       </div>
     </section>
@@ -158,58 +268,70 @@
       <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">De 0 a sistema élite en 3 pasos</h2>
       <div class="lp-steps">
         <div class="lp-step lp-reveal" data-reveal-delay="0">
-          <div class="lp-step-num">01</div>
-          <div class="lp-step-title">Crea tu perfil</div>
-          <div class="lp-step-desc">Elige tus colores, configura tus módulos y el Gemelo IA comienza a observarte desde el día 1.</div>
+          <div class="lp-step-circle"><span>01</span></div>
+          <div class="lp-step-content">
+            <div class="lp-step-title">Crea tu perfil</div>
+            <div class="lp-step-desc">Elige tus colores, activa tus módulos y el Gemelo IA comienza a observarte desde el día 1.</div>
+          </div>
         </div>
-        <div class="lp-step-arrow lp-reveal" data-reveal-delay="120">→</div>
+        <div class="lp-step-connector lp-reveal" data-reveal-delay="120"></div>
         <div class="lp-step lp-reveal" data-reveal-delay="140">
-          <div class="lp-step-num">02</div>
-          <div class="lp-step-title">Gana XP cada día</div>
-          <div class="lp-step-desc">Completa hábitos, registra gastos, entrena y haz check-in. Cada acción suma XP y sube tu nivel.</div>
+          <div class="lp-step-circle"><span>02</span></div>
+          <div class="lp-step-content">
+            <div class="lp-step-title">Gana XP cada día</div>
+            <div class="lp-step-desc">Completa hábitos, registra gastos, entrena y haz check-in. Cada acción suma XP y sube tu nivel.</div>
+          </div>
         </div>
-        <div class="lp-step-arrow lp-reveal" data-reveal-delay="260">→</div>
+        <div class="lp-step-connector lp-reveal" data-reveal-delay="260"></div>
         <div class="lp-step lp-reveal" data-reveal-delay="280">
-          <div class="lp-step-num">03</div>
-          <div class="lp-step-title">Domina tu vida</div>
-          <div class="lp-step-desc">El Gemelo IA genera análisis semanales. El dashboard se adapta a ti. Tu mejor versión emerge.</div>
+          <div class="lp-step-circle"><span>03</span></div>
+          <div class="lp-step-content">
+            <div class="lp-step-title">Domina tu vida</div>
+            <div class="lp-step-desc">Análisis semanales del Gemelo IA. Dashboard que se adapta. Tu mejor versión emerge sola.</div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- ══ SOCIAL PROOF ══ -->
     <section class="lp-section">
-      <div class="lp-section-label lp-reveal">RESULTADOS</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Lo que dicen los usuarios</h2>
+      <div class="lp-section-label lp-reveal">RESULTADOS REALES</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Los que empezaron ya van adelante</h2>
       <div class="lp-testimonials">
         <div class="lp-testimonial lp-reveal" data-reveal-delay="0">
+          <div class="lp-testimonial-stars">★★★★★</div>
           <div class="lp-testimonial-text">"En 30 días de trial subí al nivel 12, pagué $4,200 de deuda y fui al gym 18 veces. Nunca una app me había movido tanto."</div>
           <div class="lp-testimonial-author">
-            <div class="lp-testimonial-avatar">A</div>
+            <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#00e5ff,#0050cc)">A</div>
             <div>
               <div class="lp-testimonial-name">Andrés M.</div>
-              <div class="lp-testimonial-role">Nv. 34 · México</div>
+              <div class="lp-testimonial-role">Nv. 34 · CDMX</div>
             </div>
+            <div class="lp-testimonial-metric">+$4,200 pagados</div>
           </div>
         </div>
         <div class="lp-testimonial lp-reveal" data-reveal-delay="60">
-          <div class="lp-testimonial-text">"El Gemelo IA me dijo algo sobre mis patrones de gasto que yo no había visto. Me ahorró más dinero del que cuesta la suscripción."</div>
+          <div class="lp-testimonial-stars">★★★★★</div>
+          <div class="lp-testimonial-text">"El Gemelo IA me dijo algo sobre mis patrones de gasto que yo no había visto. Me ahorró más de lo que cuesta la suscripción."</div>
           <div class="lp-testimonial-author">
-            <div class="lp-testimonial-avatar">S</div>
+            <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#a855f7,#7c3aed)">S</div>
             <div>
               <div class="lp-testimonial-name">Sara L.</div>
               <div class="lp-testimonial-role">Nv. 28 · Monterrey</div>
             </div>
+            <div class="lp-testimonial-metric">Nv.28 en 45 días</div>
           </div>
         </div>
         <div class="lp-testimonial lp-reveal" data-reveal-delay="120">
+          <div class="lp-testimonial-stars">★★★★★</div>
           <div class="lp-testimonial-text">"La gamificación es real. Compito en el leaderboard con mi hermano y los dos hemos mejorado brutalmente en 2 meses."</div>
           <div class="lp-testimonial-author">
-            <div class="lp-testimonial-avatar">C</div>
+            <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#4ade80,#16a34a)">C</div>
             <div>
               <div class="lp-testimonial-name">Carlos R.</div>
-              <div class="lp-testimonial-role">Nv. 41 · CDMX</div>
+              <div class="lp-testimonial-role">Nv. 41 · Guadalajara</div>
             </div>
+            <div class="lp-testimonial-metric">Leaderboard #1</div>
           </div>
         </div>
       </div>
@@ -218,7 +340,7 @@
     <!-- ══ PRICING ══ -->
     <section class="lp-section lp-section-alt">
       <div class="lp-section-label lp-reveal">PRECIOS</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Empieza gratis, actualiza cuando quieras</h2>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Empieza gratis.<br>Actualiza cuando quieras.</h2>
       <div class="lp-pricing">
         <div class="lp-price-card lp-price-trial lp-reveal" data-reveal-delay="0">
           <div class="lp-price-badge">GRATIS</div>
@@ -226,36 +348,39 @@
           <div class="lp-price-amount">$0</div>
           <div class="lp-price-period">30 días completos</div>
           <ul class="lp-price-features">
-            <li>✅ Acceso a todos los módulos</li>
-            <li>✅ Gemelo IA incluido</li>
-            <li>✅ Datos en la nube</li>
-            <li>✅ Sin tarjeta de crédito</li>
+            <li><span class="lp-check">✓</span> Acceso a todos los módulos</li>
+            <li><span class="lp-check">✓</span> Gemelo IA incluido</li>
+            <li><span class="lp-check">✓</span> Datos en la nube</li>
+            <li><span class="lp-check">✓</span> Sin tarjeta de crédito</li>
           </ul>
           <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
         </div>
         <div class="lp-price-card lp-price-pro lp-reveal" data-reveal-delay="120">
+          <div class="lp-price-popular">MÁS POPULAR</div>
           <div class="lp-price-badge lp-badge-pro">PRO</div>
           <div class="lp-price-name">Life OS Pro</div>
           <div class="lp-price-amount">$99</div>
-          <div class="lp-price-period">MXN por mes</div>
+          <div class="lp-price-period">MXN por mes · cancela cuando quieras</div>
           <ul class="lp-price-features">
-            <li>✅ Todo el Modo Prueba</li>
-            <li>✅ Datos protegidos permanentemente</li>
-            <li>✅ Análisis profundo del Gemelo</li>
-            <li>✅ Soporte prioritario</li>
-            <li>✅ Cancela cuando quieras</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Todo el Modo Prueba</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Datos protegidos permanentemente</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Análisis profundo del Gemelo</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Soporte prioritario</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Acceso a todas las actualizaciones</li>
           </ul>
-          <button class="lp-btn-secondary" style="width:100%" onclick="showAuthFromLanding('register')">Activar Pro →</button>
+          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Activar Pro →</button>
         </div>
       </div>
     </section>
 
     <!-- ══ FOOTER CTA ══ -->
     <section class="lp-footer-cta lp-reveal">
-      <h2 class="lp-footer-title">¿Listo para jugar en serio?</h2>
-      <p class="lp-footer-sub">Únete a los usuarios que ya están ganando XP, controlando sus finanzas y dominando sus hábitos con Life OS.</p>
+      <div class="lp-footer-glow"></div>
+      <div class="lp-footer-tag">¿SIGUES LEYENDO? YA DEBERÍAS ESTAR ADENTRO.</div>
+      <h2 class="lp-footer-title">Tu mejor versión<br><span class="lp-gradient-text">empieza hoy.</span></h2>
+      <p class="lp-footer-sub">Empieza gratis. Sin tarjeta. Sin excusas.</p>
       <button class="lp-btn-primary lp-btn-xl" onclick="showAuthFromLanding('register')">🚀 Empezar gratis ahora</button>
-      <p class="lp-cta-legal" style="margin-top:12px">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
+      <p class="lp-cta-legal" style="margin-top:16px">30 días gratis · Cancela cuando quieras · LFPDPPP compliant</p>
       <div class="lp-footer-links">
         <button onclick="openLegalModal('terms')" class="lp-footer-link">Términos</button>
         <span style="color:rgba(128,148,180,.3)">·</span>
