@@ -255,6 +255,8 @@ function _tryCompleteBoot() {
     cb();
     // Revelar FAB y bottom nav ahora que el boot terminó
     document.body.classList.remove('booting');
+    // Garantizar que el Focus Circle y Gemelo usen valores reales (no defaults)
+    requestAnimationFrame(() => { initFocusBars && initFocusBars(); updateGemeloBar && updateGemeloBar(); });
     // Dar 400ms para que la UI se asiente antes de mostrar toasts y acciones diferidas
     setTimeout(() => { _flushToastQueue(); _flushPostBootQueue(); }, 400);
   }
@@ -4796,6 +4798,8 @@ async function cargarDatosNube(uid) {
           updateXP(); renderHabits(); renderTasks(); renderGoals();
           updateFinancialDisplay(); updateDashboardTaskCount();
           updateFisicoWidget(); updateGlobalCore();
+          // Refrescar focus circle y Gemelo con los valores reales de la nube
+          if (S.currentPage === 'dashboard') { initFocusBars(); updateGemeloBar(); }
         }
       } else if (firstLoad) {
         console.info('[Life OS] Usuario nuevo — sin datos en Firestore aún.');
@@ -5975,10 +5979,25 @@ function updateGemeloBar() {
   }
 
   // ── 2. Calcular días desde registro ──
-  const start = S.createdAt || today();
+  // S.createdAt puede ser: string YYYY-MM-DD, número ms, Firestore Timestamp {seconds,nanoseconds} o null
   const msDay = 86400000;
+  const _createdMs = (() => {
+    const c = S.createdAt;
+    if (!c) return null;
+    if (typeof c === 'number') return c;
+    if (typeof c === 'string') return new Date(c).getTime();
+    if (c.toDate) return c.toDate().getTime();          // Firestore Timestamp vivo
+    if (c.seconds) return c.seconds * 1000;             // Serializado desde localStorage
+    return null;
+  })();
+  // Fallback: primera fecha en xpHistory (evidencia real de uso)
+  const _fallbackMs = (() => {
+    const keys = Object.keys(S.xpHistory || {}).sort();
+    return keys.length ? new Date(keys[0]).getTime() : null;
+  })();
+  const startMs = _createdMs || _fallbackMs || Date.now();
   const daysSince = Math.min(30, Math.max(0,
-    Math.floor((Date.now() - new Date(start).getTime()) / msDay)
+    Math.floor((Date.now() - startMs) / msDay)
   ));
 
   // ── 3. Detectar inactividad: sin XP en los últimos 3 días ──
