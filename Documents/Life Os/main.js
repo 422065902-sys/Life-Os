@@ -290,6 +290,20 @@ const NAV = [
   {id:'settings',     icon:'⚙️', label:'Ajustes'},
 ];
 
+/* Bottom nav móvil — 5 iconos SVG limpios, estilo Instagram */
+const BN_ITEMS = [
+  { id:'dashboard',     label:'Tablero',
+    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11.293 2.293a1 1 0 0 1 1.414 0l8 8A1 1 0 0 1 20 12h-1v7a1 1 0 0 1-1 1h-4v-5h-4v5H6a1 1 0 0 1-1-1v-7H4a1 1 0 0 1-.707-1.707l8-8z"/></svg>' },
+  { id:'productividad', label:'Flow',
+    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>' },
+  { id:'cuerpo',        label:'Cuerpo',
+    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' },
+  { id:'financial',     label:'Finanzas',
+    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1H2V7zm0 3h20v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8zm14 3a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2h-2z"/></svg>' },
+  { id:'_drawer',       label:'Más',
+    svg:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>' },
+];
+
 function buildNav() {
   // Desktop sidebar
   const dn = document.getElementById('desktop-nav');
@@ -313,28 +327,25 @@ function buildNav() {
 function buildBottomNav() {
   const bn = document.getElementById('bn-scroll');
   if (!bn) return;
-  bn.innerHTML = NAV.map(n => `
-    <button class="bn-tab ${n.id===S.currentPage?'active':''}" onclick="navigate('${n.id}')" aria-label="${n.label}" title="${n.label}">
-      <span class="bn-tab-icon">${n.icon}</span>
-    </button>`).join('');
-  _scrollBottomNavActive();
+  bn.innerHTML = BN_ITEMS.map(n => {
+    const isActive = n.id === S.currentPage;
+    const onclick = n.id === '_drawer' ? 'toggleDrawer()' : `navigate('${n.id}')`;
+    return `<button class="bn-tab${isActive?' active':''}" onclick="${onclick}" aria-label="${n.label}" title="${n.label}">
+      <span class="bn-tab-icon">${n.svg}</span>
+    </button>`;
+  }).join('');
 }
 
 function _scrollBottomNavActive() {
-  const bn = document.getElementById('bn-scroll');
-  if (!bn) return;
-  const active = bn.querySelector('.bn-tab.active');
-  if (active) active.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+  /* no-op: con 5 ítems fijos no hay scroll necesario */
 }
 
 function updateBottomNav(pageId) {
   const bn = document.getElementById('bn-scroll');
   if (!bn) return;
-  bn.querySelectorAll('.bn-tab').forEach(el => {
-    const isActive = el.getAttribute('onclick').includes(`'${pageId}'`);
-    el.classList.toggle('active', isActive);
+  bn.querySelectorAll('.bn-tab').forEach((el, i) => {
+    el.classList.toggle('active', BN_ITEMS[i]?.id === pageId);
   });
-  _scrollBottomNavActive();
 }
 
 function toggleDrawer() {
