@@ -302,6 +302,36 @@ function buildNav() {
         <span>${n.label}</span>
       </div>`).join('');
   }
+  // iOS bottom nav
+  buildBottomNav();
+}
+
+function buildBottomNav() {
+  const bn = document.getElementById('bn-scroll');
+  if (!bn) return;
+  bn.innerHTML = NAV.map(n => `
+    <button class="bn-tab ${n.id===S.currentPage?'active':''}" onclick="navigate('${n.id}')" aria-label="${n.label}">
+      <span class="bn-tab-icon">${n.icon}</span>
+      <span class="bn-tab-label">${n.label}</span>
+    </button>`).join('');
+  _scrollBottomNavActive();
+}
+
+function _scrollBottomNavActive() {
+  const bn = document.getElementById('bn-scroll');
+  if (!bn) return;
+  const active = bn.querySelector('.bn-tab.active');
+  if (active) active.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+}
+
+function updateBottomNav(pageId) {
+  const bn = document.getElementById('bn-scroll');
+  if (!bn) return;
+  bn.querySelectorAll('.bn-tab').forEach(el => {
+    const isActive = el.getAttribute('onclick').includes(`'${pageId}'`);
+    el.classList.toggle('active', isActive);
+  });
+  _scrollBottomNavActive();
 }
 
 function toggleDrawer() {
@@ -342,6 +372,7 @@ function navigate(id) {
     if (content) content.scrollTop = 0;
   } catch(e) {}
   buildNav();
+  updateBottomNav(id);
   // Lazy init charts + global core update on every navigation
   if (id==='dashboard')     { initRadarChart(); initFocusBars(); hydrateDashboard(); renderMorningBriefing(); updateGlobalCore(); renderDashboardHeader(); }
   if (id==='world')         { initWorldMap(); }
