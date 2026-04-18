@@ -253,6 +253,8 @@ function _tryCompleteBoot() {
     _bootOnComplete = null;
     if (_bootTimeoutId) { clearTimeout(_bootTimeoutId); _bootTimeoutId = null; }
     cb();
+    // Revelar FAB y bottom nav ahora que el boot terminó
+    document.body.classList.remove('booting');
     // Dar 400ms para que la UI se asiente antes de mostrar toasts y acciones diferidas
     setTimeout(() => { _flushToastQueue(); _flushPostBootQueue(); }, 400);
   }

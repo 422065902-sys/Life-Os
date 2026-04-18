@@ -1813,6 +1813,15 @@ input[type=range].calib-range.emocional::-webkit-slider-thumb{background:var(--p
   #content{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
 }
 
+/* Ocultar FAB y bottom nav durante boot — se revelan al terminar _tryCompleteBoot */
+body.booting #fab-btn,
+body.booting #bottom-nav{
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:none!important;
+}
+#fab-btn,#bottom-nav{transition:opacity .35s ease}
+
 /* ══════════════════════════════════════════
    FUNCIONALIDAD 2 — FAB CONSOLA
 ══════════════════════════════════════════ */
