@@ -1497,10 +1497,14 @@ async function testProductividad() {
     const tasks = await page.$$('#task-list > *');
     addResult('14-Productividad', 'Tarea QA aparece en lista', tasks.length > 0 ? 'PASS' : 'WARN', `${tasks.length} tareas`);
 
-    const firstToggle = await page.$('#task-list input[type="checkbox"], [onclick*="toggleTask"]');
-    if (firstToggle) {
-      await firstToggle.click().catch(() => {});
-      await page.waitForTimeout(1500);
+    // Llamar toggleTask en la primera tarea no completada (evita referencia DOM obsoleta)
+    const toggled = await page.evaluate(() => {
+      const t = (window.S && window.S.tasks || []).find(t => !t.done && !t.deleted);
+      if (t && typeof toggleTask === 'function') { toggleTask(t.id); return true; }
+      return false;
+    }).catch(() => false);
+    if (toggled) {
+      await page.waitForTimeout(2000);
       const xpAfter = await evalJS(() => (window.S && window.S.xp) || 0);
       addResult('14-Productividad', 'Completar tarea suma XP', xpAfter > xpBefore ? 'PASS' : 'WARN', `XP: ${xpBefore} → ${xpAfter}`);
     }

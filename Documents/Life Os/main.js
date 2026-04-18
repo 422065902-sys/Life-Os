@@ -1118,23 +1118,26 @@ function syncHeatmapColors() {
    PHYSICAL
 ═══════════════════════════════════════════ */
 const MUSCLE_DATA = [
-  {name:'Pecho',pct:65,color:'#00e5ff'},{name:'Espalda',pct:80,color:'#a855f7'},
-  {name:'Piernas',pct:45,color:'#ffd700'},{name:'Hombros',pct:55,color:'#ff6b35'},
-  {name:'Bíceps',pct:72,color:'#4ade80'},{name:'Tríceps',pct:68,color:'#f472b6'},
-  {name:'Abdomen',pct:30,color:'#fb923c'},{name:'Glúteos',pct:20,color:'#60a5fa'}
+  {name:'Pecho',key:'pecho',pct:65,color:'#00e5ff'},{name:'Espalda',key:'espalda',pct:80,color:'#a855f7'},
+  {name:'Piernas',key:'piernas',pct:45,color:'#ffd700'},{name:'Hombros',key:'hombros',pct:55,color:'#ff6b35'},
+  {name:'Bíceps',key:'biceps',pct:72,color:'#4ade80'},{name:'Tríceps',key:'triceps',pct:68,color:'#f472b6'},
+  {name:'Abdomen',key:'abdomen',pct:30,color:'#fb923c'},{name:'Glúteos',key:'gluteos',pct:20,color:'#60a5fa'}
 ];
 
 function buildMuscleMap() {
   const el = document.getElementById('muscle-bars'); if (!el) return;
-  el.innerHTML = MUSCLE_DATA.slice(0,6).map(m=>`
+  el.innerHTML = MUSCLE_DATA.slice(0,6).map(m=>{
+    const pct = S.muscleMap?.[m.key] ?? m.pct;
+    return `
     <div style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:3px">
-        <span>${m.name}</span><span style="color:${m.color};font-weight:700">${m.pct}%</span>
+        <span>${m.name}</span><span style="color:${m.color};font-weight:700">${pct}%</span>
       </div>
       <div style="height:7px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden">
-        <div class="m-bar" style="width:${m.pct}%;background:${m.color}"></div>
+        <div class="m-bar" style="width:${pct}%;background:${m.color}"></div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   // Illuminate active SVG elements based on muscleMap values
   const isFemale = (typeof _bodyGender!=='undefined') && _bodyGender==='f';
@@ -6256,7 +6259,13 @@ function parseLocalNLP(raw) {
   }
 
   // ── 4. INGRESO (income) ──────────────────────────────────
-  const hasIncomeKw = /\b(cobré|cobre|me pagaron|pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|vendí|vendi|me transfirieron|transferencia|me cayó|me cayo|me prestaron|abonaron|me depositaron|gané|gane|ganancia|beca|comisión|comision|renta cobrada|pago recibido)\b/i.test(lower);
+  // Palabras con tilde al final (é,í,ó) fallan con \b en JS — usar Set de palabras
+  const _words = new Set(lower.split(/[\s,!?;:.()]+/));
+  const hasIncomeAccentKw = _words.has('cobré') || _words.has('recibí') || _words.has('ingresé') ||
+    _words.has('entró') || _words.has('depósito') || _words.has('vendí') || _words.has('gané') ||
+    _words.has('comisión');
+  const hasIncomeKw = hasIncomeAccentKw ||
+    /\b(cobre|me pagaron|pagaron|recibi|ingrese|entro|deposito|sueldo|salario|freelance|venta|vendi|me transfirieron|transferencia|me cayo|me prestaron|abonaron|me depositaron|gane|ganancia|beca|comision|renta cobrada|pago recibido)\b/i.test(lower);
   const hasAmount   = /\$?\s*[\d,]+/.test(lower) ||
     /\b(cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|mil|dos mil|tres mil|cinco mil|diez mil)\b/i.test(lower);
 
@@ -6269,7 +6278,11 @@ function parseLocalNLP(raw) {
   }
 
   // ── 5. GASTO FINANCIERO ───────────────────────────────────
-  const hasFinKw = /\b(gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|invertí|invierte|cafe|café|uber|rappi|didi|taxi|gasolina|gasoline|bencina|comida|renta|gimnasio|gym|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota|varos|varones|lana|feria)\b|\$\d/i.test(lower);
+  // "gym" fuera de hasFinKw: gym solo → hábito; gasto gym → usar "gimnasio" o "pague"
+  const hasFinAccentKw = _words.has('gasté') || _words.has('pagué') || _words.has('costó') ||
+    _words.has('compré') || _words.has('invertí') || _words.has('café');
+  const hasFinKw = hasFinAccentKw ||
+    /\b(gaste|pague|costo|gasto|compre|invierte|cafe|uber|rappi|didi|taxi|gasolina|gasoline|bencina|comida|renta|gimnasio|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota|varos|varones|lana|feria)\b|\$\d/i.test(lower);
 
   // ── 6. CALENDARIO ────────────────────────────────────────
   const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|dentista|doctor|médico|medico|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
@@ -6279,7 +6292,11 @@ function parseLocalNLP(raw) {
 
   // ── 7. HÁBITO ─────────────────────────────────────────────
   // El usuario dice que YA hizo algo: "hice mi hábito de lectura", "fui al gym", "corrí 5km", "completé meditación"
-  const hasHabitAction = /\b(hice|fui al|fui a|entrené|entrenué|corr[ií]|medité|medite|leí|lei|beb[ií]|bebe|tom[eé]|dorm[ií]|cumpli|cumplí|completé|complete|hábito|habito|gym|ejercicio|yoga|nadar|natación|natacion|ciclismo|meditación|meditacion)\b/i.test(lower) ||
+  const hasHabitAccentKw = _words.has('hice') || _words.has('entrené') || _words.has('corrí') ||
+    _words.has('medité') || _words.has('leí') || _words.has('bebí') || _words.has('tomé') ||
+    _words.has('dormí') || _words.has('cumplí') || _words.has('completé');
+  const hasHabitAction = hasHabitAccentKw ||
+    /\b(fui al|fui a|entrenué|corri|medite|lei|bebi|bebe|tome|dormi|cumpli|complete|hábito|habito|gym|ejercicio|yoga|nadar|natación|natacion|ciclismo|meditación|meditacion)\b/i.test(lower) ||
     /🏋|🏃|🚴|🧘|🏊|💪/.test(lower);
   if (hasHabitAction && !(hasFinKw && hasAmount)) {
     // Extraer qué hábito es
@@ -6320,7 +6337,7 @@ function parseLocalNLP(raw) {
   }
 
   // ── 10. GASTO sin monto (con keyword fuerte) ──────────────
-  if (/\b(gasté|gaste|pagué|pague|costó|costo|compré|compre)\b/i.test(lower)) {
+  if (hasFinAccentKw || /\b(gaste|pague|costo|compre)\b/i.test(lower)) {
     result.modules.push('financial');
     result.financial = { amount:0, desc: fixed.replace(/gasté|gaste|pagué|pague|costó|costo|compré|compre/gi,'').trim()||'gasto', type:'salida' };
     return result;
