@@ -6489,8 +6489,16 @@ function parseFABPreview(raw) {
     prev.className='fab-preview idea';
     prev.textContent=`💡 "${p.idea?.text||''}" → Ideas Rápidas`;
   } else {
-    prev.className='fab-preview task';
-    prev.textContent=`✅ Tarea: "${p.task?.name||''}" → Tareas`;
+    const name = p.task?.name || '';
+    if (name.length < 3) {
+      prev.className='fab-preview';
+      prev.style.borderColor='rgba(255,255,255,.12)';
+      prev.style.color='var(--text3)';
+      prev.textContent='💬 Escribe más detalle · ej: "gasté 200 en tacos" o "reunión el viernes"';
+    } else {
+      prev.className='fab-preview task';
+      prev.textContent=`✅ Tarea: "${name}" → Tareas`;
+    }
   }
 }
 
