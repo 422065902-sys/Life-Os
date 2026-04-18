@@ -354,15 +354,22 @@ function buildBottomNav() {
 }
 
 /* Desplaza el track para centrar el ítem en posición absoluta `itemIndex` */
+let _bnAnimating = false;
 function _bnJumpTo(itemIndex, animate) {
   const track = document.getElementById('bn-track');
   if (!track) return;
-  // Usar el ancho del pill (#bn-scroll) que tiene el width fijo real
-  const pill = document.getElementById('bn-scroll');
-  const cw   = (pill && pill.clientWidth) || 296;
-  const target = itemIndex * BN_IW - cw / 2 + BN_IW / 2;
-  if (animate) track.scrollTo({left: target, behavior:'smooth'});
-  else         track.scrollLeft = target;
+  const pill   = document.getElementById('bn-scroll');
+  const cw     = (pill && pill.clientWidth) || 296;
+  const target = Math.max(0, itemIndex * BN_IW - cw / 2 + BN_IW / 2);
+  if (animate) {
+    _bnAnimating = true;
+    track.scrollTo({left: target, behavior:'smooth'});
+    // Liberar el flag después de que la animación termine (~400ms)
+    clearTimeout(_bnAnimating._t);
+    _bnAnimating._t = setTimeout(() => { _bnAnimating = false; }, 450);
+  } else {
+    track.scrollLeft = target;
+  }
 }
 
 /* Marca el active en TODOS los clones del ítem */
@@ -382,10 +389,11 @@ function bnTap(localIndex) {
   _bnTapLock = true;
   const track = document.getElementById('bn-track');
   if (!track) { _bnTapLock = false; return; }
-  const cw    = track.clientWidth || track.offsetWidth;
-  const sl    = track.scrollLeft;
-  const cItem = (sl + cw / 2 - BN_IW / 2) / BN_IW; // ítem actualmente centrado (float)
-  // Encuentra la copia más cercana del ítem tocado
+  const pill   = document.getElementById('bn-scroll');
+  const cw     = (pill && pill.clientWidth) || 296;
+  const sl     = track.scrollLeft;
+  const cItem  = (sl + cw / 2 - BN_IW / 2) / BN_IW;
+  // Copia más cercana del ítem tocado
   let best = BN_LEN + localIndex, bestDist = Infinity;
   for (let c = 0; c < 3; c++) {
     const idx = c * BN_LEN + localIndex;
@@ -394,37 +402,40 @@ function bnTap(localIndex) {
   }
   _bnJumpTo(best, true);
   navigate(BN_ORDER[localIndex].id);
-  setTimeout(() => { _bnTapLock = false; }, 500);
+  setTimeout(() => { _bnTapLock = false; }, 550);
 }
 
-/* Listener de scroll: actualiza activo + loop infinito + navega al soltar */
+/* Listener de scroll — SOLO para swipes del usuario, ignorado durante animaciones */
 let _bnScrollT = null, _bnJumping = false, _bnLastLocal = BN_CTR;
 function _bnOnScroll() {
-  if (_bnJumping) return;
+  // Bloquear cuando la animación programática está corriendo
+  if (_bnJumping || _bnAnimating) return;
   const track = document.getElementById('bn-track');
   if (!track) return;
-  const cw    = track.clientWidth || track.offsetWidth;
-  const sl    = track.scrollLeft;
-  const cItem = Math.round((sl + cw / 2 - BN_IW / 2) / BN_IW);
-  const local = ((cItem % BN_LEN) + BN_LEN) % BN_LEN;
-  // Actualizar highlight en tiempo real
+  const pill   = document.getElementById('bn-scroll');
+  const cw     = (pill && pill.clientWidth) || 296;
+  const sl     = track.scrollLeft;
+  const cItem  = Math.round((sl + cw / 2 - BN_IW / 2) / BN_IW);
+  const local  = ((cItem % BN_LEN) + BN_LEN) % BN_LEN;
+  // Highlight en tiempo real
   track.querySelectorAll('.bn-tab').forEach(el => {
     el.classList.toggle('active', +el.dataset.local === local);
   });
-  // Loop infinito: si entró en copia 0 o 2, saltar a la equivalente en copia 1
+  // Loop infinito silencioso
   const copyIdx = Math.floor(cItem / BN_LEN);
   if (copyIdx === 0 || copyIdx === 2) {
     _bnJumping = true;
     track.scrollLeft += (copyIdx === 0 ? 1 : -1) * BN_LEN * BN_IW;
-    setTimeout(() => { _bnJumping = false; }, 50);
+    setTimeout(() => { _bnJumping = false; }, 60);
+    return; // no navegar durante el salto
   }
-  // Navegar al soltar (debounce 200ms)
+  // Navegar al soltar (debounce 220ms)
   if (local !== _bnLastLocal) {
     _bnLastLocal = local;
     clearTimeout(_bnScrollT);
     _bnScrollT = setTimeout(() => {
-      if (!_bnTapLock) navigate(BN_ORDER[local].id);
-    }, 200);
+      if (!_bnTapLock && !_bnAnimating) navigate(BN_ORDER[local].id);
+    }, 220);
   }
 }
 
@@ -432,7 +443,7 @@ function _scrollBottomNavActive() { /* handled by carousel */ }
 
 /* Llamado desde navigate() para sincronizar el carrusel con la página activa */
 function updateBottomNav(pageId) {
-  if (_bnTapLock) return; // tap ya lo manejó
+  if (_bnTapLock) return; // bnTap ya lo manejó
   _bnMarkActive(pageId);
   const localIdx = BN_ORDER.findIndex(n => n.id === pageId);
   if (localIdx < 0) return;
