@@ -74,3 +74,20 @@
 
 ---
 
+## Run: 2026-04-17_21-21.md
+
+- [ ] [BUG] FAB NLP: Misclasificación de entradas de hábitos y gastos | SOLUCIÓN: Refinar el modelo de NLU del FAB (`src/js/components/fab.js`, función `classifyInput`) para mejorar el reconocimiento de entidades y la lógica de priorización de intenciones. Considerar un modal de desambiguación para baja confianza. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] GAMIFICACIÓN: Completar tareas no suma XP | SOLUCIÓN: Revisar la función `completeTask(taskId)` en `src/js/modules/flow.js` para asegurar que `firebase.firestore.FieldValue.increment(taskXP)` se invoque correctamente con un valor `taskXP` real y se persista en Firestore. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] HEADER: Barra superior cortada en mobile (Android/iOS) | SOLUCIÓN: Aplicar `padding-top: env(safe-area-inset-top);` al `header` principal y asegurar `viewport-fit=cover` en la meta tag de `index.html` para respetar las safe-areas del dispositivo. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] LANDING PAGE: Hero sin animaciones premium | SOLUCIÓN: Implementar gradiente animado de fondo, animaciones de entrada en cascada (fade + translateY con `animation-delay`) para logo, headline, subheadline y botones, y un `glow pulse` animado para el CTA principal (`.hero-cta-primary`) usando `box-shadow` en `src/css/styles.css`. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] FINANZAS: Gráfico de gastos vacío/incorrecto | SOLUCIÓN: Depurar `renderExpenseChart()` en `src/js/modules/finanzas.js`. Verificar la recuperación, agrupación y paso de datos de categorías de gastos a Chart.js, asegurando que no haya `NaN`/`undefined` y que la configuración sea correcta. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] CUERPO: Botón "Registrar Entrenamiento" cortado | SOLUCIÓN: Aplicar `white-space: normal; text-align: center;` al botón `.btn-registrar-entrenamiento` en `src/css/modules/cuerpo.css`. Ajustar `padding` y `font-size` para que el texto se adapte en viewports pequeños. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] FLOW-AGENDA: Calendario sin eventos | SOLUCIÓN: En `src/js/modules/flow.js`, implementar `fetchEventsForMonth(month, year)` para cargar y renderizar eventos/tareas del usuario como indicadores visuales (puntos, iconos) en los días correspondientes del calendario. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] LANDING PAGE: Botón "Iniciar Sesión" pequeño en mobile | SOLUCIÓN: Aumentar `min-width` y `min-height` del botón `.btn-login` en `src/css/styles.css` para cumplir con el touch target de 44px y mejorar su prominencia visual con un estilo `outline` más definido. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] LANDING PAGE: Inconsistencia "Gemelo IA" como módulo | SOLUCIÓN: Modificar `section#landing-modules` en `index.html` para presentar "Gemelo IA" como una característica clave del módulo "Mente & Poder", alineando la narrativa de marketing con la estructura real de la app. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [RETENCIÓN] DASHBOARD DINÁMICO: Implementar opt-in y datos de uso | SOLUCIÓN: Añadir toggle en `src/html/modules/settings.html` para "Dashboard Inteligente". Crear colección `userActivity` en Firestore para `logModuleVisit(moduleId)` en `src/js/utils/analytics.js` y guardar la preferencia del toggle en `users/{userId}/preferences/dashboardSmart`. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [IDENTIDAD-VISUAL] AJUSTES: Carece de identidad visual propia | SOLUCIÓN: Asignar un color de acento específico y neutro (ej. gris oscuro o azul desaturado) al módulo "Ajustes" (`data-module="settings"`). Actualizar `src/css/modules/settings.css` para que los elementos interactivos usen este nuevo color. | PRIORIDAD: MEDIA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] LANDING PAGE: Ausencia de sección "DEMO VISUAL" | SOLUCIÓN: Añadir `section#landing-demo` en `index.html` con un mockup de dispositivo y un carrusel de 3-4 screenshots de módulos clave. Implementar transiciones de fondo que cambien al color de acento del módulo activo. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+
+---
+
