@@ -2458,6 +2458,8 @@ body.blackout::before{
   #bio-main-btn{
     padding:11px 16px!important;
     font-size:13px!important;
+    white-space:normal!important;
+    line-height:1.3;
   }
 }
 

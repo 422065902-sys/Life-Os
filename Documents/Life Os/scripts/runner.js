@@ -1235,9 +1235,11 @@ async function testHabitos() {
   // Staging: agregar hábito via JS para evitar click-blocking
   if (!SMOKE_ONLY && habitInput) {
     await safeFill('#new-habit', `Hábito QA ${Date.now()}`);
-    // Usar JS click directo al botón addHabit
     await evalJS(() => { if (typeof addHabit === 'function') addHabit(); });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500); // espera renderHabits + guardarDatos
+    // Re-asegurar panel de hábitos activo por si el save causó navegación
+    const habitsTabRefresh = await page.$('[onclick*="\'habits\'"]');
+    if (habitsTabRefresh) { await habitsTabRefresh.click().catch(() => {}); await page.waitForTimeout(500); }
     const cards = await page.$$('.habit-item, [class*="habit-item"]');
     addResult('07-Habitos', 'Hábito de prueba aparece en lista', cards.length > 0 ? 'PASS' : 'WARN', `${cards.length} hábitos`);
   }
@@ -1332,10 +1334,10 @@ async function testStripe() {
   log('▶ 10-Stripe');
   await ensureLoggedIn();
   await goTo('settings');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500); // extra wait para que updateSettingsUI() termine
 
-  // Sección de suscripción — getText no requiere actionability (funciona aunque isVisible falle por timing)
-  const badgeText = await getText('#settings-plan-badge');
+  // Sección de suscripción — usar selector amplio para cubrir badge estático y dinámico
+  const badgeText = await getText('[id*="plan-badge"], [class*="plan-badge"], [id*="current-plan"]');
   const subsSection = badgeText.length > 0 || await isVisible('[id*="suscripcion"], [class*="plan-section"]');
   addResult('10-Stripe', 'Sección de suscripción visible en Ajustes', subsSection ? 'PASS' : 'WARN');
 
@@ -1448,16 +1450,16 @@ async function testCalendario() {
 
   // Asegurar que el calendario renderiza el mes actual antes de leer el header
   await evalJS(() => { if (typeof renderCalendar === 'function') renderCalendar(); }).catch(()=>{});
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
 
-  // Navegación al mes siguiente — leer título via evalJS (mismo contexto que la función)
+  // Navegación al mes siguiente — click real en el botón para evitar race condition con Firestore
   if (nextBtn) {
     const headerBefore = await evalJS(() => document.getElementById('cal-title')?.textContent?.trim() || '');
-    // Llamar calNext y leer el título nuevo en la misma evaluación (sin race condition)
-    const headerAfter = await evalJS(() => {
-      if (typeof calNext === 'function') calNext();
-      return document.getElementById('cal-title')?.textContent?.trim() || '';
-    });
+    // Clickear el botón físicamente en lugar de llamar calNext() desde evalJS
+    const nextBtnEl = await page.$('[onclick*="calNext"]');
+    if (nextBtnEl) await nextBtnEl.click();
+    await page.waitForTimeout(400);
+    const headerAfter = await evalJS(() => document.getElementById('cal-title')?.textContent?.trim() || '');
     addResult('13-Calendario', 'Navegar al mes siguiente cambia header', headerBefore !== headerAfter ? 'PASS' : 'WARN', `"${headerBefore}" → "${headerAfter}"`);
   }
 
