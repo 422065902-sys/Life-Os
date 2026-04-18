@@ -310,9 +310,8 @@ function buildBottomNav() {
   const bn = document.getElementById('bn-scroll');
   if (!bn) return;
   bn.innerHTML = NAV.map(n => `
-    <button class="bn-tab ${n.id===S.currentPage?'active':''}" onclick="navigate('${n.id}')" aria-label="${n.label}">
+    <button class="bn-tab ${n.id===S.currentPage?'active':''}" onclick="navigate('${n.id}')" aria-label="${n.label}" title="${n.label}">
       <span class="bn-tab-icon">${n.icon}</span>
-      <span class="bn-tab-label">${n.label}</span>
     </button>`).join('');
   _scrollBottomNavActive();
 }

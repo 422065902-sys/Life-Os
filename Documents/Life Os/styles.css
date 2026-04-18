@@ -1723,80 +1723,94 @@ input[type=range].calib-range.emocional{background:rgba(168,85,247,.12)}
 input[type=range].calib-range.emocional::-webkit-slider-thumb{background:var(--purple);box-shadow:0 0 10px rgba(168,85,247,.5)}
 
 /* ══════════════════════════════════════════
-   iOS BOTTOM NAV
+   iOS LIQUID GLASS BOTTOM NAV
 ══════════════════════════════════════════ */
 #bottom-nav{
   display:none;
-  position:fixed;bottom:0;left:0;right:0;
+  position:fixed;
+  bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  left:50%;
+  transform:translateX(-50%);
   z-index:112;
-  background:rgba(10,14,24,0.82);
-  backdrop-filter:blur(28px) saturate(180%);
-  -webkit-backdrop-filter:blur(28px) saturate(180%);
-  border-top:1px solid rgba(255,255,255,.07);
-  padding-bottom:env(safe-area-inset-bottom,8px);
 }
 #bn-scroll{
   display:flex;
-  align-items:flex-end;
+  align-items:center;
+  gap:2px;
+  padding:6px 8px;
+  /* Liquid Glass pill */
+  background:rgba(18,22,34,0.78);
+  backdrop-filter:blur(40px) saturate(200%) brightness(1.05);
+  -webkit-backdrop-filter:blur(40px) saturate(200%) brightness(1.05);
+  border:0.5px solid rgba(255,255,255,.16);
+  border-radius:100px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -0.5px 0 rgba(0,0,0,.3) inset,
+    0 20px 60px rgba(0,0,0,.55),
+    0 4px 20px rgba(0,0,0,.35);
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
   scrollbar-width:none;
-  scroll-snap-type:x proximity;
-  padding:6px 4px 2px;
-  gap:0;
+  max-width:calc(100vw - 32px);
 }
 #bn-scroll::-webkit-scrollbar{display:none}
 .bn-tab{
-  display:flex;flex-direction:column;align-items:center;
-  gap:2px;min-width:68px;flex-shrink:0;
-  padding:6px 4px 5px;
-  cursor:pointer;border-radius:14px;
-  border:none;background:none;
-  color:rgba(255,255,255,.38);
-  transition:color .18s,background .18s;
-  scroll-snap-align:start;
-  -webkit-tap-highlight-color:transparent;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:52px;height:48px;
+  border-radius:100px;
+  border:none;background:transparent;
+  cursor:pointer;
   position:relative;
+  flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
   user-select:none;
-}
-.bn-tab:active{background:rgba(255,255,255,.06)}
-.bn-tab.active{color:var(--accent)}
-.bn-tab-icon{
-  font-size:23px;line-height:1;
   transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.bn-tab:active{transform:scale(.9)}
+/* Glass bubble — activo */
+.bn-tab.active::before{
+  content:'';
+  position:absolute;inset:4px;
+  border-radius:100px;
+  background:rgba(255,255,255,.11);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:0.5px solid rgba(255,255,255,.22);
+  box-shadow:0 0 0 0.5px rgba(255,255,255,.06) inset;
+  transition:opacity .22s;
+}
+/* Emoji icon */
+.bn-tab-icon{
+  font-size:22px;line-height:1;
   display:block;
+  position:relative;z-index:1;
+  filter:grayscale(1) brightness(.5);
+  transition:filter .22s, transform .22s cubic-bezier(.34,1.56,.64,1);
 }
-.bn-tab.active .bn-tab-icon{transform:scale(1.12)}
-.bn-tab-label{
-  font-size:9px;font-family:'Syne',sans-serif;font-weight:700;
-  letter-spacing:.02em;white-space:nowrap;
-  opacity:0;transform:translateY(3px);
-  transition:opacity .18s,transform .18s;
-  line-height:1;
+.bn-tab.active .bn-tab-icon{
+  filter:none;
+  transform:scale(1.1);
 }
-.bn-tab.active .bn-tab-label{opacity:1;transform:none}
-/* Pill indicator under active tab */
-.bn-tab::after{
-  content:'';position:absolute;top:3px;left:50%;
-  transform:translateX(-50%) scaleX(0);
-  width:22px;height:3px;border-radius:2px;
-  background:var(--accent);
-  box-shadow:0 0 8px rgba(0,229,255,.5);
-  transition:transform .22s cubic-bezier(.34,1.56,.64,1);
-}
-.bn-tab.active::after{transform:translateX(-50%) scaleX(1)}
+/* Sin etiquetas — la jerarquía la da el bubble + color */
+.bn-tab-label{display:none}
 /* Light mode */
-.light #bottom-nav{
-  background:rgba(248,249,252,0.88);
-  border-top-color:rgba(0,80,180,.1);
+.light #bottom-nav{}
+.light #bn-scroll{
+  background:rgba(240,242,248,.82);
+  border-color:rgba(0,0,0,.1);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 20px 60px rgba(0,0,0,.18), 0 4px 20px rgba(0,0,0,.1);
 }
-.light .bn-tab{color:rgba(0,0,0,.32)}
-.light .bn-tab.active{color:var(--accent)}
+.light .bn-tab-icon{filter:grayscale(1) brightness(.65)}
+.light .bn-tab.active .bn-tab-icon{filter:none}
+.light .bn-tab.active::before{background:rgba(0,0,0,.07);border-color:rgba(0,0,0,.12)}
 @media(max-width:767px){
   #bottom-nav{display:block}
   #mob-tab{display:none!important}
-  #content{padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))!important}
+  #content{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
 }
 
 /* ══════════════════════════════════════════
@@ -3719,13 +3733,13 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
     #fab-btn{bottom:calc(18px + env(safe-area-inset-bottom))!important}
   }
 }
-/* FAB siempre encima del bottom-nav en mobile */
+/* FAB siempre encima del liquid glass pill en mobile — pill: 48px+12px pad+14px offset = ~86px */
 @media(max-width:767px){
-  #fab-btn{bottom:calc(74px + env(safe-area-inset-bottom,8px))!important}
+  #fab-btn{bottom:calc(88px + env(safe-area-inset-bottom,8px))!important}
 }
 @media(max-width:767px){
   @supports (padding-bottom: env(safe-area-inset-bottom)){
-    #fab-btn{bottom:calc(74px + env(safe-area-inset-bottom))!important}
+    #fab-btn{bottom:calc(88px + env(safe-area-inset-bottom))!important}
   }
 }
 
