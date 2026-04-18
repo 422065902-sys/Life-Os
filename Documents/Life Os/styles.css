@@ -3941,8 +3941,8 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 .lp-anim-4.lp-anim-in{transition-delay:.46s}
 .lp-anim-5.lp-anim-in{transition-delay:.60s}
 .lp-anim-6.lp-anim-in{transition-delay:.75s}
-.lp-hero{position:relative;z-index:1;padding:0 24px;text-align:center;display:flex;align-items:center;justify-content:center;min-height:calc(100dvh - 64px)}
-.lp-hero-inner{max-width:680px;width:100%;padding:40px 0 60px}
+.lp-hero{position:relative;z-index:1;padding:56px 24px 64px;text-align:center}
+.lp-hero-inner{max-width:680px;width:100%;margin:0 auto}
 .lp-hero-tag{display:inline-block;padding:4px 12px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);border-radius:20px;font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:16px;letter-spacing:.04em}
 .lp-hero-title{font-family:'Orbitron',monospace;font-size:clamp(28px,5.5vw,58px);font-weight:900;color:var(--text);line-height:1.1;margin-bottom:14px;letter-spacing:-.02em}
 .lp-gradient-text{background:linear-gradient(135deg,var(--accent) 0%,#a855f7 50%,#4ade80 100%);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:lp-gradient-shift 5s ease infinite}
