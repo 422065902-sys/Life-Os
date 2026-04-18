@@ -89,7 +89,10 @@
   <!-- ── Navbar mínimo ── -->
   <nav class="lp-nav">
     <div class="lp-nav-logo">LIFE OS</div>
-    <button class="lp-nav-login" onclick="showAuthFromLanding('login')">Iniciar Sesión →</button>
+    <div class="lp-nav-actions">
+      <button class="lp-nav-login" onclick="showAuthFromLanding('login')">Iniciar Sesión</button>
+      <button class="lp-nav-cta" onclick="showAuthFromLanding('register')">Empieza gratis →</button>
+    </div>
   </nav>
 
   <div class="lp-scroll">
@@ -105,6 +108,9 @@
           <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">Ya tengo cuenta</button>
         </div>
         <p class="lp-cta-legal lp-anim lp-anim-5">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
+        <div class="lp-hero-urgency lp-anim lp-anim-6">
+          <button class="lp-btn-urgency" onclick="showAuthFromLanding('register')">¿No tienes el control aún? — Empieza a tenerlo ahora →</button>
+        </div>
       </div>
     </section>
 
