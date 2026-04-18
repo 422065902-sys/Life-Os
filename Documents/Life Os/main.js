@@ -5329,8 +5329,7 @@ function _showLandingPage() {
   const lp = document.getElementById('landing-page');
   const as = document.getElementById('auth-screen');
   if (lp) {
-    lp.style.display = 'flex';
-    lp.style.flexDirection = 'column';
+    lp.style.display = 'block';
     // Animaciones de entrada del hero
     requestAnimationFrame(() => {
       lp.querySelectorAll('.lp-anim').forEach(el => el.classList.add('lp-anim-in'));

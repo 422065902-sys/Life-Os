@@ -3904,8 +3904,8 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 /* ═══════════════════════════════════════════════════════════════
    19. LANDING PAGE
    ═══════════════════════════════════════════════════════════════ */
-#landing-page{position:fixed;inset:0;z-index:9998;background:var(--bg);flex-direction:column;overflow:hidden}
-.lp-scroll{flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.2) transparent}
+#landing-page{position:fixed;inset:0;z-index:9998;background:var(--bg);overflow:hidden}
+.lp-scroll{position:absolute;top:68px;left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:rgba(0,229,255,.2) transparent}
 .lp-bg-glow{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
 .lp-glow-1{width:500px;height:500px;background:radial-gradient(circle,rgba(0,229,255,.07) 0%,transparent 70%);top:-150px;left:-100px;animation:glow-drift-1 12s ease-in-out infinite alternate}
 .lp-glow-2{width:400px;height:400px;background:radial-gradient(circle,rgba(168,85,247,.06) 0%,transparent 70%);bottom:10%;right:-80px;animation:glow-drift-2 15s ease-in-out infinite alternate}
@@ -3926,7 +3926,7 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
   87%{color:#3b82f6;text-shadow:0 0 18px rgba(59,130,246,.5)}
 }
 @keyframes lp-urgency-pulse{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,.4)}70%{box-shadow:0 0 0 8px rgba(168,85,247,0)}}
-.lp-nav{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(7,11,20,.85);backdrop-filter:blur(14px);border-bottom:1px solid rgba(0,229,255,.08);flex-shrink:0}
+.lp-nav{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(7,11,20,.85);backdrop-filter:blur(14px);border-bottom:1px solid rgba(0,229,255,.08)}
 .lp-nav-logo{font-family:'Orbitron',monospace;font-size:16px;font-weight:900;letter-spacing:.12em;animation:lp-logo-color 8s ease-in-out infinite}
 .lp-nav-actions{display:flex;align-items:center;gap:10px}
 .lp-nav-login{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:9px 16px;min-height:40px;color:var(--text2);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center}
