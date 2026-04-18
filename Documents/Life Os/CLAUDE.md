@@ -14,7 +14,7 @@ Producción nunca se toca durante pruebas. Staging es el campo de juego.
 | `scripts/analyze-deep.js` | Análisis Gemini Vision profundo — lee screenshots, 9 grupos temáticos, maxOutputTokens 16k | Manual post-run | Activo |
 | `scripts/analyze.js` | Análisis Gemini Vision ligero — 3 días de reportes, propuestas de mejora | Manual post-run | Activo |
 
-Flujo normal: `runner.js` genera screenshots → `analyze-deep.js` o `analyze.js` los analizan con Gemini.
+Flujo normal: `node runner.js --deep` — un solo comando hace todo: E2E → screenshots → analyze.js → analyze-deep.js (screenshots frescos garantizados via QA_SHOTS_DIR).
 
 Cualquier otro archivo runner/analyze que no sea estos tres exactos = duplicado no autorizado.
 Reportar al usuario y esperar autorización antes de eliminar.
@@ -124,11 +124,14 @@ c:\Users\wence\Documents\Life Os\qa-reports\    ← reportes locales
 
 ### Ejecución (desde /opt/openclaw en el VPS)
 ```bash
+# Flujo completo recomendado — E2E + screenshots + analyze + analyze-deep (un solo comando)
+node runner.js --deep
+
+# Solo E2E + analyze ligero (más rápido, sin deep)
 node runner.js
 
-# Análisis post-run (elegir uno)
-node analyze-deep.js   # profundo — más tokens, más tiempo
-node analyze.js        # ligero — más rápido
+# analyze-deep manual sobre screenshots ya existentes
+node analyze-deep.js
 ```
 
 ### Post-ejecución
@@ -177,34 +180,43 @@ node analyze.js        # ligero — más rápido
 - **Producción** (life-os-prod-3a590): 9 usuarios reales — no tocar
 
 ## ESTADO ACTUAL
-- ✅ Funcionando: runner.js (E2E), analyze-deep.js, analyze.js, Firebase CLI → staging
-- ✅ Corregido: main.js detecta staging/prod automáticamente por hostname
-- ✅ Corregido: firebase-messaging-sw.js detecta staging/prod automáticamente por hostname
-- ✅ Corregido: seedDemoUser.js usa variables de entorno + advertencia si corre contra prod
-- ✅ Eliminado: app.js legacy (desactivado, versión antigua — historial disponible en git)
-- ✅ runner.js corre end-to-end: 154 tests, 0 FAILs, 95% pass rate (último run 2026-04-17)
+- ✅ Funcionando: runner.js --deep (pipeline completo), analyze-deep.js, analyze.js, Firebase CLI → staging
+- ✅ Pipeline unificado: `node runner.js --deep` hace E2E + screenshots + analyze + analyze-deep en secuencia
+- ✅ analyze-deep respeta QA_SHOTS_DIR — siempre analiza screenshots del run actual, nunca fotos viejas
+- ✅ analyze-deep v2.1: propuestas con IMPACTO 1-5 + ESFUERZO 1-5 + código listo para pegar
+- ✅ analyze-deep v2.1: BASE_CONTEXT actualizado con layout absoluto del landing
+- ✅ analyze-deep v2.1: sprint plan con archivos/líneas específicos en síntesis
+- ✅ main.js detecta staging/prod automáticamente por hostname
+- ✅ firebase-messaging-sw.js detecta staging/prod automáticamente por hostname
+- ✅ runner.js corre end-to-end: 154 tests (último run limpio 2026-04-17)
 - ✅ goTo() llama closeAllModals() — overlays ya no aparecen en screenshots
-- ✅ analyze.js limitado a 35 shots clave (fold+responsive) — elimina alucinaciones Gemini
+- ✅ analyze.js limitado a 35 shots clave — elimina alucinaciones Gemini
 - ✅ analyze-deep.js y analyze.js con retry+backoff (3 intentos, 30s en rate limit)
-- ✅ analyze-deep.js: thinkingBudget=0 en todos los grupos y síntesis — costo controlado
-- ✅ analyze-deep.js: maxTokens 5k-6k por grupo (antes 14k-16k) — sin basura de relleno
-- ✅ Run deep limpio: 83 propuestas, 0 errores API (2026-04-18)
-- ✅ analyze.js y analyze-deep.js: BASE_CONTEXT incluye que $99 es MXN (~$5 USD) — evita falso positivo de precio prohibitivo
-- ✅ NLP: médico/doctor/dentista retirados de hasCalKw — eran falsos positivos en tareas tipo "llamar al médico"
-- ✅ Cuerpo: bio-vol y bio-entrenos muestran '—' cuando no hay datos (antes mostraban "0 kg" / "0")
-- ✅ Runner: limpia hábito QA después del test (deleteHabit) — staging ya no se contamina
+- ✅ analyze-deep.js: thinkingBudget=0 — costo controlado (~$0.47 MXN por run)
+- ✅ NLP: médico/doctor/dentista retirados de hasCalKw — eran falsos positivos
+- ✅ Cuerpo: bio-vol y bio-entrenos muestran '—' cuando no hay datos
+- ✅ Runner: limpia hábito QA después del test (deleteHabit)
+- ✅ Boot flash corregido: body.booting oculta FAB+nav hasta que la app carga
+- ✅ Gemelo IA: fix Firestore Timestamp serialization → ya no muestra 0% de progreso
+- ✅ Focus circle: initFocusBars() llamado post-boot y post-onSnapshot → ya no se queda en 68%
+- ✅ iOS bottom nav: pill flotante con liquid glass, emojis grayscale/color, FAB reposicionado
+- ✅ Landing: LIFE OS logo cicla 8 colores de la app con animación + glow
+- ✅ Landing: nav con dos botones (Iniciar Sesión + Empieza gratis)
+- ✅ Landing: CTA urgencia morado "¿No tienes el control aún? — Empieza a tenerlo ahora →"
+- ✅ Landing layout: position:absolute en nav+scroll — elimina espacio fantasma del flex
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
+- ⚠️ Pendiente: correr `node runner.js --deep` post-fixes para verificar estado real con screenshots frescos
 
-## FLUJO RECOMENDADO POST-RUN
+## FLUJO RECOMENDADO
 ```bash
-# 1. Correr runner (toma ~15-20 min, genera screenshots + reporte + analyze.js ligero automático)
-cd /opt/openclaw && node runner.js
+# Flujo completo (recomendado siempre) — tarda ~25-30 min total
+cd /opt/openclaw && node runner.js --deep
 
-# 2. Análisis profundo con Gemini Vision (correr manualmente después del runner)
-cd /opt/openclaw && node analyze-deep.js
+# Flujo rápido (solo E2E + analyze ligero) — tarda ~15-20 min
+cd /opt/openclaw && node runner.js
 ```
-El runner ya llama analyze.js automáticamente al final.
-analyze-deep.js se corre manualmente cuando se quiere análisis profundo por grupos temáticos.
+Con `--deep`: runner hace E2E → screenshots → analyze.js → analyze-deep.js automáticamente.
+analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca analiza fotos viejas.
 
 ## DIAGNÓSTICO DE ALUCINACIONES GEMINI
 - **Síntoma**: Gemini reporta "SESIÓN DE LECTURA aparece en todos los módulos" — no es real
@@ -220,17 +232,34 @@ analyze-deep.js se corre manualmente cuando se quiere análisis profundo por gru
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-18
-- Commits: 1ab7946, 166127a (+ sesión anterior: c98498c, 59c0be0, etc.)
-- Correcciones aplicadas esta sesión:
-  1. `analyze.js` + `analyze-deep.js`: BASE_CONTEXT instruye a Gemini que $99 = MXN (~$5 USD) — ya no reporta precio como problema
-  2. NLP `parseLocalNLP`: retira médico/doctor/dentista de `hasCalKw` — eran personas, no tipos de evento; "llamar al médico esta semana" ya no se clasifica como Calendario
-  3. `updateBioVol`: muestra '—' cuando vol === 0 (antes "0 kg")
-  4. `buildFreqHeatmap` (bio-entrenos): muestra '—' cuando gymCount === 0 (antes "0"); HTML default actualizado
-  5. Runner `testHabitos`: guarda nombre del hábito QA, llama `deleteHabit()` post-test para limpiar staging
-  6. iOS bottom nav implementado: frosted glass, scrollable, pill indicator, FAB reposicionado
-  7. Landing: animaciones gradient-shift, glow-pulse, scroll-reveal con IntersectionObserver
-  8. Gemelo IA card: texto corregido con descripción real de funcionalidad
-  9. lp-nav-login: touch target 44px mínimo
-- QA run (2026-04-18_05-54): 10 propuestas Gemini, salud 6/10 — fixes de NLP y Cuerpo apuntan a subir a 8/10
-- Pendiente: correr runner en VPS para verificar fixes de esta sesión
-- Pendiente: runner.js automático nocturno (esperando usuarios reales)
+- Commits principales: 9c430bb, 799abe7, 533d7c6, 395b31d, 4af77f3, 00ad232 (entre otros)
+
+### Fixes de app (main.js + styles.css + index.html)
+1. **Boot flash**: `body.booting` en CSS oculta FAB+nav hasta `_tryCompleteBoot()` — ya no parpadean al abrir
+2. **Gemelo 0%**: fix Firestore Timestamp serialization con parser multi-formato + fallback xpHistory
+3. **Focus circle 68%**: `initFocusBars()` llamado en onSnapshot(!firstLoad) y post-boot — ya no muestra defaults
+4. **NLP**: médico/doctor/dentista fuera de hasCalKw — "llamar al médico" ya no va a Calendario
+5. **Cuerpo**: bio-vol y bio-entrenos muestran '—' cuando no hay datos (antes "0 kg" / "0")
+6. **Runner cleanup**: hábito QA se borra después de cada test vía deleteHabit()
+7. **iOS bottom nav**: pill flotante liquid glass, emojis grayscale/color, FAB arriba del pill
+8. **Landing hero**: nav position:absolute top:0, lp-scroll position:absolute top:68px — elimina espacio fantasma
+9. **Landing LIFE OS**: logo cicla 8 colores de la app con keyframe lp-logo-color
+10. **Landing nav**: dos botones (Iniciar Sesión outline + Empieza gratis filled)
+11. **Landing CTA**: botón urgencia morado "¿No tienes el control aún? — Empieza a tenerlo ahora →"
+
+### Mejoras OpenClaw (scripts)
+1. **analyze-deep v2.1**: propuestas con IMPACTO/ESFUERZO 1-5 + código exacto listo para pegar
+2. **analyze-deep v2.1**: BASE_CONTEXT actualizado con layout absoluto del landing (ya no dice flex)
+3. **analyze-deep v2.1**: sprint plan con archivos/líneas/ROI en síntesis ejecutiva
+4. **Pipeline `--deep`**: `node runner.js --deep` hace E2E+screenshots+analyze+analyze-deep en un comando
+5. **QA_SHOTS_DIR**: analyze-deep recibe la carpeta exacta del runner → nunca analiza fotos viejas
+
+### Estado del run actual (2026-04-18 ~14:47 VPS)
+- Runner corriendo con `node runner.js --deep` — incluirá todos los fixes de esta sesión
+- Resultado pendiente — pegar output aquí cuando termine
+- Este será el PRIMER run con pipeline completo --deep
+
+### Pendientes próxima sesión
+- Revisar output del deep run y priorizar propuestas por ROI
+- Atacar las propuestas CRÍTICAS del analyze-deep
+- runner.js automático nocturno (esperando usuarios reales)
