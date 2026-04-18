@@ -357,7 +357,9 @@ function buildBottomNav() {
 function _bnJumpTo(itemIndex, animate) {
   const track = document.getElementById('bn-track');
   if (!track) return;
-  const cw = track.clientWidth || track.offsetWidth;
+  // Usar el ancho del pill (#bn-scroll) que tiene el width fijo real
+  const pill = document.getElementById('bn-scroll');
+  const cw   = (pill && pill.clientWidth) || 296;
   const target = itemIndex * BN_IW - cw / 2 + BN_IW / 2;
   if (animate) track.scrollTo({left: target, behavior:'smooth'});
   else         track.scrollLeft = target;
@@ -436,17 +438,8 @@ function updateBottomNav(pageId) {
   if (localIdx < 0) return;
   const track = document.getElementById('bn-track');
   if (!track) return;
-  const cw    = track.clientWidth || track.offsetWidth;
-  const sl    = track.scrollLeft;
-  const cItem = (sl + cw / 2 - BN_IW / 2) / BN_IW;
-  // Copia más cercana
-  let best = BN_LEN + localIdx, bestDist = Infinity;
-  for (let c = 0; c < 3; c++) {
-    const idx = c * BN_LEN + localIdx;
-    const d   = Math.abs(idx - cItem);
-    if (d < bestDist) { bestDist = d; best = idx; }
-  }
-  _bnJumpTo(best, true);
+  // Siempre usar la copia central (BN_LEN + localIdx) — simple y confiable
+  _bnJumpTo(BN_LEN + localIdx, true);
   _bnLastLocal = localIdx;
 }
 
