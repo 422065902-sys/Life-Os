@@ -249,6 +249,7 @@ DECISIONES ARQUITECTURALES INAMOVIBLES:
 - Gemelo VIVE en Mente → tab "Gemelo". Flujo: Bitácora → Gemelo → insights.
 - Cada módulo tiene CSS data-module scope con su accent color propio.
 - El Gemelo NO muestra análisis hasta que hay suficientes datos del usuario.
+- PRECIO: $99 MXN/mes (pesos mexicanos) ≈ ~$5 USD. NO es caro. No reportar precio como problema de conversión ni "prohibitivo". Es intencional y competitivo para el mercado hispanohablante.
 
 CONVENCIÓN DE SCREENSHOTS:
 - 00-landing-* = landing page pública (antes del login) — la carta de presentación
