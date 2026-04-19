@@ -5523,24 +5523,60 @@ function updateUserUI(user) {
 }
 
 function checkTrialBanner(user) {
-  if (!user || user.plan === 'pro') return;
+  if (!user || user.plan === 'pro') {
+    // Usuario Pro: ocultar todo
+    dismissTrialBanner();
+    _setTrialChip(false);
+    return;
+  }
   // Si el trial ya expiró, ocultar banner
-  if (S.trialExpired) { dismissTrialBanner(); return; }
+  if (S.trialExpired) { dismissTrialBanner(); _setTrialChip(false); return; }
   const diasTranscurridos = Math.floor((Date.now() - (user.trialStart || Date.now())) / (1000 * 60 * 60 * 24));
   const diasRestantes = Math.max(0, 30 - diasTranscurridos);
-  if (diasRestantes === 0) { dismissTrialBanner(); return; }
+  if (diasRestantes === 0) { dismissTrialBanner(); _setTrialChip(false); return; }
+  const label = diasRestantes === 1 ? '1 día restante' : diasRestantes + ' días restantes';
+  const saasDays = document.getElementById('saas-trial-days');
+  if (saasDays) saasDays.textContent = label;
+  // Chip discreto en topbar — siempre visible para usuarios trial activos
+  _setTrialChip(true, diasRestantes);
+  // Banner completo solo en primeros 3 días o últimos 5 días del trial
+  const mostrarBanner = diasTranscurridos <= 3 || diasRestantes <= 5;
   const banner      = document.getElementById('trial-banner');
   const trialTextEl = document.getElementById('trial-text');
-  const daysEl      = document.getElementById('trial-days');
-  const saasDays    = document.getElementById('saas-trial-days');
-  const label = diasRestantes === 1 ? '1 día restante' : diasRestantes + ' días restantes';
   if (trialTextEl) trialTextEl.textContent = `⚡ MODO PRUEBA — ${label}`;
-  if (daysEl)   daysEl.textContent   = diasRestantes;
-  if (saasDays) saasDays.textContent = label;
   if (banner) {
-    banner.classList.remove('hidden');
-    document.body.classList.add('has-trial-banner');
+    if (mostrarBanner) {
+      banner.classList.remove('hidden');
+      document.body.classList.add('has-trial-banner');
+    } else {
+      banner.classList.add('hidden');
+      document.body.classList.remove('has-trial-banner');
+    }
   }
+}
+
+function _setTrialChip(visible, diasRestantes) {
+  const chip = document.getElementById('trial-chip');
+  const btn  = document.getElementById('upgrade-pro-btn');
+  if (chip) {
+    chip.style.display = visible ? '' : 'none';
+    if (visible && diasRestantes !== undefined) {
+      chip.title = `Modo Prueba — ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} restante${diasRestantes !== 1 ? 's' : ''} · Clic para activar Pro`;
+      // Urgencia: últimos 5 días → color rojo
+      if (diasRestantes <= 5) {
+        chip.style.color = 'var(--red)';
+        chip.style.background = 'rgba(239,68,68,.1)';
+        chip.style.borderColor = 'rgba(239,68,68,.3)';
+        chip.textContent = `⚠️ ${diasRestantes}d restantes`;
+      } else {
+        chip.style.color = '#a855f7';
+        chip.style.background = 'rgba(168,85,247,.1)';
+        chip.style.borderColor = 'rgba(168,85,247,.25)';
+        chip.textContent = '💎 PRUEBA';
+      }
+    }
+  }
+  if (btn) btn.style.display = visible ? '' : 'none';
 }
 
 function dismissTrialBanner() {
@@ -7034,6 +7070,12 @@ function updateGlobalCore() {
   setMetric('nm-xp-hoy',  'nmb-xp',     `${xpHoy}`,             Math.min(100, (xpHoy/xpMaxDay)*100));
   setMetric('nm-racha',    'nmb-racha',  `${racha}d`,            Math.min(100, (racha/30)*100));
 
+  // ── Empty-state guidance card (Análisis) ─────────
+  const emptyGuide = document.getElementById('nucleo-empty-guide');
+  const nuclCompact = document.getElementById('nucleo-card-compact');
+  if (emptyGuide) emptyGuide.style.display = !hasData ? '' : 'none';
+  if (nuclCompact) nuclCompact.style.display = !hasData ? 'none' : '';
+
   // ── Update COMPACT widget (Análisis) ──────────────
   const circumSm = 263.9;
   const ringSm = document.getElementById('nucleo-progress-ring-sm');
@@ -7050,9 +7092,11 @@ function updateGlobalCore() {
     const v = document.getElementById(valId); if (v) v.textContent = text;
     const b = document.getElementById(barId);  if (b) b.style.width = Math.min(100, pct) + '%';
   }
-  setSmMetric('nm-habitos-sm', 'nmb-h-sm', `${doneH}/${totalH}`, habPct);
-  setSmMetric('nm-tareas-sm',  'nmb-t-sm', `${doneT}/${totalT}`, taskPct);
-  setSmMetric('nm-xp-sm',     'nmb-xp-sm', `${xpHoy} XP`, Math.min(100, (xpHoy/xpMaxDay)*100));
+  const habLabel  = totalH === 0 ? '¡Crea tu primer hábito!' : `${doneH}/${totalH}`;
+  const taskLabel = totalT === 0 ? '¡Agrega una tarea!'       : `${doneT}/${totalT}`;
+  setSmMetric('nm-habitos-sm', 'nmb-h-sm', habLabel,  habPct);
+  setSmMetric('nm-tareas-sm',  'nmb-t-sm', taskLabel, taskPct);
+  setSmMetric('nm-xp-sm',     'nmb-xp-sm', xpHoy === 0 ? '¡Gana tu primer XP!' : `${xpHoy} XP`, Math.min(100, (xpHoy/xpMaxDay)*100));
   // Pill del multiplicador en header comunitario
   const multPill = document.getElementById('nucleo-mult-pill-display');
   if (multPill) {
@@ -9987,6 +10031,7 @@ async function cerrarPagoExitoso() {
           if (retAlert) retAlert.classList.remove('show');
           const trialBanner = document.getElementById('trial-banner');
           if (trialBanner) trialBanner.style.display = 'none';
+          _setTrialChip(false);
           showToast('✅ Life OS Pro activado — acceso completo');
         }
       }

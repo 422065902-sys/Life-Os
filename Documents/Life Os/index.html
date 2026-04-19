@@ -635,11 +635,14 @@
     <div class="tb-logo">
       <span class="tb-logo-mark">✦</span>
       <span class="tb-logo-text">Life OS</span>
+      <!-- Chip discreto de Modo Prueba — solo visible para usuarios trial -->
+      <span id="trial-chip" style="display:none;font-size:10px;font-family:'Orbitron',monospace;font-weight:700;color:#a855f7;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);border-radius:20px;padding:3px 10px;cursor:pointer;white-space:nowrap;margin-left:6px;transition:opacity .2s" onclick="openModal('modal-pago')" title="Modo Prueba activo — clic para activar Pro">💎 PRUEBA</span>
     </div>
     <div class="tb-actions">
       <span class="badge badge-xp" id="tb-xp">0 XP</span>
       <span class="badge badge-lvl" id="tb-lvl">Nv.0</span>
       <span class="badge badge-coin" id="tb-coins">🪙 0</span>
+      <button id="upgrade-pro-btn" onclick="openModal('modal-pago')" style="display:none;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(168,85,247,.08));border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:13px;transition:all .2s" title="Activar Life OS Pro">💎</button>
       <button onclick="toggleTheme()" id="theme-btn" class="tb-icon-btn" title="Cambiar tema">☀️</button>
       <button id="help-btn" onclick="openHelpPanel()" class="tb-icon-btn" title="Ayuda del módulo">?</button>
     </div>
@@ -1651,6 +1654,17 @@
       </div><!-- /padding wrapper -->
     </div>
     <!-- /Núcleo Compact -->
+
+    <!-- Empty state guidance — solo visible cuando no hay hábitos ni tareas -->
+    <div id="nucleo-empty-guide" style="display:none;padding:20px 22px;background:linear-gradient(135deg,rgba(0,229,255,.04),rgba(168,85,247,.03));border:1px solid rgba(0,229,255,.12);border-radius:14px;text-align:center">
+      <div style="font-size:36px;margin-bottom:10px">🌱</div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);font-family:'Orbitron',monospace;margin-bottom:6px">¡Tu Núcleo está esperando!</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:16px;max-width:280px;margin-left:auto;margin-right:auto">Completa hábitos y tareas para activar tu Núcleo y ganar XP. Los grandes logros empiezan con un solo hábito.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-a" onclick="navigate('productividad');setTimeout(()=>switchInnerTab('productividad','habits'),80)" style="padding:9px 18px;font-size:12px">🔥 Crear hábito</button>
+        <button class="btn btn-g" onclick="navigate('productividad');setTimeout(()=>switchInnerTab('productividad','goals'),80)" style="padding:9px 18px;font-size:12px">🎯 Crear meta</button>
+      </div>
+    </div>
 
     <!-- Focus dinámico — solo lectura, calculado automáticamente -->
     <div class="grid3 mb14">
