@@ -7,7 +7,7 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-const CACHE_NAME    = 'lifeos-v10';
+const CACHE_NAME    = 'lifeos-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

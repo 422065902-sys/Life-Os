@@ -865,7 +865,7 @@
   <div class="page" id="page-productividad" data-module="flow">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
       <div>
-        <div class="page-title">FLOW</div>
+        <div class="page-title">FLOW ✅</div>
         <div class="page-sub">Hábitos, metas, ideas y agenda</div>
       </div>
       <div class="inner-tabs" id="inner-tabs-productividad">
@@ -881,8 +881,8 @@
     <!-- ─── UNIFIED GRID ─── -->
     <div class="ui-grid" id="habit-stats">
       <!-- 2 stats ocupan 2 columnas cada uno → llenan las 4 col -->
-      <div class="card stat-card card-wide"><div class="stat-label">🔥 Racha Activa</div><div class="stat-val" style="color:#ff6b35" id="h-streak">0 días</div></div>
-      <div class="card stat-card card-wide"><div class="stat-label">✅ Hábitos Activos</div><div class="stat-val c-green" id="h-count">0</div></div>
+      <div class="card stat-card stat-card-sq" style="aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center"><div class="stat-label">🔥 Racha Activa</div><div class="stat-val" style="color:#ff6b35" id="h-streak">0 días</div></div>
+      <div class="card stat-card stat-card-sq" style="aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center"><div class="stat-label">✅ Hábitos</div><div class="stat-val c-green" id="h-count">0</div></div>
       <!-- Nuevo hábito: ancho completo -->
       <div class="card card-full">
         <div class="card-title">NUEVO HÁBITO</div>
@@ -1002,15 +1002,7 @@
           <div class="page-title">AGENDA</div>
           <div class="page-sub">Eventos, recordatorios y planes</div>
         </div>
-        <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div>
-          <div style="position:relative;flex-shrink:0" id="cal-export-wrap">
-            <button class="btn btn-g btn-sm" onclick="toggleCalExportMenu(event)" style="white-space:nowrap" title="Exportar calendario">📤 Exportar ▾</button>
-            <div id="cal-export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg2);border:1px solid rgba(0,229,255,.18);border-radius:10px;overflow:hidden;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
-              <button onclick="exportarDiaActual();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📅 Exportar día actual</button>
-              <button onclick="exportCalendarICS();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📆 Exportar calendario completo</button>
-            </div>
-          </div>
-        </div>
+        <div class="module-intro-card" style="flex-wrap:wrap;gap:10px"><span class="module-intro-icon">📅</span><div style="flex:1"><div class="module-intro-title">Tu agenda inteligente</div><div class="module-intro-desc">Visualiza tareas, eventos y compromisos. Agrega recordatorios, crea planes sociales con aliados y mantén una visión clara de lo que viene.</div></div></div>
         <div class="card mb14">
           <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px">
             <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px;min-width:44px;min-height:44px">‹</button>
@@ -1039,6 +1031,16 @@
         <div class="card">
           <div class="card-title">📋 PRÓXIMAS ACTIVIDADES</div>
           <div id="upcoming-list"></div>
+        </div>
+        <div style="text-align:center;font-size:13px;color:var(--text3);padding:4px 0 2px;font-weight:600">Exporta tu calendario y sincronízalo con tu teléfono 👇</div>
+        <div style="display:flex;justify-content:center" id="cal-export-wrap">
+          <div style="position:relative">
+            <button class="btn btn-g" onclick="toggleCalExportMenu(event)" style="white-space:nowrap;min-height:44px;padding:10px 24px" title="Exportar calendario">📤 Exportar calendario ▾</button>
+            <div id="cal-export-menu" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:calc(100% + 6px);background:var(--bg2);border:1px solid rgba(0,229,255,.18);border-radius:10px;overflow:hidden;z-index:200;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+              <button onclick="exportarDiaActual();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📅 Exportar día actual</button>
+              <button onclick="exportCalendarICS();document.getElementById('cal-export-menu').style.display='none'" style="display:block;width:100%;background:none;border:none;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:13px;color:var(--text1);cursor:pointer" onmouseover="this.style.background='rgba(0,229,255,.08)'" onmouseout="this.style.background='none'">📆 Exportar calendario completo</button>
+            </div>
+          </div>
         </div>
         <div class="card" style="border-color:rgba(168,85,247,.25)">
           <div class="card-title" style="color:#a855f7;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1115,6 +1117,11 @@
 
     <!-- ③ NPC ANATÓMICO + RUTINAS -->
     <div class="ui-grid">
+
+      <!-- TODO: Muscle map — implement clickable SVG muscle map manually.
+           Plan: replace NPC SVG paths with interactive regions that highlight worked muscles
+           based on the current routine. Each region should show activation % on tap/hover.
+           Data model: S.muscleActivation = { pecho:0-100, espalda:0-100, piernas:0-100, ... } -->
 
       <!-- NPC MODELO — 2 col × 2 filas -->
       <div class="card card-large" style="overflow:hidden">
@@ -1387,7 +1394,7 @@
           <!-- Crear rutina -->
           <div class="row" style="gap:10px;margin-bottom:16px">
             <input class="inp f1" id="new-routine-name" placeholder="Ej: Entrenamiento de Piernas"/>
-            <button class="btn btn-a" onclick="addRoutine()">+ Crear Rutina</button>
+            <button class="btn btn-a" onclick="addRoutine()" style="font-size:20px;padding:10px 20px;display:flex;align-items:center;gap:6px"><span style="font-size:24px;font-weight:900;line-height:1">+</span> Crear Rutina</button>
           </div>
           <div id="routines-container" style="display:flex;flex-direction:column;gap:14px"></div>
           <!-- Gym mode view embedded -->
@@ -1566,7 +1573,7 @@
         <div class="page-sub">Métricas y estadísticas</div>
       </div>
       <div class="inner-tabs" id="inner-tabs-stats">
-        <button class="inner-tab active" onclick="switchInnerTab('stats','analisis')">📊 Análisis</button><button class="inner-tab" onclick="switchInnerTab('stats','saas')">🚀 SaaS</button>
+        <button class="inner-tab active" onclick="switchInnerTab('stats','analisis')">📊 Análisis</button><button class="inner-tab" onclick="switchInnerTab('stats','saas')">🌐 Nexus</button>
       </div>
     </div>
 
@@ -1699,7 +1706,7 @@
       </div>
       <div class="inner-panel" id="panel-saas">
     <div class="page-header">
-      <div class="page-title">LIFE OS — SaaS</div>
+      <div class="page-title">LIFE OS — NEXUS</div>
       <div class="page-sub">Planes · Leaderboard · Wrapped Mensual</div>
     </div>
 
@@ -1966,6 +1973,23 @@
       <div class="page-sub">Personaliza tu experiencia en Life OS</div>
     </div>
     <div class="grid2" style="gap:14px">
+      <!-- Account -->
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-title">CUENTA</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0050cc);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#000;font-family:'Orbitron',monospace;flex-shrink:0" id="settings-avatar">W</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:var(--text)" id="settings-nombre">Wences Mejia</div>
+            <div style="font-size:12px;color:var(--text3)" id="settings-email">—</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px">
+              🆔 User ID: <span id="settings-uid" style="color:var(--accent);user-select:all;cursor:pointer;font-weight:700" title="Clic para copiar">—</span>
+              <span onclick="copyUserId()" style="cursor:pointer;font-size:10px;opacity:.6" title="Copiar ID">📋</span>
+            </div>
+            <div id="settings-plan-badge" style="margin-top:6px;display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-family:'Orbitron',monospace;font-weight:700;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)">MODO PRUEBA</div>
+          </div>
+          <button onclick="doLogout()" class="btn" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:9px 18px">🚪 Cerrar Sesión</button>
+        </div>
+      </div>
       <!-- Theme & Color -->
       <div class="card">
         <div class="card-title">TEMA Y COLOR</div>
@@ -2000,6 +2024,23 @@
           <div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;line-height:1.7">
             Regla: Cada 1,000 XP = +1 Nivel<br>
             Moneda de Fuerza = Récord Personal de Carga
+          </div>
+        </div>
+      </div>
+      <!-- Life OS Pro banner — compact version for Settings -->
+      <div class="card" style="grid-column:1/-1;border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.04),transparent)" id="settings-pro-section">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:36px">🚀</div>
+          <div style="flex:1">
+            <div class="f-display" style="font-size:15px;font-weight:900;color:#a855f7;margin-bottom:4px">LIFE OS PRO</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.6">Activa tu membresía para conservar todos tus datos sin límites.<br>Actualmente en <strong style="color:var(--accent)">Modo Prueba Gratuito</strong> con acceso completo.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+            <div style="padding:8px 16px;border-radius:10px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);text-align:center">
+              <div class="f-display c-accent" style="font-size:12px;font-weight:900">MODO PRUEBA</div>
+              <div id="settings-trial-days" style="font-size:10px;color:var(--text3);margin-top:2px">30 días restantes</div>
+            </div>
+            <button class="btn btn-a" onclick="openModal('modal-pago')" style="padding:9px 16px;font-size:12px;white-space:nowrap">🔐 Activar Pro — $99/mes</button>
           </div>
         </div>
       </div>
@@ -2053,23 +2094,6 @@
         </div>
       </div>
 
-      <!-- Account -->
-      <div class="card" style="grid-column:1/-1">
-        <div class="card-title">CUENTA</div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0050cc);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#000;font-family:'Orbitron',monospace;flex-shrink:0" id="settings-avatar">W</div>
-          <div style="flex:1">
-            <div style="font-size:15px;font-weight:700;color:var(--text)" id="settings-nombre">Wences Mejia</div>
-            <div style="font-size:12px;color:var(--text3)" id="settings-email">—</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px">
-              🆔 User ID: <span id="settings-uid" style="color:var(--accent);user-select:all;cursor:pointer;font-weight:700" title="Clic para copiar">—</span>
-              <span onclick="copyUserId()" style="cursor:pointer;font-size:10px;opacity:.6" title="Copiar ID">📋</span>
-            </div>
-            <div id="settings-plan-badge" style="margin-top:6px;display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-family:'Orbitron',monospace;font-weight:700;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)">MODO PRUEBA</div>
-          </div>
-          <button onclick="doLogout()" class="btn" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:9px 18px">🚪 Cerrar Sesión</button>
-        </div>
-      </div>
       <!-- Data Reset -->
       <div class="card" style="grid-column:1/-1">
         <div class="card-title c-red" style="color:var(--red)!important">REINICIO DE DATOS</div>

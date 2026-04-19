@@ -926,7 +926,6 @@ function renderTasks() {
   if (!visible.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">No hay tareas. ¡Agrega una!</div>'; return; }
   el.innerHTML = visible.map(t=>`
     <div class="task-item ${t.done?'done':''}">
-      <div class="task-cb ${t.done?'checked':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;text-decoration:${t.done?'line-through':'none'};opacity:${t.done?.5:1}">${escHtml(t.name)}</div>
         ${t.desc?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${escHtml(t.desc)}</div>`:''}
@@ -936,10 +935,11 @@ function renderTasks() {
           ${t.done?`<span class="badge badge-xp" style="font-size:10px">+50 XP ✓</span>`:''}
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
+      <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
         ${!t.done?`<button class="btn btn-g btn-sm" onclick="openEditTask('${t.id}')" title="Editar">✏️</button>`:''}
         ${!t.done?`<button class="btn btn-sm" onclick="startTaskPomodoro('${t.id}')" title="Iniciar Pomodoro" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3)!important;color:#a855f7;padding:5px 10px!important;font-size:11px!important;border-radius:8px!important">⏱</button>`:''}
-        <button class="btn btn-d" onclick="deleteTask('${t.id}')">🗑</button>
+        <button class="btn btn-d btn-sm" onclick="deleteTask('${t.id}')">🗑</button>
+        <div class="task-cb ${t.done?'checked':''}" onclick="toggleTask('${t.id}')" title="Completar tarea">${t.done?'✓':''}</div>
       </div>
     </div>`).join('');
 }
@@ -1095,9 +1095,8 @@ function renderHabits() {
     const bColor = { high: 'var(--accent)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
     return `
     <div class="habit-item ${h.completedToday ? 'done-h' : ''}" data-battery="${bState}">
-      <div class="habit-check ${h.completedToday ? 'on' : ''}" onclick="toggleHabit('${h.id}')">${h.completedToday ? '✓' : ''}</div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;text-decoration:${h.completedToday ? 'line-through' : 'none'};opacity:${h.completedToday ? .6 : 1}">${escHtml(h.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;text-decoration:${h.completedToday ? 'line-through' : 'none'};opacity:${h.completedToday ? .6 : 1};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.name)}</div>
         <div style="font-size:11px;color:#ff6b35;margin-top:2px;font-family:'JetBrains Mono',monospace">🔥 Racha: ${h.streak} días</div>
       </div>
       <div class="habit-battery" title="Batería del hábito">
@@ -1107,7 +1106,8 @@ function renderHabits() {
         <span class="battery-pct">${h.battery}%</span>
       </div>
       <button class="btn btn-g btn-sm" onclick="openEditHabit('${h.id}')">✏️</button>
-      <button class="btn btn-d" onclick="deleteHabit('${h.id}')">🗑</button>
+      <button class="btn btn-d btn-sm" onclick="deleteHabit('${h.id}')">🗑</button>
+      <div class="habit-check ${h.completedToday ? 'on' : ''}" onclick="toggleHabit('${h.id}')" title="Marcar hábito">${h.completedToday ? '✓' : ''}</div>
     </div>`;
   }).join('');
   updateGlobalCore();
@@ -11171,18 +11171,9 @@ async function loadNoticias() {
       .limit(10)
       .get();
 
-    // Estado vacío si no hay documentos en Firestore
+    // Estado vacío: usar feed en vivo de Hacker News vía Algolia API
     if (snap.empty) {
-      container.innerHTML = `
-        <div class="aprende-layer-head">
-          <div class="aprende-layer-title" style="color:#fbbf24">🟠 ¿QUÉ PASÓ ESTA SEMANA?</div>
-          <div class="aprende-layer-sub">Noticias de IA explicadas para todos.</div>
-        </div>
-        <div style="text-align:center;padding:40px 20px">
-          <div style="font-size:40px;margin-bottom:12px">📭</div>
-          <div style="font-size:13px;color:var(--text2);margin-bottom:6px">No hay noticias publicadas esta semana.</div>
-          <div style="font-size:11px;color:var(--text3)">Regresa pronto — actualizamos cada lunes.</div>
-        </div>`;
+      await _loadNoticiasFromHN(container);
       return;
     }
 
@@ -11231,6 +11222,62 @@ async function loadNoticias() {
   } catch(e) {
     console.warn('[Life OS] loadNoticias error:', e);
     // Fallback a datos estáticos si Firestore falla
+    container.innerHTML = _renderNoticias();
+  }
+}
+
+/**
+ * _loadNoticiasFromHN — fallback live feed vía Hacker News Algolia API
+ * Busca historias de IA de los últimos 7 días, muestra las top 8
+ */
+async function _loadNoticiasFromHN(container) {
+  try {
+    const since = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+    const url = `https://hn.algolia.com/api/v1/search?query=AI+artificial+intelligence+LLM&tags=story&numericFilters=created_at_i>${since},points>20&hitsPerPage=8`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HN API error');
+    const data = await resp.json();
+    const hits = data.hits || [];
+
+    if (!hits.length) {
+      container.innerHTML = _renderNoticias();
+      return;
+    }
+
+    const feedItems = hits.map(h => {
+      const dateStr = h.created_at
+        ? new Date(h.created_at).toLocaleDateString('es-MX', { day:'numeric', month:'short' })
+        : 'Esta semana';
+      const link = h.url || `https://news.ycombinator.com/item?id=${h.objectID}`;
+      return `
+        <div class="aprende-feed-card">
+          <div class="aprende-feed-stripe" style="background:#f59e0b"></div>
+          <div class="aprende-feed-body">
+            <div style="margin-bottom:6px">
+              <span style="font-size:10px;color:#f59e0b;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:.06em;text-transform:uppercase">tecnología · IA</span>
+            </div>
+            <div class="aprende-feed-title">${escHtml(h.title || '')}</div>
+            ${h.story_text ? `<div class="aprende-feed-text">${escHtml(h.story_text.substring(0,140))}...</div>` : ''}
+            <a href="${escHtml(link)}" target="_blank" rel="noopener noreferrer"
+              style="display:inline-block;margin-top:10px;font-size:11px;color:var(--accent);text-decoration:none;font-family:'JetBrains Mono',monospace">
+              Ver artículo completo →
+            </a>
+            <div class="aprende-feed-meta" style="margin-top:8px">
+              <span class="aprende-chip chip-noticias">${dateStr}</span>
+              <span class="aprende-chip" style="background:rgba(251,191,36,.12);color:#fbbf24">▲ ${h.points || 0} pts</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="aprende-layer-head">
+        <div class="aprende-layer-title" style="color:#fbbf24">🟠 ¿QUÉ PASÓ ESTA SEMANA?</div>
+        <div class="aprende-layer-sub">Lo más votado en IA en Hacker News — actualizado en vivo.</div>
+      </div>
+      <div class="aprende-feed">${feedItems}</div>`;
+  } catch(e) {
+    console.warn('[Life OS] _loadNoticiasFromHN error:', e);
     container.innerHTML = _renderNoticias();
   }
 }
