@@ -231,58 +231,46 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-19
-- SW cache: v8 (lifeos-v8) — bumpeado múltiples veces esta sesión
+- Fecha: 2026-04-20
+- SW cache: v11 (lifeos-v11) — bumpeado esta sesión
+- Commit: `726403c` — Feat: thumb zone, Flow ✅, Nexus, Settings reorder, live news, light mode polish
+- Deploy: staging ✅ + producción ✅
 
-### Bottom nav — bugs resueltos esta sesión (main.js)
-1. **`_bnAnimatingT`**: `_bnAnimating._t` era propiedad en boolean primitivo (silenciosamente ignorada) → variable separada `let _bnAnimatingT = null` + timeout 500ms
-2. **buildBottomNav una sola vez**: `buildNav()` se llamaba en cada `navigate()` → su `requestAnimationFrame` pisaba el scroll de `updateBottomNav` con `_bnJumpTo(dashboard)`. Fix: `if (!document.getElementById('bn-track')) buildBottomNav()` — solo construye una vez
-3. **`_bnMarkActive` siempre**: `updateBottomNav` hacía early return antes de `_bnMarkActive` cuando venía de `bnTap` → burbuja no se coloreaba al tocar ícono. Fix: mover `_bnMarkActive` antes del `if (_bnTapLock) return`
-4. **Pill más abajo**: `bottom: env(safe-area-inset-bottom, 8px)` (era `14px + safe-area`), FAB a `74px + safe-area`
+### Cambios implementados esta sesión
 
-### Landing v4.0 — cambios esta sesión (index.html + styles.css)
-- **Nav una línea**: `flex-wrap:nowrap`, botones más chicos en mobile (≤480px: 9px font, padding 6px 10px), logo `white-space:nowrap`
-- **Logo 18px** (14px mobile) — más grande que antes (era 16px)
-- **Glitch animation**: `lp-logo-color 32s linear` — color sólido ~4s → glitch flash ~0.15s (blanco + RGB split `-4px #f00, 4px #0ff` + `skewX`) → nuevo color. 8 colores, 32s ciclo
-- **Botones sincronizados**: `lp-btn-sync 32s linear` con exactamente los mismos % que el logo (`hue-rotate` + `brightness(2.5)` en momentos de glitch). Aplica a `.lp-hero-cta .lp-btn-primary`, `.lp-footer-cta .lp-btn-primary`, `.lp-nav-cta`
-- **Pricing buttons**: estáticos (`lp-glow-pulse` fijo, `!important` — no cambian de color)
-- **iPhone mockup**: preview macOS window → `.lp-iphone` con Dynamic Island, status bar (2:43/WiFi/🔋), Safari bar (`🔒 mylifeos.lat`) en el fondo
-- **Pricing estudiante**: card dorada `.lp-price-student` — $49 MXN/mes, email .edu o credencial, 50% descuento
+#### styles.css
+- **Light mode cards**: sombra aumentada (`0 4px 20px rgba(0,0,0,.10)` + `inset 0 1px 0 rgba(255,255,255,.9)`) + hover con border de acento
+- **habit-check**: 44×44px, `border-radius:12px`, `margin-left:auto` (RIGHT side), neon glow `.on`
+- **task-cb**: 44×44px, `border-radius:10px`, `margin-left:auto` (RIGHT side), neon glow `.checked`, `:active` scale(.9)
 
-### BN_ORDER (orden fijo):
-```
-[settings, aprende, stats, mente, world] [⚡ dashboard] [productividad, cuerpo, financial]
-```
-- Module cards: header coloreado + tag pill de color por módulo
-- Steps: círculos numerados + línea gradient conectora
-- Testimonials: ★★★★★ + métrica por persona
-- Pricing: badge "MÁS POPULAR" en Pro
-- Footer: headline grande + glow radial
+#### main.js
+- **renderHabits()**: toggle `.habit-check` movido al FINAL del template (derecha) — thumbzone
+- **renderTasks()**: `.task-cb` movido al FINAL del div de botones (derecha) — thumbzone
+- **loadNoticias()**: cuando Firestore `noticias` vacío → llama `_loadNoticiasFromHN()` (nueva función)
+- **`_loadNoticiasFromHN()`**: fetch a HN Algolia API, query `AI+artificial+intelligence+LLM`, last 7 days, points>20, top 8 hits
 
-### Estado del carrusel (pendiente verificar)
-- **BUG PENDIENTE**: al navegar desde dentro de la app (no desde el nav), el carrusel debe moverse al módulo activo. Fix aplicado con `_bnAnimating` — pendiente confirmar en PWA que funciona correctamente.
+#### index.html
+- **Flow**: título `FLOW` → `FLOW ✅`
+- **Flow stat cards**: `card-wide` → `stat-card-sq` con `aspect-ratio:1/1` (cuadradas, 2×1 grid)
+- **Agenda**: export button eliminado del `module-intro-card` → movido DEBAJO de `#upcoming-list` con hint text `"Exporta tu calendario y sincronízalo con tu teléfono 👇"`
+- **Cuerpo**: TODO comment para muscle map clickable; botón Crear Rutina con `font-size:20px` + `+` a 24px
+- **Settings**: orden → CUENTA (primero), TEMA Y COLOR, GAMIFICACIÓN, **Life OS Pro banner** (nuevo), DASHBOARD INTELIGENTE, NOTIFICACIONES PUSH, DATA RESET, PRIVACIDAD, ENFOQUE TOTAL
+- **Stats**: tab `🚀 SaaS` → `🌐 Nexus`; page title `LIFE OS — SaaS` → `LIFE OS — NEXUS`
 
-### Mejoras OpenClaw (scripts)
-1. **analyze-deep v2.1**: propuestas con IMPACTO/ESFUERZO 1-5 + código exacto listo para pegar
-2. **analyze-deep v2.1**: BASE_CONTEXT actualizado con layout absoluto del landing (ya no dice flex)
-3. **analyze-deep v2.1**: sprint plan con archivos/líneas/ROI en síntesis ejecutiva
-4. **Pipeline `--deep`**: `node runner.js --deep` hace E2E+screenshots+analyze+analyze-deep en un comando
-5. **QA_SHOTS_DIR**: analyze-deep recibe la carpeta exacta del runner → nunca analiza fotos viejas
+#### analyze-deep.js
+- **BASE_CONTEXT**: nuevo rol `🟣 SENIOR PRODUCT ENGINEER / UX STRATEGIST (Push Notifications & Engagement)` — diseño de ecosistemas push, deep linking, triggers, copy, URLs
+- **BASE_CONTEXT**: tabla de módulos actualizada: `SaaS` → `Nexus`
 
-### Deploy realizado esta sesión
-- Staging (`mylifeos-staging`): ✅ deploy exitoso con todos los fixes
-- Producción (`life-os-prod-3a590`): ✅ deploy autorizado y exitoso con todos los fixes
-- Ambos deployados con: `firebase deploy --only hosting:staging` y `firebase deploy --only hosting:production`
-
-### Alucinaciones Gemini detectadas en deep run (NO implementadas — runner las descarta)
-- "fold y scroll idénticos" en múltiples módulos → artefacto de screenshot, no bug real
-- "Settings no tiene sección Stripe" → sí existe, Gemini no la detectó en foto
-- "Mente missing purple accent" → `--mente-accent:#a855f7` está en `:root`, Gemini alucinó
-- Health score 2/10 del deep vs runner ~6-7/10 → runner es autoridad (154 tests)
+### Leaderboard — verificado
+- `renderLeaderboard()` usa `r.alias` en todos los rows (nunca nombre real)
+- Datos: `LEADERBOARD_DATA` estático con aliases anónimos — OK para MVP
 
 ### Pendientes próxima sesión
-- **VERIFICAR** carrusel bottom nav en PWA — confirmar que el bug del dashboard trabado está resuelto con `_bnAnimating` flag
-- **Orden dinámico** del carrusel según frecuencia de uso real (guardar conteo en localStorage/Firestore)
+- **VERIFICAR** carrusel bottom nav en PWA — confirmar que `_bnAnimating` flag resuelve el bug del dashboard trabado
+- **Orden dinámico** del carrusel según frecuencia de uso real (localStorage/Firestore)
+- **Push notifications deep linking**: conectar botón de activar en Settings a recordatorios útiles (hábitos pendientes, racha en riesgo) — rol UX Strategist listo en analyze-deep para detectar esto
+- **Leaderboard cleanup script**: escribir script (inactivo) para filtrar usuarios fake por actividad últimos 7 días
+- **Demo user**: crear `demo@mylifeos.lat` en Firebase prod para screenshot del iPhone mockup en landing
 - Sincronizar VPS: `git pull && cp scripts` (ver comandos sync arriba)
-- Correr `node runner.js --deep` post-fixes para validar estado real
+- Correr `node runner.js --deep` post-fixes para validar estado real con screenshots frescos
 - runner.js automático nocturno (esperando usuarios reales)
