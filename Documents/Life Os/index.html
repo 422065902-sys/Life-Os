@@ -127,14 +127,13 @@
           </div>
         </div>
 
-        <!-- Columna preview — mini dashboard animado -->
+        <!-- Columna preview — iPhone + Safari mockup -->
         <div class="lp-hero-preview lp-anim lp-anim-3">
-          <div class="lp-preview-window">
-            <div class="lp-preview-bar">
-              <span class="lp-dot lp-dot-r"></span>
-              <span class="lp-dot lp-dot-y"></span>
-              <span class="lp-dot lp-dot-g"></span>
-              <span class="lp-preview-bar-title">Life OS — Tablero</span>
+          <div class="lp-iphone">
+            <div class="lp-iphone-island"></div>
+            <div class="lp-iphone-status">
+              <span>2:43</span>
+              <div class="lp-iphone-status-icons"><span>▲</span><span>WiFi</span><span>🔋</span></div>
             </div>
             <div class="lp-preview-body">
               <!-- Header usuario -->
@@ -191,6 +190,14 @@
                 <span>🤖</span>
                 <span>Tu Gemelo IA: "A 2 días de tu racha máxima. ¡No pares!"</span>
               </div>
+            </div>
+            <!-- Safari bottom bar -->
+            <div class="lp-safari-bar">
+              <span class="lp-safari-icon dim">‹</span>
+              <span class="lp-safari-icon dim">›</span>
+              <div class="lp-safari-url-pill">🔒 mylifeos.lat</div>
+              <span class="lp-safari-icon">⬆</span>
+              <span class="lp-safari-icon">⧉</span>
             </div>
           </div>
           <!-- Floating badges -->
@@ -355,7 +362,21 @@
           </ul>
           <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
         </div>
-        <div class="lp-price-card lp-price-pro lp-reveal" data-reveal-delay="120">
+        <div class="lp-price-card lp-price-student lp-reveal" data-reveal-delay="80">
+          <div class="lp-price-badge lp-badge-student">🎓 ESTUDIANTE</div>
+          <div class="lp-price-name">Life OS Edu</div>
+          <div class="lp-price-amount">$49</div>
+          <div class="lp-price-period">MXN por mes · requiere email .edu o credencial vigente</div>
+          <ul class="lp-price-features">
+            <li><span class="lp-check lp-check-student">✓</span> Todo lo de Pro</li>
+            <li><span class="lp-check lp-check-student">✓</span> 50% de descuento permanente</li>
+            <li><span class="lp-check lp-check-student">✓</span> Gemelo IA incluido</li>
+            <li><span class="lp-check lp-check-student">✓</span> Datos protegidos en la nube</li>
+            <li><span class="lp-check lp-check-student">✓</span> Cancela cuando quieras</li>
+          </ul>
+          <button class="lp-btn-primary" style="width:100%;filter:hue-rotate(45deg)" onclick="showAuthFromLanding('register')">Activar Edu →</button>
+        </div>
+        <div class="lp-price-card lp-price-pro lp-reveal" data-reveal-delay="160">
           <div class="lp-price-popular">MÁS POPULAR</div>
           <div class="lp-price-badge lp-badge-pro">PRO</div>
           <div class="lp-price-name">Life OS Pro</div>
@@ -992,9 +1013,9 @@
         </div>
         <div class="card mb14">
           <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px">
-            <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px">‹</button>
+            <button class="btn btn-g" onclick="calPrev()" style="padding:7px 18px;font-size:16px;min-width:44px;min-height:44px">‹</button>
             <div class="f-display c-accent" style="font-size:16px;font-weight:900" id="cal-title"></div>
-            <button class="btn btn-g" onclick="calNext()" style="padding:7px 18px;font-size:16px">›</button>
+            <button class="btn btn-g" onclick="calNext()" style="padding:7px 18px;font-size:16px;min-width:44px;min-height:44px">›</button>
           </div>
           <div class="row mb14" style="justify-content:space-around">
             <span style="font-size:11px;font-weight:700;color:var(--text3)">Dom</span>

@@ -330,8 +330,10 @@ function buildNav() {
         <span>${n.label}</span>
       </div>`).join('');
   }
-  // iOS bottom nav
-  buildBottomNav();
+  // iOS bottom nav — solo construir una vez; navegaciones posteriores usan updateBottomNav
+  if (!document.getElementById('bn-track')) {
+    buildBottomNav();
+  }
 }
 
 function buildBottomNav() {
@@ -355,6 +357,7 @@ function buildBottomNav() {
 
 /* Desplaza el track para centrar el ítem en posición absoluta `itemIndex` */
 let _bnAnimating = false;
+let _bnAnimatingT = null;
 function _bnJumpTo(itemIndex, animate) {
   const track = document.getElementById('bn-track');
   if (!track) return;
@@ -364,9 +367,9 @@ function _bnJumpTo(itemIndex, animate) {
   if (animate) {
     _bnAnimating = true;
     track.scrollTo({left: target, behavior:'smooth'});
-    // Liberar el flag después de que la animación termine (~400ms)
-    clearTimeout(_bnAnimating._t);
-    _bnAnimating._t = setTimeout(() => { _bnAnimating = false; }, 450);
+    // Liberar el flag después de que la animación termine (~500ms, margen para devices lentos)
+    clearTimeout(_bnAnimatingT);
+    _bnAnimatingT = setTimeout(() => { _bnAnimating = false; }, 500);
   } else {
     track.scrollLeft = target;
   }
@@ -443,8 +446,8 @@ function _scrollBottomNavActive() { /* handled by carousel */ }
 
 /* Llamado desde navigate() para sincronizar el carrusel con la página activa */
 function updateBottomNav(pageId) {
-  if (_bnTapLock) return; // bnTap ya lo manejó
-  _bnMarkActive(pageId);
+  _bnMarkActive(pageId); // siempre marcar activo, venga de tap o de navegación interna
+  if (_bnTapLock) return; // bnTap ya manejó el scroll
   const localIdx = BN_ORDER.findIndex(n => n.id === pageId);
   if (localIdx < 0) return;
   const track = document.getElementById('bn-track');
@@ -1842,7 +1845,11 @@ function buildPie(canvasId, emptyId, legendId, txs) {
   if (emptyEl) emptyEl.style.display='none';
   canvas.style.display='block';
   const map={};
-  txs.forEach(t=>{ map[t.category]=(map[t.category]||0)+t.amount; });
+  txs.forEach(t=>{
+    const cat = t.category || 'Sin categoría';
+    const amt = isNaN(t.amount) ? 0 : Number(t.amount);
+    map[cat] = (map[cat]||0) + amt;
+  });
   const labels=Object.keys(map), data=Object.values(map);
   const key = canvasId==='piePersonal'?'pieP':'pieA';
   if (S.charts[key]) S.charts[key].destroy();
@@ -4908,7 +4915,11 @@ async function cargarDatosNube(uid) {
       if (snap.exists) {
         const d = snap.data();
         delete d._updatedAt; // No aplicar timestamp de Firestore al estado
+        // Preservar XP local si hay un guardado pendiente (evita race condition donde
+        // onSnapshot llega con datos viejos antes de que _saveToFirestore termine)
+        const _localXp = S.xp;
         _applyData(d);
+        if (_localXp > S.xp) S.xp = _localXp; // Nunca bajar XP desde el servidor
         _cacheLocally();
         // En cargas posteriores (cambios desde otro dispositivo): refrescar UI silenciosamente
         if (!firstLoad) {

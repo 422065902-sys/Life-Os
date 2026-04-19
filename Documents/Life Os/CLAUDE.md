@@ -199,11 +199,11 @@ node analyze-deep.js
 - ✅ Boot flash corregido: body.booting oculta FAB+nav hasta que la app carga
 - ✅ Gemelo IA: fix Firestore Timestamp serialization → ya no muestra 0% de progreso
 - ✅ Focus circle: initFocusBars() llamado post-boot y post-onSnapshot → ya no se queda en 68%
-- ✅ iOS bottom nav: pill flotante con liquid glass, emojis grayscale/color, FAB reposicionado
-- ✅ Landing: LIFE OS logo cicla 8 colores de la app con animación + glow
-- ✅ Landing: nav con dos botones (Iniciar Sesión + Empieza gratis)
-- ✅ Landing: CTA urgencia morado "¿No tienes el control aún? — Empieza a tenerlo ahora →"
-- ✅ Landing layout: position:absolute en nav+scroll — elimina espacio fantasma del flex
+- ✅ iOS bottom nav: carrusel infinito completo y funcional — deslizar + tocar activan módulo y burbuja
+- ✅ Bottom nav: pill posicionada más abajo (`env(safe-area-inset-bottom,8px)`)
+- ✅ Landing v4: logo glitch 32s, botones sincronizados, nav una línea, iPhone mockup, pricing estudiante
+- ✅ Landing: pricing estudiante $49 MXN/mes con badge dorado
+- ⚠️ Pendiente: screenshot cuenta demo para iPhone mockup (crear demo@mylifeos.lat en Firebase prod)
 - ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
 - ⚠️ Pendiente: correr `node runner.js --deep` post-fixes para verificar estado real con screenshots frescos
 
@@ -231,42 +231,28 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-18 (continuación)
-- Commits principales: 5551061, e9869b0, 9edc349, 4533336, 9f711ab, 9c2e6cc
+- Fecha: 2026-04-19
+- SW cache: v8 (lifeos-v8) — bumpeado múltiples veces esta sesión
 
-### Fixes de app (main.js + styles.css + index.html)
-1. **Boot flash**: `body.booting` oculta FAB+nav hasta `_tryCompleteBoot()`
-2. **Gemelo 0%**: fix Firestore Timestamp serialization
-3. **Focus circle 68%**: `initFocusBars()` post-boot y post-onSnapshot
-4. **NLP**: médico/doctor/dentista fuera de hasCalKw
-5. **Cuerpo**: bio-vol y bio-entrenos muestran '—' cuando no hay datos
-6. **Runner cleanup**: hábito QA se borra vía deleteHabit()
-7. **Trial banner mobile**: offset 34px→56px en ≤480px
-8. **inner-tab touch targets**: min-height:44px en móvil
-9. **FAB placeholder + feedback**: ejemplos reales + hint <3 chars
+### Bottom nav — bugs resueltos esta sesión (main.js)
+1. **`_bnAnimatingT`**: `_bnAnimating._t` era propiedad en boolean primitivo (silenciosamente ignorada) → variable separada `let _bnAnimatingT = null` + timeout 500ms
+2. **buildBottomNav una sola vez**: `buildNav()` se llamaba en cada `navigate()` → su `requestAnimationFrame` pisaba el scroll de `updateBottomNav` con `_bnJumpTo(dashboard)`. Fix: `if (!document.getElementById('bn-track')) buildBottomNav()` — solo construye una vez
+3. **`_bnMarkActive` siempre**: `updateBottomNav` hacía early return antes de `_bnMarkActive` cuando venía de `bnTap` → burbuja no se coloreaba al tocar ícono. Fix: mover `_bnMarkActive` antes del `if (_bnTapLock) return`
+4. **Pill más abajo**: `bottom: env(safe-area-inset-bottom, 8px)` (era `14px + safe-area`), FAB a `74px + safe-area`
 
-### Bottom nav — carrusel infinito (esta sesión)
-- **Concepto**: dashboard ⚡ siempre centrado, módulos orbitan izquierda/derecha
-- **3 copias** del array BN_ORDER para scroll infinito sin fin visible
-- **Emojis**: grayscale inactivo → color+scale(1.15) activo (como era antes, no SVGs)
-- **Al deslizar**: ítem centrado navega automáticamente (debounce 220ms)
-- **Al tocar lateral**: se jala al centro con smooth scroll
-- **Loop infinito**: si entra en copia 0 o 2, salta en silencio a copia 1
-- **`_bnAnimating` flag**: bloquea `_bnOnScroll` durante animaciones programáticas — fix del bug donde el carrusel se quedaba trabado en dashboard al navegar desde dentro de la app
-- **`updateBottomNav`**: siempre va a copia central (`BN_LEN + localIdx`) — simple y confiable
-- **SW cache**: bumped a v4 para forzar descarga en PWA
+### Landing v4.0 — cambios esta sesión (index.html + styles.css)
+- **Nav una línea**: `flex-wrap:nowrap`, botones más chicos en mobile (≤480px: 9px font, padding 6px 10px), logo `white-space:nowrap`
+- **Logo 18px** (14px mobile) — más grande que antes (era 16px)
+- **Glitch animation**: `lp-logo-color 32s linear` — color sólido ~4s → glitch flash ~0.15s (blanco + RGB split `-4px #f00, 4px #0ff` + `skewX`) → nuevo color. 8 colores, 32s ciclo
+- **Botones sincronizados**: `lp-btn-sync 32s linear` con exactamente los mismos % que el logo (`hue-rotate` + `brightness(2.5)` en momentos de glitch). Aplica a `.lp-hero-cta .lp-btn-primary`, `.lp-footer-cta .lp-btn-primary`, `.lp-nav-cta`
+- **Pricing buttons**: estáticos (`lp-glow-pulse` fijo, `!important` — no cambian de color)
+- **iPhone mockup**: preview macOS window → `.lp-iphone` con Dynamic Island, status bar (2:43/WiFi/🔋), Safari bar (`🔒 mylifeos.lat`) en el fondo
+- **Pricing estudiante**: card dorada `.lp-price-student` — $49 MXN/mes, email .edu o credencial, 50% descuento
 
-### BN_ORDER (orden fijo, más usados cerca del dashboard):
+### BN_ORDER (orden fijo):
 ```
 [settings, aprende, stats, mente, world] [⚡ dashboard] [productividad, cuerpo, financial]
 ```
-
-### Landing v3.0 (esta sesión)
-- Hero 2 columnas: texto izq + app preview card CSS derecha (mini dashboard animado)
-- App preview: XP bar animada, stats de racha/hábitos/ahorro, hábitos con checks, Gemelo IA hint
-- Floating badges sobre el card: "🏆 Leaderboard #3" y "💳 -$850 deuda"
-- Grid de fondo sutil, tag con dot pulsante
-- Feature chips: ⚡ Hábitos · 🤖 IA · 💰 Finanzas · 🏆 Leaderboard
 - Module cards: header coloreado + tag pill de color por módulo
 - Steps: círculos numerados + línea gradient conectora
 - Testimonials: ★★★★★ + métrica por persona
