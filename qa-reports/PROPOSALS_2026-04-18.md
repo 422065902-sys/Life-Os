@@ -93,3 +93,18 @@
 
 ---
 
+## Run: 2026-04-18_14-49.md
+
+- [ ] [BUG] CUERPO: Valores de Peso y Volumen ausentes | SOLUCIÓN: Implementar fallback en `cuerpo.js` para mostrar "Registrar Peso" o un icono de lápiz si `userData.peso` o `userData.volumen` son `null`/`undefined`. El botón debería abrir un modal de entrada de datos. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] GLOBAL: Eliminar "Entendido" persistente | SOLUCIÓN: Identificar y eliminar el elemento `<div class="understood-checkbox">...</div>` del template global o del wrapper de contenido en `index.html` o `main.js`. Refactorizar para que solo aparezca contextualmente si es necesario. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [BUG] FLOW: Nombre de Hábito incorrecto | SOLUCIÓN: En `flow.js`, asegurar que la renderización de los hábitos use el campo `habit.name` y no `habit.id`. Verificar datos de prueba en Firestore. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DATA-VIZ] FINANCIERO: Donut Chart "Otro" con valor anómalo | SOLUCIÓN: Investigar la fuente de datos en `finanzas.js` para el Chart.js. Implementar manejo de errores para `NaN` o valores inesperados. Si el valor es real, el backend debe categorizarlo mejor o el frontend debe ofrecer una herramienta de categorización. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] WORLD MAP: Inusabilidad en modo retrato | SOLUCIÓN: En `world.js` y `styles.css`, implementar media queries para `@media (orientation: portrait)` y adaptar el canvas/SVG del mapa o reemplazarlo con una vista de lista de módulos con iconos grandes para una navegación usable. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] FLOW-AGENDA: Touch targets de calendario pequeños | SOLUCIÓN: Ajustar el CSS en `styles.css` para los elementos `.calendar-day` y `.calendar-nav-button` para asegurar un `min-width` y `min-height` de al menos 44px, usando `padding` para expandir el área táctil. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [RETENCIÓN] GLOBAL: Banner de prueba intrusivo | SOLUCIÓN: Implementar lógica en `main.js` para ocultar el banner `#trial-banner` y el botón "ACTIVAR PRO" durante la "Calibración Diaria" (02-onboarding_fold) y cualquier otro modal de onboarding a pantalla completa. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] LANDING PAGE: Implementación completa de la visión premium | SOLUCIÓN: Crear una `section#landing-page` en `index.html` con hero animado (partículas/gradiente), headline potente, CTAs con glow pulse, mensaje legal "Sin tarjeta de crédito..." prominente. Implementar grid de módulos con stagger animation, sección "Cómo funciona" con línea animada, demo visual con rotación de screenshots y pricing claro. Usar vanilla JS para Intersection Observer. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] DASHBOARD: Implementar Dashboard Dinámico (Opt-in) | SOLUCIÓN:
+- [ ] [ARQUITECTURA] IDENTIDAD-VISUAL: Refinar Glassmorphism en modo Oscuro | SOLUCIÓN: Ajustar propiedades CSS en `styles.css` para las tarjetas (`.card`) y elementos con glassmorphism. Aumentar `backdrop-filter: blur()` a 12px, usar `background-color: var(--module-accent-color-alpha-10)` y añadir `box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2)` para mayor profundidad y cohesión con el color de acento. | PRIORIDAD: MEDIA | CATEGORÍA: ARQUITECTURA
+
+---
+
