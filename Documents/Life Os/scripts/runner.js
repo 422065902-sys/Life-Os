@@ -1180,6 +1180,9 @@ async function testFinanzas() {
     const txAmountExists = await evalJS(() => !!document.getElementById('tx-amount'));
 
     if (txAmountExists) {
+      // Capturar IDs existentes antes de agregar (para cleanup preciso)
+      const txIdsBefore = await evalJS(() => (window.S?.transactions || []).map(x => x.id));
+
       // Llenar via evalJS directo (bypasa actionability checks de Playwright)
       await evalJS(() => {
         const el = document.getElementById('tx-amount');
@@ -1198,6 +1201,16 @@ async function testFinanzas() {
       await page.waitForTimeout(1000);
       const txItems = await page.$$('[id*="tx-list"] > *, .tx-item, [class*="tx-card"]');
       addResult('06-Finanzas', 'Transacción de prueba aparece en lista', txItems.length > 0 ? 'PASS' : 'WARN', `${txItems.length} items`);
+
+      // Cleanup: eliminar la transacción QA exacta que acabamos de agregar
+      const txDeleted = await evalJS((idsBefore) => {
+        const current = window.S?.transactions || [];
+        const newTx = current.find(x => !x.deleted && !idsBefore.includes(x.id));
+        if (newTx && typeof deleteTx === 'function') { deleteTx(newTx.id); return true; }
+        return false;
+      }, txIdsBefore).catch(() => false);
+      if (txDeleted) await page.waitForTimeout(800);
+      log(txDeleted ? '[06] ✅ Transacción QA eliminada (cleanup)' : '[06] ⚠️ No se pudo eliminar transacción QA');
     } else {
       log('[06-Finanzas] ⚠️ Input de monto no encontrado en DOM — omitiendo tx test');
     }

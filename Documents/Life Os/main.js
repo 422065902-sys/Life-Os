@@ -296,6 +296,33 @@ const NAV = [
    Al tocar uno lateral, se jala al centro.
    Scroll infinito: 3 copias del array, el loop corrige la posición en silencio.
 ────────────────────────────────────────────────────────────────────────────── */
+// ── Registrar visita de módulo para orden dinámico ──
+function _bnTrackVisit(moduleId) {
+  if (moduleId === 'dashboard') return; // dashboard siempre al centro
+  try {
+    const counts = JSON.parse(localStorage.getItem('_bnVisits') || '{}');
+    counts[moduleId] = (counts[moduleId] || 0) + 1;
+    localStorage.setItem('_bnVisits', JSON.stringify(counts));
+  } catch(e) {}
+}
+
+// ── Reordenar lados del carrusel por frecuencia (dashboard siempre en centro) ──
+function _bnGetDynamicOrder() {
+  try {
+    const counts = JSON.parse(localStorage.getItem('_bnVisits') || '{}');
+    const fixed = [{id:'dashboard', icon:'⚡', label:'Dashboard'}];
+    const left0  = [{id:'settings',icon:'⚙️',label:'Ajustes'},{id:'aprende',icon:'📖',label:'Aprende'},{id:'stats',icon:'📊',label:'Análisis'},{id:'mente',icon:'🧠',label:'Mente'}];
+    const right0 = [{id:'productividad',icon:'🌊',label:'Flow'},{id:'cuerpo',icon:'💪',label:'Cuerpo'},{id:'financial',icon:'💰',label:'Finanzas'},{id:'world',icon:'🗺️',label:'World'}];
+    const all = [...left0, ...right0].sort((a,b) => (counts[b.id]||0) - (counts[a.id]||0));
+    // Top 4 más usados van a los lados más cercanos al dashboard
+    const sorted = all.slice(0,4);
+    const rest   = all.slice(4);
+    return [...rest.slice(0,rest.length-Math.floor(rest.length/2)), ...sorted.slice(0,2), ...fixed, ...sorted.slice(2), ...rest.slice(rest.length-Math.floor(rest.length/2))];
+  } catch(e) {
+    return null; // fallback al orden estático
+  }
+}
+
 const BN_ORDER = [
   // Izquierda → más lejano primero, más cercano al dashboard último
   {id:'settings',     icon:'⚙️', label:'Ajustes'},
@@ -2626,6 +2653,13 @@ function escHtml(s) {
    INIT
 ═══════════════════════════════════════════ */
 function init() {
+  // Track sessions for early-user onboarding (first 4 sessions or first week)
+  (function() {
+    const key = '_lifeos_sessions';
+    const existing = localStorage.getItem(key);
+    const n = existing ? Math.min(999, parseInt(existing, 10) + 1) : (_isFirstWeek() ? 1 : 99);
+    localStorage.setItem(key, n);
+  })();
   buildNav();
   updateXP();
   // Set today's date defaults
@@ -7846,9 +7880,9 @@ function renderCalendarWithPlans() {
 function initSocialPlans() {
   if (!S.socialPlans) S.socialPlans = [];
   renderSocialPlans();
-  // Restaurar estado de tarjeta explicativa
+  // Restaurar estado de tarjeta explicativa — solo usuarios tempranos (≤4 sesiones o primera semana)
   const tip = document.getElementById('aliados-tip');
-  if (tip && localStorage.getItem('_aliados_tip_dismissed') === '1') {
+  if (tip && (!_isEarlyUser() || localStorage.getItem('_aliados_tip_dismissed') === '1')) {
     tip.style.transition = 'none';
     tip.classList.add('dismissed');
   }
@@ -10225,6 +10259,11 @@ function _isFirstWeek() {
   return Math.floor((Date.now() - new Date(S.createdAt)) / 86400000) <= 7;
 }
 
+function _isEarlyUser() {
+  const sessions = parseInt(localStorage.getItem('_lifeos_sessions') || '1', 10);
+  return sessions <= 4 || _isFirstWeek();
+}
+
 function _onbKey(id) { return '_onbc_' + id; }
 
 // ── Build card HTML ───────────────────────────────────
@@ -10252,7 +10291,7 @@ function _buildOnbCard(id, isSub) {
 
 // ── Show card in a page or panel ──────────────────────
 function showModuleCard(pageId) {
-  if (!_isFirstWeek() && localStorage.getItem(_onbKey(pageId))) return;
+  if (!_isEarlyUser()) return;
   if (localStorage.getItem(_onbKey(pageId))) return;
   if (!_ONB_DATA[pageId]) return;
   const page = document.getElementById('page-' + pageId); if (!page) return;
@@ -10266,7 +10305,7 @@ function showModuleCard(pageId) {
 }
 
 function showSubCard(tabId) {
-  if (!_isFirstWeek() && localStorage.getItem(_onbKey(tabId))) return;
+  if (!_isEarlyUser()) return;
   if (localStorage.getItem(_onbKey(tabId))) return;
   if (!_ONB_DATA[tabId]) return;
   const panel = document.getElementById('panel-' + tabId); if (!panel) return;
