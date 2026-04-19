@@ -232,45 +232,55 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-20
-- SW cache: v11 (lifeos-v11) — bumpeado esta sesión
-- Commit: `726403c` — Feat: thumb zone, Flow ✅, Nexus, Settings reorder, live news, light mode polish
-- Deploy: staging ✅ + producción ✅
+- SW cache: v12 (lifeos-v12)
+- Commits: `726403c`, `eafa160`, `4abdf06`
+- Deploy: staging ✅ + producción ✅ (ambos commits)
 
-### Cambios implementados esta sesión
+### Cambios implementados esta sesión (acumulado completo)
 
 #### styles.css
-- **Light mode cards**: sombra aumentada (`0 4px 20px rgba(0,0,0,.10)` + `inset 0 1px 0 rgba(255,255,255,.9)`) + hover con border de acento
-- **habit-check**: 44×44px, `border-radius:12px`, `margin-left:auto` (RIGHT side), neon glow `.on`
-- **task-cb**: 44×44px, `border-radius:10px`, `margin-left:auto` (RIGHT side), neon glow `.checked`, `:active` scale(.9)
+- Light mode cards: `0 4px 20px rgba(0,0,0,.10)` + `inset 0 1px 0 rgba(255,255,255,.9)` + hover border acento
+- `habit-check`: 44×44px, RIGHT side (`margin-left:auto`), neon glow `.on`, `:active` scale(.88)
+- `task-cb`: 44×44px, RIGHT side (`margin-left:auto`), neon glow `.checked`, `:active` scale(.9)
 
 #### main.js
-- **renderHabits()**: toggle `.habit-check` movido al FINAL del template (derecha) — thumbzone
-- **renderTasks()**: `.task-cb` movido al FINAL del div de botones (derecha) — thumbzone
-- **loadNoticias()**: cuando Firestore `noticias` vacío → llama `_loadNoticiasFromHN()` (nueva función)
-- **`_loadNoticiasFromHN()`**: fetch a HN Algolia API, query `AI+artificial+intelligence+LLM`, last 7 days, points>20, top 8 hits
+- `renderHabits()`: toggle al FINAL (derecha) — thumbzone
+- `renderTasks()`: checkbox al FINAL del div de botones (derecha) — thumbzone
+- `loadNoticias()`: Firestore vacío → `_loadNoticiasFromHN()` (nueva) — HN Algolia API, AI news 7 días, points>20, top 8
+- `checkTrialBanner()`: controla chip discreto Y banner por separado; banner solo días 1-3 o últimos 5
+- `_setTrialChip()`: nueva función — chip topbar, rojo+contador en últimos 5 días
+- `updateGlobalCore()`: muestra `#nucleo-empty-guide` cuando `!hasData`; oculta nucleo-card-compact; métricas 0 → mensajes motivadores
 
 #### index.html
-- **Flow**: título `FLOW` → `FLOW ✅`
-- **Flow stat cards**: `card-wide` → `stat-card-sq` con `aspect-ratio:1/1` (cuadradas, 2×1 grid)
-- **Agenda**: export button eliminado del `module-intro-card` → movido DEBAJO de `#upcoming-list` con hint text `"Exporta tu calendario y sincronízalo con tu teléfono 👇"`
-- **Cuerpo**: TODO comment para muscle map clickable; botón Crear Rutina con `font-size:20px` + `+` a 24px
-- **Settings**: orden → CUENTA (primero), TEMA Y COLOR, GAMIFICACIÓN, **Life OS Pro banner** (nuevo), DASHBOARD INTELIGENTE, NOTIFICACIONES PUSH, DATA RESET, PRIVACIDAD, ENFOQUE TOTAL
-- **Stats**: tab `🚀 SaaS` → `🌐 Nexus`; page title `LIFE OS — SaaS` → `LIFE OS — NEXUS`
+- Flow: `FLOW` → `FLOW ✅`; stat cards `aspect-ratio:1/1` cuadradas; export button debajo de `#upcoming-list` con hint text
+- Cuerpo: TODO comment muscle map; botón `+` Crear Rutina `font-size:20px`
+- Settings: orden CUENTA→COLOR→GAMIFICACIÓN→PRO banner→DASHBOARD→NOTIF→DATA→PRIVACIDAD→ENFOQUE
+- Stats: tab `🚀 SaaS` → `🌐 Nexus`; title `LIFE OS — NEXUS`
+- Topbar: chip `💎 PRUEBA` junto al logo + botón `💎` en tb-actions (solo trial users)
+- Análisis: `#nucleo-empty-guide` — card vacía con CTAs a hábitos/metas cuando no hay datos
 
 #### analyze-deep.js
-- **BASE_CONTEXT**: nuevo rol `🟣 SENIOR PRODUCT ENGINEER / UX STRATEGIST (Push Notifications & Engagement)` — diseño de ecosistemas push, deep linking, triggers, copy, URLs
-- **BASE_CONTEXT**: tabla de módulos actualizada: `SaaS` → `Nexus`
+- `🟣 SENIOR PRODUCT ENGINEER / UX STRATEGIST (Push Notifications & Engagement)` añadido a BASE_CONTEXT
+- Tabla módulos: `SaaS` → `Nexus`
 
-### Leaderboard — verificado
-- `renderLeaderboard()` usa `r.alias` en todos los rows (nunca nombre real)
-- Datos: `LEADERBOARD_DATA` estático con aliases anónimos — OK para MVP
+### Verificado (ya correcto, no cambiar)
+- `renderLeaderboard()` → usa `r.alias` siempre (nunca nombre real)
+- Financiero saldo negativo → ya tiene `var(--red)` en `updateFinancialDisplay()`
+- `dismissAliadosTip()` → ya guarda `localStorage._aliados_tip_dismissed`
 
-### Pendientes próxima sesión
-- **VERIFICAR** carrusel bottom nav en PWA — confirmar que `_bnAnimating` flag resuelve el bug del dashboard trabado
-- **Orden dinámico** del carrusel según frecuencia de uso real (localStorage/Firestore)
-- **Push notifications deep linking**: conectar botón de activar en Settings a recordatorios útiles (hábitos pendientes, racha en riesgo) — rol UX Strategist listo en analyze-deep para detectar esto
-- **Leaderboard cleanup script**: escribir script (inactivo) para filtrar usuarios fake por actividad últimos 7 días
-- **Demo user**: crear `demo@mylifeos.lat` en Firebase prod para screenshot del iPhone mockup en landing
-- Sincronizar VPS: `git pull && cp scripts` (ver comandos sync arriba)
-- Correr `node runner.js --deep` post-fixes para validar estado real con screenshots frescos
-- runner.js automático nocturno (esperando usuarios reales)
+### Pendientes próxima sesión — PRIORIDAD ORDENADA
+
+#### Alta prioridad
+1. **VPS sync** — `cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js`
+2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (screenshots con UI nueva)
+3. **Dashboard Dinámico funcional** — toggle existe en Settings (`#dynamic-dashboard-toggle`) pero no reordena widgets realmente; necesita leer frecuencia de navegación y reordenar `#content .page` o los widgets del dashboard
+
+#### Media prioridad
+4. **Push notifications deep linking** — `activarNotificaciones()` en main.js suscribe pero no envía recordatorios; implementar: hábitos pendientes a las 8pm si no completados, racha en riesgo a las 9pm, briefing diario 7am — URLs deep link `?module=productividad&tab=habits`
+5. **Carrusel bottom nav** — verificar en PWA real que `_bnAnimating` flag resolvió el bug del dashboard trabado al navegar desde dentro de la app
+6. **Orden dinámico carrusel** — guardar conteo de visitas por módulo en `localStorage._bnVisitCount` y reordenar `BN_ORDER` según frecuencia
+
+#### Baja prioridad
+7. **Demo user** — crear `demo@mylifeos.lat` en Firebase producción para iPhone mockup en landing
+8. **Leaderboard cleanup script** — `scripts/cleanup-leaderboard.js` inactivo, filtra usuarios sin actividad últimos 7 días
+9. **Runner nocturno automático** — esperar usuarios reales antes de activar cron
