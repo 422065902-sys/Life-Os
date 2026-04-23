@@ -231,48 +231,33 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-20
-- SW cache: v12 (lifeos-v12)
-- Commits: `726403c`, `eafa160`, `4abdf06`
-- Deploy: staging ✅ + producción ✅ (ambos commits)
+- Fecha: 2026-04-23
+- Commit: `6b8f4da`
+- Deploy: staging ✅
 
-### Cambios implementados esta sesión (acumulado completo)
-
-#### styles.css
-- Light mode cards: `0 4px 20px rgba(0,0,0,.10)` + `inset 0 1px 0 rgba(255,255,255,.9)` + hover border acento
-- `habit-check`: 44×44px, RIGHT side (`margin-left:auto`), neon glow `.on`, `:active` scale(.88)
-- `task-cb`: 44×44px, RIGHT side (`margin-left:auto`), neon glow `.checked`, `:active` scale(.9)
+### Cambios implementados esta sesión
 
 #### main.js
-- `renderHabits()`: toggle al FINAL (derecha) — thumbzone
-- `renderTasks()`: checkbox al FINAL del div de botones (derecha) — thumbzone
-- `loadNoticias()`: Firestore vacío → `_loadNoticiasFromHN()` (nueva) — HN Algolia API, AI news 7 días, points>20, top 8
-- `checkTrialBanner()`: controla chip discreto Y banner por separado; banner solo días 1-3 o últimos 5
-- `_setTrialChip()`: nueva función — chip topbar, rojo+contador en últimos 5 días
-- `updateGlobalCore()`: muestra `#nucleo-empty-guide` cuando `!hasData`; oculta nucleo-card-compact; métricas 0 → mensajes motivadores
+- `init()`: tracking de sesiones en `localStorage._lifeos_sessions` — incrementa por boot; usuarios existentes (fuera de primera semana) arrancan en 99
+- `_isEarlyUser()`: nueva función — retorna true si sessions ≤ 4 OR primera semana (`_isFirstWeek()`)
+- `showModuleCard()` / `showSubCard()`: usan `_isEarlyUser()` — onboarding "Entendido" se oculta automáticamente después de 4 sesiones o primera semana
+- `initSocialPlans()`: aliados-tip también respeta `_isEarlyUser()` — no aparece para usuarios veteranos
 
-#### index.html
-- Flow: `FLOW` → `FLOW ✅`; stat cards `aspect-ratio:1/1` cuadradas; export button debajo de `#upcoming-list` con hint text
-- Cuerpo: TODO comment muscle map; botón `+` Crear Rutina `font-size:20px`
-- Settings: orden CUENTA→COLOR→GAMIFICACIÓN→PRO banner→DASHBOARD→NOTIF→DATA→PRIVACIDAD→ENFOQUE
-- Stats: tab `🚀 SaaS` → `🌐 Nexus`; title `LIFE OS — NEXUS`
-- Topbar: chip `💎 PRUEBA` junto al logo + botón `💎` en tb-actions (solo trial users)
-- Análisis: `#nucleo-empty-guide` — card vacía con CTAs a hábitos/metas cuando no hay datos
-
-#### analyze-deep.js
-- `🟣 SENIOR PRODUCT ENGINEER / UX STRATEGIST (Push Notifications & Engagement)` añadido a BASE_CONTEXT
-- Tabla módulos: `SaaS` → `Nexus`
+#### scripts/runner.js
+- `testFinanzas()`: captura IDs de transacciones antes del test, elimina exactamente la tx QA añadida post-test (`deleteTx`) — fix de acumulación de $250 entrada en "Otro" cada run
 
 ### Verificado (ya correcto, no cambiar)
 - `renderLeaderboard()` → usa `r.alias` siempre (nunca nombre real)
 - Financiero saldo negativo → ya tiene `var(--red)` en `updateFinancialDisplay()`
 - `dismissAliadosTip()` → ya guarda `localStorage._aliados_tip_dismissed`
+- Cuerpo peso `—` es el estado vacío correcto (phys-weight en index.html), no es bug
+- Financiero pie chart: código ya hace `isNaN(t.amount) ? 0 : Number(t.amount)` — el $202k era acumulación de runs sin cleanup (ahora fixed)
 
 ### Pendientes próxima sesión — PRIORIDAD ORDENADA
 
 #### Alta prioridad
 1. **VPS sync** — `cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js`
-2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (screenshots con UI nueva)
+2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (verificar que cleanup de tx QA funciona y "Otro" ya no acumula)
 3. **Dashboard Dinámico funcional** — toggle existe en Settings (`#dynamic-dashboard-toggle`) pero no reordena widgets realmente; necesita leer frecuencia de navegación y reordenar `#content .page` o los widgets del dashboard
 
 #### Media prioridad
