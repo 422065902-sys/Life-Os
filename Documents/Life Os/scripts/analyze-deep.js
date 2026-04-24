@@ -769,12 +769,12 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 // LLAMAR GEMINI (con retry + backoff)
 // ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════
-// OPENAI API (gpt-4o multimodal, con retry + backoff)
+// OPENAI API (gpt-5.5 multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
 function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
       temperature: 0.2,
       max_tokens: Math.min(maxTokens, 4096),

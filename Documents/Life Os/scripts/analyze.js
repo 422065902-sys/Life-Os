@@ -417,12 +417,12 @@ BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RET
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A OPENAI API (multimodal gpt-4o, con retry + backoff)
+// LLAMAR A OPENAI API (multimodal gpt-5.5, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
 function callOpenAIOnce(content) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
       temperature: 0.2,
       top_p: 0.9,
