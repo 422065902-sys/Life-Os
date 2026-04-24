@@ -21,13 +21,13 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
 const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
-if (!GEMINI_API_KEY) {
-  console.error('[analyze] ERROR: GEMINI_API_KEY no configurada en .env');
+if (!OPENAI_API_KEY) {
+  console.error('[analyze] ERROR: OPENAI_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -446,37 +446,37 @@ IDENTIDAD VISUAL:
 
 REGLA ABSOLUTA: Propuestas SIEMPRE antes de ---ANALYSIS---. Nunca omitas ninguna sección. Sé específico y quirúrgico. Las propuestas ARQUITECTURA son para que el owner las revise y apruebe — propónlas con confianza aunque sean cambios grandes.`;
 
-  const parts = [{ text: textPrompt }];
+  // OpenAI content array format: text + image_url items
+  const content = [{ type: 'text', text: textPrompt }];
 
-  // Agregar screenshots intercalados con etiquetas
   screenshots.forEach(shot => {
-    parts.push({ text: `\n📸 Screenshot: ${shot.name}` });
-    parts.push({ inline_data: { mime_type: shot.mime, data: shot.data } });
+    content.push({ type: 'text', text: `\n📸 Screenshot: ${shot.name}` });
+    content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}` } });
   });
 
-  return parts;
+  return content;
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A GEMINI API (multimodal, con retry + backoff)
+// LLAMAR A OPENAI API (multimodal gpt-4o, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callGeminiOnce(parts) {
+function callOpenAIOnce(content) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 16000,
-      }
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content }],
+      temperature: 0.3,
+      max_tokens: 4096,
     });
 
     const options = {
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      hostname: 'api.openai.com',
+      path: '/v1/chat/completions',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
       }
     };
 
@@ -487,7 +487,7 @@ function callGeminiOnce(parts) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const text = json?.choices?.[0]?.message?.content;
           if (text) resolve(text);
           else reject(new Error(`Respuesta inesperada (${res.statusCode}): ${data.slice(0, 300)}`));
         } catch (e) {
@@ -502,10 +502,10 @@ function callGeminiOnce(parts) {
   });
 }
 
-async function callGemini(parts, retries = 3) {
+async function callGemini(content, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callGeminiOnce(parts);
+      return await callOpenAIOnce(content);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
       const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
@@ -603,10 +603,10 @@ async function main() {
 
   const screenshots = loadScreenshots(SHOTS_DIR);
   log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
-  log('Analizando con Gemini 2.5 Flash Vision...');
+  log('Analizando con GPT-4o Vision...');
 
-  const parts    = buildParts(reports, screenshots);
-  const rawResp  = await callGemini(parts);
+  const content  = buildParts(reports, screenshots);
+  const rawResp  = await callGemini(content);
   const { analysis, proposals } = parseResponse(rawResp);
 
   log(`Análisis recibido ✓ | ${proposals.length} propuestas generadas`);

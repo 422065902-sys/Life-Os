@@ -23,11 +23,11 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
 
-if (!GEMINI_API_KEY) {
-  console.error('[deep] ERROR: GEMINI_API_KEY no configurada en .env');
+if (!OPENAI_API_KEY) {
+  console.error('[deep] ERROR: OPENAI_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -722,22 +722,24 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 // ══════════════════════════════════════════════════════════════
 // LLAMAR GEMINI (con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callGeminiOnce(parts, maxTokens) {
+// ══════════════════════════════════════════════════════════════
+// OPENAI API (gpt-4o multimodal, con retry + backoff)
+// ══════════════════════════════════════════════════════════════
+function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: maxTokens,
-        thinkingConfig: { thinkingBudget: 0 }, // deshabilitar thinking — evita costo $3.50/1M tokens
-      }
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content }],
+      temperature: 0.2,
+      max_tokens: Math.min(maxTokens, 4096),
     });
     const options = {
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      hostname: 'api.openai.com',
+      path: '/v1/chat/completions',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Length': Buffer.byteLength(body),
       }
     };
@@ -748,7 +750,7 @@ function callGeminiOnce(parts, maxTokens) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const text = json?.choices?.[0]?.message?.content;
           if (text) resolve(text);
           else reject(new Error(`Respuesta vacía (${res.statusCode}): ${data.slice(0, 300)}`));
         } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
@@ -760,13 +762,13 @@ function callGeminiOnce(parts, maxTokens) {
   });
 }
 
-async function callGemini(parts, maxTokens, retries = 3) {
+async function callGemini(content, maxTokens, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callGeminiOnce(parts, maxTokens);
+      return await callGeminiOnce(content, maxTokens);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía') || e.message.includes('vacía');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
@@ -836,15 +838,15 @@ async function main() {
 
     try {
       const prompt = buildGroupPrompt(group);
-      const parts  = [{ text: prompt }];
+      const content = [{ type: 'text', text: prompt }];
 
       // Intercalar screenshots con etiquetas de nombre
       for (const shot of group.shots) {
-        parts.push({ text: `\n📸 ${shot.name}` });
-        parts.push({ inline_data: { mime_type: shot.mime, data: shot.data } });
+        content.push({ type: 'text', text: `\n📸 ${shot.name}` });
+        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}` } });
       }
 
-      const raw = await callGemini(parts, group.maxTokens);
+      const raw = await callGemini(content, group.maxTokens);
       const { analysis, proposals, health } = parseResponse(raw);
 
       groupResults.push({ group: group.name, analysis, proposals, health });
@@ -866,8 +868,8 @@ async function main() {
   log('\n▶ Generando síntesis ejecutiva final...');
   let synthesis = '';
   try {
-    const synthParts = [{ text: buildSynthesisPrompt(groupResults, totalShots) }];
-    synthesis = await callGemini(synthParts, 5000);
+    const synthParts = [{ type: 'text', text: buildSynthesisPrompt(groupResults, totalShots) }];
+    synthesis = await callGemini(synthParts, 4096);
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);
