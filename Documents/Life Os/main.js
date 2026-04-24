@@ -1394,6 +1394,7 @@ function toggleHabit(id) {
     if (!h.history.includes(todayKey)) h.history.push(todayKey);
     gainXP(25);
     _logActivity('habit', 25, h.name || 'Hábito completado');
+    S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
   } else {
     // Desmarcando: revertir racha solo si se completó hoy mismo
     if (h.lastCompletedDate === todayKey) {
@@ -6785,6 +6786,13 @@ function parseLocalNLP(raw) {
     return result;
   }
 
+  // ── 1b. TAREA por realización ("me cayó el veinte") ───────
+  if (/me\s+cay[oó]\s+(el\s+veinte|que\s+debo|que\s+tengo\s+que)/i.test(lower)) {
+    result.modules.push('task');
+    result.task = { name: fixed };
+    return result;
+  }
+
   // ── 2. MOOD / BITÁCORA ────────────────────────────────────
   if (/^(victoria|logro|hoy logré|hoy fué|hoy fue|me siento|ánimo|animo|bitacora|bitácora)[:\s]/i.test(lower) ||
       /\b(me siento|me sentí|hoy me di cuenta|hoy fue un día|estado de ánimo)\b/i.test(lower)) {
@@ -9597,6 +9605,9 @@ function unlockRoom(roomId, precio) {
   guardarDatos();
   equipRoom(roomId);
   showToast(`🔓 ¡Habitación desbloqueada! −${precio.toLocaleString()} XP`);
+  S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
+  const rcard = document.getElementById(`rcard-${roomId}`);
+  if (rcard) { rcard.classList.add('unlock-glow'); setTimeout(() => rcard.classList.remove('unlock-glow'), 1200); }
 }
 
 /* ── Apply equipped room on apartment open ── */

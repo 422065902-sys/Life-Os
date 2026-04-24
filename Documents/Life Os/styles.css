@@ -4370,15 +4370,23 @@ body[data-mode="aura"] .card:hover{
 }
 
 /* AURA DARK — buttons */
-body[data-mode="aura"] .btn-a{
-  background:linear-gradient(135deg,var(--aura-accent),var(--aura-accent2));
-  color:#fff;
-  box-shadow:0 4px 18px rgba(var(--aura-rgb),.3);
+body[data-mode="aura"] .btn-a,
+body[data-mode="aura"] [data-module] .btn-a{
+  background:linear-gradient(135deg,var(--aura-accent),var(--aura-accent2))!important;
+  color:#fff!important;
+  box-shadow:0 4px 18px rgba(var(--aura-rgb),.3)!important;
 }
-body[data-mode="aura"] .btn-a:hover{
+body[data-mode="aura"] .btn-a:hover,
+body[data-mode="aura"] [data-module] .btn-a:hover{
   filter:brightness(1.12);
-  box-shadow:0 6px 24px rgba(var(--aura-rgb),.45);
+  box-shadow:0 6px 24px rgba(var(--aura-rgb),.45)!important;
 }
+@keyframes unlockGlow{
+  0%{box-shadow:0 0 0 0 rgba(var(--accent-rgb,0,229,255),.8)}
+  50%{box-shadow:0 0 30px 12px rgba(var(--accent-rgb,0,229,255),.4)}
+  100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb,0,229,255),0)}
+}
+.unlock-glow{animation:unlockGlow 1.2s ease-out forwards}
 body[data-mode="aura"] .btn-g{
   background:transparent;
   border:1px solid rgba(var(--aura-rgb),.3)!important;
