@@ -11,13 +11,13 @@ Producción nunca se toca durante pruebas. Staging es el campo de juego.
 | Script | Propósito | Modo | Estado |
 |---|---|---|---|
 | `scripts/runner.js` | Runner E2E diario — navega la app y verifica que todo funciona | Manual por ahora | Automático nocturno PENDIENTE hasta tener usuarios |
-| `scripts/analyze-deep.js` | Análisis Gemini Vision profundo — lee screenshots, 9 grupos temáticos, maxOutputTokens 16k | Manual post-run | Activo |
-| `scripts/analyze.js` | Análisis Gemini Vision ligero — 3 días de reportes, propuestas de mejora | Manual post-run | Activo |
+| `scripts/analyze-deep.js` | Análisis GPT-5.5 Vision profundo — 9 grupos temáticos, max 6000 tokens por grupo | Manual post-run | Activo |
+| `scripts/analyze.js` | Análisis GPT-5.5 Vision ligero — 3 días de reportes, propuestas de mejora | Manual post-run | Activo |
 
-Flujo normal: `node runner.js --deep` — un solo comando hace todo: E2E → screenshots → analyze.js → analyze-deep.js (screenshots frescos garantizados via QA_SHOTS_DIR).
+Flujo normal: `node runner.js --deep` — un solo comando hace todo: E2E → screenshots → analyze.js → analyze-deep.js.
+Para correr SOLO el análisis sin el runner: `node analyze.js` o `node analyze-deep.js`
 
 Cualquier otro archivo runner/analyze que no sea estos tres exactos = duplicado no autorizado.
-Reportar al usuario y esperar autorización antes de eliminar.
 
 ## REGLAS QUE NUNCA SE ROMPEN
 - R1. Firebase producción `life-os-prod-3a590` — solo con autorización explícita del usuario
@@ -32,13 +32,10 @@ Reportar al usuario y esperar autorización antes de eliminar.
 ## RUTAS ABSOLUTAS — CRÍTICO
 
 ### En el VPS (srv1535845 / root@187.77.219.106)
-El repo de git está clonado en `/opt/openclaw/repo/lifeos/` pero el código del proyecto
-vive en una subcarpeta dentro de ese clone:
-
 ```
 /opt/openclaw/
-├── .env                          ← credenciales (QA_USER_EMAIL, QA_USER_PASSWORD, GEMINI_API_KEY)
-├── runner.js                     ← copia de trabajo del runner (actualizar con sync)
+├── .env                          ← credenciales (QA_USER_EMAIL, QA_USER_PASSWORD, OPENAI_API_KEY, FIREBASE_CI_TOKEN)
+├── runner.js                     ← copia de trabajo (actualizar con sync)
 ├── analyze.js                    ← copia de trabajo
 ├── analyze-deep.js               ← copia de trabajo
 └── repo/
@@ -48,245 +45,182 @@ vive en una subcarpeta dentro de ese clone:
                 ├── main.js
                 ├── index.html
                 ├── scripts/
-                │   ├── runner.js        ← fuente original
+                │   ├── runner.js
                 │   ├── analyze.js
                 │   └── analyze-deep.js
                 └── qa-reports/
 ```
 
-### Comandos exactos para sync VPS (copiar/pegar completo)
+### Comandos sync VPS (copiar/pegar completo)
 ```bash
-cd /opt/openclaw/repo/lifeos
-git pull origin main
-cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
-cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js
-cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js
+cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js
 ```
 
 ### Deploy a staging (Firebase Hosting)
 ```bash
-cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging --token "$FIREBASE_CI_TOKEN"
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging
 ```
-- Token CI generado 2026-04-18 — si expira, correr `firebase login:ci --no-localhost` y actualizar
-- Target `staging → mylifeos-staging` ya configurado en el VPS
-- firebase.json debe estar en `Documents/Life Os/` (no en la raíz del repo)
+- ⚠️ `--token` deprecado en firebase-tools 15.x — usar `firebase login --no-localhost` si expira sesión
+- firebase.json DEBE estar en `Documents/Life Os/` — el deploy falla si se corre desde la raíz del repo
+- Si dice "Failed to authenticate": correr `firebase login --no-localhost` en el VPS
 
-### Correr OpenClaw en el VPS
+### Correr OpenClaw
 ```bash
-cd /opt/openclaw
-node runner.js
-# o directo desde el repo (sin copiar):
-node "/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/runner.js"
+# Pipeline completo
+cd /opt/openclaw && node runner.js --deep
+
+# Solo análisis (sin runner E2E)
+cd /opt/openclaw && node analyze.js
+cd /opt/openclaw && node analyze-deep.js
 ```
 
-### Salida del runner mientras corre (VPS)
+### Ver progreso en tiempo real
 ```bash
-# Ver logs en tiempo real si corre en background (&):
-tail -f /opt/openclaw/repo/lifeos/qa-reports/YYYY-MM-DD_HH-MM.md
-
-# Ver el reporte más reciente (cualquier nombre):
 ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
-
-# Ver solo WARNs y FAILs del reporte activo:
-ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs grep -E "❌|⚠️"
-
-# Ver progreso del runner (qué módulo va):
-ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -20
 ```
-
-### Archivos generados por cada run
-```
-/opt/openclaw/repo/lifeos/qa-reports/
-├── YYYY-MM-DD_HH-MM.md              ← reporte QA de ese run
-├── PROPOSALS_YYYY-MM-DD.md          ← propuestas generadas por analyze
-└── screenshots/
-    └── YYYY-MM-DD_HH-MM/            ← carpeta de capturas de ese run
-        ├── 00-landing-fold.jpg
-        ├── 05-dashboard_fold.jpg
-        └── ... (una por módulo)
-```
-
-### En Windows (desarrollo local)
-```
-c:\Users\wence\Documents\Life Os\               ← raíz del proyecto
-c:\Users\wence\Documents\Life Os\scripts\runner.js
-c:\Users\wence\Documents\Life Os\scripts\analyze.js
-c:\Users\wence\Documents\Life Os\scripts\analyze-deep.js
-c:\Users\wence\Documents\Life Os\qa-reports\    ← reportes locales
-```
-
-## PASOS PARA CORRER OPENCLAW
-
-### Verificación previa (siempre antes de ejecutar)
-1. Confirmar que `/opt/openclaw/.env` existe con `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `GEMINI_API_KEY`
-2. Confirmar que `qa-test@mylifeos-staging.com` existe en Firebase staging
-3. Confirmar que Firebase CLI apunta a staging: `firebase use` → debe mostrar `mylifeos-staging`
-
-### Ejecución (desde /opt/openclaw en el VPS)
-```bash
-# Flujo completo recomendado — E2E + screenshots + analyze + analyze-deep (un solo comando)
-node runner.js --deep
-
-# Solo E2E + analyze ligero (más rápido, sin deep)
-node runner.js
-
-# analyze-deep manual sobre screenshots ya existentes
-node analyze-deep.js
-```
-
-### Post-ejecución
-- Documentar resultado en ÚLTIMA SESIÓN de este archivo
 
 ## PROYECTO
 - Nombre: Life OS | URL: https://mylifeos.lat
-- Stack: HTML/CSS/JS vanilla, Firebase, Stripe, Vercel
+- Stack: HTML/CSS/JS vanilla, Firebase, Stripe
 - Firebase producción: `life-os-prod-3a590` (Blaze, nam5) ← SAGRADO
 - Firebase staging: `mylifeos-staging`
 - Dominio: Namecheap → Vercel
 
 ## ARQUITECTURA
-
 ```
 /
-├── main.js              → App principal (11,591 líneas) — auto-detecta staging/prod por hostname
-├── app.js               → Versión legacy/antigua — desactivada, NO usar
-├── index.html           → Carga main.js + OnboardingGemelo.js
-├── firebase-messaging-sw.js  → Service worker notificaciones — auto-detecta staging/prod por hostname
-├── firestore.rules      → Reglas Firestore producción (estrictas)
-├── firestore.staging.rules → Reglas staging (permisivas — solo auth requerida)
+├── main.js              → App principal (~11,700 líneas) — auto-detecta staging/prod por hostname
+├── index.html           → Carga main.js
+├── styles.css           → Estilos — incluye sección AURA MODE DESIGN SYSTEM
+├── firebase-messaging-sw.js  → Service worker notificaciones
+├── firestore.rules      → Reglas producción (estrictas)
+├── firestore.staging.rules → Reglas staging (permisivas)
 ├── firebase.json        → Multi-target: production + staging
-├── .firebaserc          → default=staging (activo), alias staging=mylifeos-staging
+├── .firebaserc          → default=staging
 ├── scripts/
-│   ├── runner.js        → Runner E2E diario — apunta a mylifeos-staging.web.app
-│   ├── analyze-deep.js  → Análisis Gemini Vision profundo (post-run)
-│   ├── analyze.js       → Análisis Gemini Vision ligero (post-run)
-│   ├── seedDemoUser.js  → Semilla usuario demo — usa SEED_PROJECT_ID env var
+│   ├── runner.js        → Runner E2E
+│   ├── analyze-deep.js  → GPT-5.5 Vision profundo (9 grupos)
+│   ├── analyze.js       → GPT-5.5 Vision ligero
+│   ├── set-qa-pro.js    → Da is_pro:true al usuario QA via Firebase Auth REST + Firestore PATCH
+│   ├── seedDemoUser.js  → Semilla usuario demo
 │   ├── setup-qa-user.js → Crea usuario QA en staging
-│   └── firebase-adc.json → Credenciales ADC (token OAuth admin) — en git por necesidad operativa
+│   └── firebase-adc.json → Credenciales ADC — en git por necesidad operativa
 ├── functions/
 │   └── index.js         → Cloud Functions (Stripe, etc.)
-└── qa-reports/          → Reportes y documentación QA
+└── qa-reports/          → Reportes y screenshots QA
 ```
 
-## CREDENCIALES DEL RUNNER
-- Usuario de prueba: `qa-test@mylifeos-staging.com`
-- Contraseña: en `/opt/openclaw/.env` → `QA_USER_PASSWORD`
-- Existe en staging: ✅
-- Existe en producción: ❌ (correcto — no debe estar ahí)
-- Ubicación: `.env` en el VPS `/opt/openclaw/.env` (no en este repo)
+## CREDENCIALES
+- QA staging: `qa-test@mylifeos-staging.com` / `OpenClaw2026!`
+- Solo existe en staging — NO en producción
+- Ubicación: `/opt/openclaw/.env`
 
-## USUARIOS EN FIREBASE
-- **Staging** (mylifeos-staging): 1 usuario — `qa-test@mylifeos-staging.com`
-- **Producción** (life-os-prod-3a590): 9 usuarios reales — no tocar
+## MODELO DE IA — IMPORTANTE
+- analyze.js y analyze-deep.js usan **GPT-5.5** (`model: 'gpt-5.5'`)
+- GPT-5.5 NO soporta `temperature` ni `top_p` — solo `max_completion_tokens`
+- GPT-5.5 usa `max_completion_tokens` en vez de `max_tokens`
+- Imágenes con `detail: 'low'` (85 tokens vs 950) — evita límite TPM
+- Cap de screenshots: 20 en analyze.js, agrupados en analyze-deep.js
 
 ## ESTADO ACTUAL
-- ✅ Funcionando: runner.js --deep (pipeline completo), analyze-deep.js, analyze.js, Firebase CLI → staging
-- ✅ Pipeline unificado: `node runner.js --deep` hace E2E + screenshots + analyze + analyze-deep en secuencia
-- ✅ analyze-deep respeta QA_SHOTS_DIR — siempre analiza screenshots del run actual, nunca fotos viejas
-- ✅ analyze-deep v2.1: propuestas con IMPACTO 1-5 + ESFUERZO 1-5 + código listo para pegar
-- ✅ analyze-deep v2.1: BASE_CONTEXT actualizado con layout absoluto del landing
-- ✅ analyze-deep v2.1: sprint plan con archivos/líneas específicos en síntesis
-- ✅ main.js detecta staging/prod automáticamente por hostname
-- ✅ firebase-messaging-sw.js detecta staging/prod automáticamente por hostname
-- ✅ runner.js corre end-to-end: 154 tests (último run limpio 2026-04-17)
-- ✅ goTo() llama closeAllModals() — overlays ya no aparecen en screenshots
-- ✅ analyze.js limitado a 35 shots clave — elimina alucinaciones Gemini
-- ✅ analyze-deep.js y analyze.js con retry+backoff (3 intentos, 30s en rate limit)
-- ✅ analyze-deep.js: thinkingBudget=0 — costo controlado (~$0.47 MXN por run)
-- ✅ NLP: médico/doctor/dentista retirados de hasCalKw — eran falsos positivos
-- ✅ Cuerpo: bio-vol y bio-entrenos muestran '—' cuando no hay datos
-- ✅ Runner: limpia hábito QA después del test (deleteHabit)
-- ✅ Boot flash corregido: body.booting oculta FAB+nav hasta que la app carga
-- ✅ Gemelo IA: fix Firestore Timestamp serialization → ya no muestra 0% de progreso
-- ✅ Focus circle: initFocusBars() llamado post-boot y post-onSnapshot → ya no se queda en 68%
-- ✅ iOS bottom nav: carrusel infinito completo y funcional — deslizar + tocar activan módulo y burbuja
-- ✅ Bottom nav: pill posicionada más abajo (`env(safe-area-inset-bottom,8px)`)
-- ✅ Landing v4: logo glitch 32s, botones sincronizados, nav una línea, iPhone mockup, pricing estudiante
-- ✅ Landing: pricing estudiante $49 MXN/mes con badge dorado
-- ✅ **Modo XP / Modo Aura**: sistema dual de identidad visual completo — selector en Settings, persiste en localStorage + Firestore
-- ✅ **IDENTITY engine**: objeto IDENTITY con XP (gaming/neón) y Aura (ethereal/glassmorphism) — labels, colores, partículas, mensajes dinámicos
-- ✅ **Modo Aura oscuro**: tema completo en `body[data-mode="aura"]` — glassmorphism, lavanda #9B8CFF, radios 20-28px
-- ✅ **Modo Aura claro**: tema completo en `body[data-mode="aura"].light` — fondo perla #F7F8FC, overrides `!important` para inline styles/SVG
-- ✅ **updateXP()**: reescrita para usar `iid()` — labels Settings/sidebar se renombran dinámicamente (Nivel→Esencia, XP→Aura)
-- ✅ **spawnAuraOrbs()**: 16 orbs suaves con `@keyframes auraOrbFloat` en styles.css — partículas modo Aura
-- ✅ **Radar chart**: `getRadarAccentColor()` + `initRadarChart()` devuelven paleta lavanda en Aura
-- ✅ **showToast()**: auto-adapta mensajes XP→Aura via `_adaptRewardMsg()` — cero cambios en call sites
-- ✅ **FAB**: icono ✦ en Aura, + en XP; mensajes de ganancia usan identidad activa
-- ✅ Manrope + Inter añadidas a Google Fonts (index.html)
-- ⚠️ Pendiente: screenshot cuenta demo para iPhone mockup (crear demo@mylifeos.lat en Firebase prod)
-- ⚠️ Pendiente: runner.js automático nocturno (esperando usuarios reales)
-- ⚠️ Pendiente: correr `node runner.js --deep` para verificar estado real post-identity-engine
+- ✅ runner.js --deep pipeline completo funcionando
+- ✅ analyze.js + analyze-deep.js migrados a GPT-5.5
+- ✅ analyze.js: prompt v2 — rol Motion/Canvas, rol Living Data & Motion UX Strategist, criterios Aura, AuraChart spec, veredicto motion
+- ✅ Flow: ícono menú cambiado a ✅ (quitó 🌊) en navItems, BN_ORDER, iconMap
+- ✅ Flow: título interno sin emoji (solo "FLOW")
+- ✅ Flow: page-title con glow verde `text-shadow: 0 0 18px rgba(0,255,136,.35)`
+- ✅ Agenda: cal-event con padding y min-height mejorados (touch target)
+- ✅ equipRoom(): confetti/orbs al equipar habitación
+- ✅ toggleHabit(): confetti/orbs al completar hábito (sesión anterior)
+- ✅ unlockRoom(): confetti/orbs + unlock-glow (sesión anterior)
+- ✅ TERM_DICT + _applyVisualMode() — terminología dinámica XP↔Aura
+- ✅ renderDynamicShortcuts() — dashboard inteligente top 3 módulos
+- ✅ NLP: "me cayó el veinte" → crea tarea (early detection)
+- ✅ Modo Aura .btn-a override CSS con !important y alta especificidad
+- ✅ @keyframes unlockGlow + .unlock-glow en styles.css
+- ✅ set-qa-pro.js — da is_pro:true al QA via Firebase Auth REST API
+- ✅ Firebase deploy: usar `firebase login --no-localhost` (--token deprecado en v15.x)
+- ⚠️ Pendiente: AuraChart canvas partículas (próxima sesión — alta prioridad)
+- ⚠️ Pendiente: runner --deep completo para verificar estado post todos los cambios
+- ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
 
 ## FLUJO RECOMENDADO
 ```bash
-# Flujo completo (recomendado siempre) — tarda ~25-30 min total
+# Pipeline completo (~25-30 min)
 cd /opt/openclaw && node runner.js --deep
 
-# Flujo rápido (solo E2E + analyze ligero) — tarda ~15-20 min
-cd /opt/openclaw && node runner.js
+# Solo análisis sobre screenshots existentes (rápido)
+cd /opt/openclaw && node analyze-deep.js
 ```
-Con `--deep`: runner hace E2E → screenshots → analyze.js → analyze-deep.js automáticamente.
-analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca analiza fotos viejas.
 
-## DIAGNÓSTICO DE ALUCINACIONES GEMINI
-- **Síntoma**: Gemini reporta "SESIÓN DE LECTURA aparece en todos los módulos" — no es real
-- **Causa**: screenshot `15-mente-biblioteca` muestra lista de libros (estado correcto del SEED).
-  Gemini confunde esa UI de biblioteca con el `#book-focus-overlay` y lo atribuye a toda la app.
-- **Fix en analyze.js**: limita a 35 imágenes (solo _fold + responsive clave, sin FAB screenshots)
-- **Fix en analyze-deep.js**: 4 capas de protección en los prompts:
-  1. BASE_CONTEXT: aclara que `#book-focus-overlay` siempre está `display:none`
-  2. Grupo Mente: explica que `15-mente-biblioteca` = lista de libros (correcto, no bug)
-  3. Grupo Mobile: describe qué esperar en cada módulo para no confundir Gemini
-  4. Síntesis final: instrucción de ignorar cualquier mención de "SESIÓN DE LECTURA" fuera de Mente
-- **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
+## DIAGNÓSTICO — GPT-5.5 ALUCINACIONES CONOCIDAS
+- `[GAMIFICACIÓN] Hábitos: falta feedback visual` → confetti ya implementado en toggleHabit()
+- `[BUG] Modo Aura: xp-bar-fill cyan` → ya tiene gradient en body[data-mode="aura"]
+- `[BUG] Botones .btn-a cyan en Aura` → ya tiene override CSS con !important
+- `botón "Aprender" en Hábitos` → no existe en el código, ignorar
 
 ## ÚLTIMA SESIÓN
 - Fecha: 2026-04-24
-- Último commit: `5225de7`
+- Último commit: `329c8cb`
 - Deploy: staging ✅ https://mylifeos-staging.web.app
 
-### Cambios sesión actual (5225de7) — Dashboard Inteligente + Pilar 1 infra
+### Cambios sesión 2026-04-24
+
+#### scripts/analyze.js
+- Migrado de Gemini a GPT-5.5 (`model: 'gpt-5.5'`)
+- Prompt v2 completamente reescrito: principio central, 8 roles, sistema visual dual, backlog, formato obligatorio
+- Quitados `temperature` y `top_p` (no soportados por GPT-5.5)
+- `max_tokens` → `max_completion_tokens`
+- `detail: 'low'` en imágenes, cap 20 screenshots
+- Nuevos roles: 🎨 Motion/Canvas Engineer, 🌌 Living Data & Motion UX Strategist
+- AuraChart spec en backlog: canvas partículas, 6 nodos, física de atractores
+- Verificaciones Aura expandidas: 10 checks específicos
+- Veredicto motion obligatorio en ---ANALYSIS---
+- Tipos nuevos: CANVAS, MOTION, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, SVG-MOTION, CSS-MOTION
+
+#### scripts/analyze-deep.js
+- Migrado a GPT-5.5
+- `max_tokens` → `max_completion_tokens`
+- `detail: 'low'` en imágenes
+
+#### scripts/set-qa-pro.js (nuevo)
+- Da is_pro:true al QA sin consola Firebase
+- Uso: `node set-qa-pro.js` desde /opt/openclaw
 
 #### main.js
-- **`TERM_DICT`**: diccionario XP↔Aura para terminología DOM — claves: `level-label`, `bar-label`, `settings-level-label`, `settings-xp-label`, `streak-label`
-- **`_applyVisualMode()`**: ahora itera `[data-term]` y aplica TERM_DICT en tiempo real antes de todo lo demás
-- **`setVisualMode()`**: dispara `CustomEvent('lifeos:theme-change', { detail: { mode } })` — módulos futuros escuchan sin acoplarse
-- **`renderDynamicShortcuts()`**: nueva función — lee `localStorage._bnVisitCount`, filtra top 3 módulos más visitados (excl. dashboard/settings), renderiza grid de 3 botones de acceso rápido con icono + label + conteo de visitas
-- **`hydrateDashboard()`**: llama `renderDynamicShortcuts()` en cada visita al dashboard
-- **`navigate()`**: incrementa `localStorage._bnVisitCount[id]` en cada navegación — feed para el dashboard inteligente
+- Flow ícono: 🌊 → ✅ en navItems, BN_ORDER, iconMap (línea ~399, ~430, ~451, ~6070)
+- toggleHabit(): confetti/orbs al completar
+- unlockRoom(): confetti/orbs + unlock-glow
+- equipRoom(): confetti/orbs al equipar
+- NLP: detección "me cayó el veinte" → task
+- TERM_DICT + _applyVisualMode() para terminología dinámica
+- renderDynamicShortcuts() + hydrateDashboard() + navigate() visit count
+- setVisualMode() dispara CustomEvent 'lifeos:theme-change'
 
 #### index.html
-- `<div id="db-dynamic-shortcuts">` añadido entre `#morning-briefing` y `.ui-grid` en `page-dashboard`
-- `data-term="level-label"` en stat-card "⭐ Nivel Actual" del dashboard
-- `data-term="bar-label"` en `#sb-xp-label` del sidebar
-- `data-term="settings-level-label"` en `#set-level-label` en Settings
-- `data-term="settings-xp-label"` en `#set-xp-label` en Settings
-- `data-term="streak-label"` en stat-card "🔥 Racha Activa" en Hábitos
-- Info text del toggle `#dynamic-dashboard-info` actualizado con descripción funcional real
+- Flow page-title: "FLOW ✅" → "FLOW"
+- data-term en stat-cards del dashboard y sidebar
+- #db-dynamic-shortcuts en page-dashboard
 
-### Verificado (ya correcto, no cambiar)
-- `renderLeaderboard()` → usa `r.alias` siempre (nunca nombre real)
-- Financiero saldo negativo → ya tiene `var(--red)` en `updateFinancialDisplay()`
-- `dismissAliadosTip()` → ya guarda `localStorage._aliados_tip_dismissed`
-- Cuerpo peso `—` es el estado vacío correcto (phys-weight en index.html), no es bug
-- Financiero pie chart: código ya hace `isNaN(t.amount) ? 0 : Number(t.amount)` — el $202k era acumulación de runs sin cleanup (ahora fixed)
-- `_bootAnimDone` guard en `updateXP()` — evita toast de level-up durante carga inicial
+#### styles.css
+- [data-module="flow"] .page-title: text-shadow glow verde
+- .cal-event: padding+min-height+cursor (touch target)
+- body[data-mode="aura"] .btn-a: override !important alta especificidad
+- @keyframes unlockGlow + .unlock-glow
 
 ### Pendientes próxima sesión — PRIORIDAD ORDENADA
 
 #### Alta prioridad
-1. **VPS sync** — `cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js`
-2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (verificar estado post identity engine)
-3. **AuraChart** — canvas partículas (Pilar 1 completo): partículas del centro del canvas, 6 atractores por score de ámbito, efecto estela con fondo semitransparente, monta/desmonta via `lifeos:theme-change` event
+1. **AuraChart canvas** — Pilar 1 completo. Canvas de partículas con 6 nodos (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo), física de atractores ponderados por score, render radialGradient pastel, monta/desmonta via `lifeos:theme-change`. Reemplaza radar chart en Modo Aura. API: `window.LifeOSAuraChart.updateScores(scores)` + `emitBurst()`. Desktop: 120-220 partículas. Mobile: 60-110. Reduced motion: 20-40.
+2. **Runner --deep** — verificar estado real de todos los cambios de esta sesión
 
 #### Media prioridad
-4. **Aura light polish** — verificar en staging que los overrides `!important` cubren todos los elementos hardcodeados
-5. **Push notifications deep linking** — `activarNotificaciones()` suscribe pero no envía; hábitos pendientes 8pm, racha en riesgo 9pm, briefing 7am — deep links `?module=productividad&tab=habits`
-6. **Orden dinámico carrusel bottom nav** — usar `_bnVisitCount` (ya existe) para reordenar `BN_ORDER` según frecuencia; reconstruir `buildBottomNav()` cuando el orden cambia
-7. **Onboarding narrativo** (Pilar 3) — pantalla de decisión XP/Aura con animación de absorción; operación atómica Auth+Firestore+theme antes del primer dashboard
+3. **Aura light polish** — overrides !important para todos los inline styles en modo claro
+4. **Push notifications deep linking** — triggers 8pm hábitos, 9pm racha, 7am briefing
+5. **Orden dinámico bottom nav** — reordenar BN_ORDER según _bnVisitCount
+6. **Onboarding narrativo** — pantalla XP/Aura antes del primer dashboard
 
 #### Baja prioridad
-8. **Demo user** — crear `demo@mylifeos.lat` en Firebase producción para iPhone mockup en landing
-9. **Vitrina pública** (Pilar 2) — carruseles horizontales auto-poblados desde dailyLogs; privacidad por categoría en Firestore Rules
-10. **Pilar 5 security** — suite en runner.js: cross-user access, reward validation Cloud Function, sanitización inputs
-11. **Runner nocturno automático** — esperar usuarios reales antes de activar cron
+7. **Demo user** — `demo@mylifeos.lat` en Firebase prod para iPhone mockup
+8. **Vitrina pública** — carruseles desde dailyLogs
+9. **Runner nocturno automático** — esperar usuarios reales
