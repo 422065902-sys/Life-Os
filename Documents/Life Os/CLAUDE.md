@@ -65,7 +65,7 @@ cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js
 
 ### Deploy a staging (Firebase Hosting)
 ```bash
-cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging --token "1//05eYwHkIxLrx0CgYIARAAGAUSNwF-L9IrSi8bt-Uc1kKz0-rKnFQDr9KHxgRE_gt8FIHYIshOMo9efG_8lUOIZ8k4hsWLM8T5YMs"
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging --token "$FIREBASE_CI_TOKEN"
 ```
 - Token CI generado 2026-04-18 — si expira, correr `firebase login:ci --no-localhost` y actualizar
 - Target `staging → mylifeos-staging` ya configurado en el VPS
