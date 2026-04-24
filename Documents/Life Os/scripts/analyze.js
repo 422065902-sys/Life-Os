@@ -187,6 +187,8 @@ Analiza desde TODOS estos roles simultáneamente. No los menciones como teatro; 
 
 ⚫ RETENTION ANALYST — ¿qué haría que un usuario abandone en los primeros 30 segundos? Fricción inicial, pantallas que no explican valor, copy frío, ausencia de CTA, primera impresión, motivación para volver mañana.
 
+🎨 MOTION/CANVAS ENGINEER — especialista en Canvas 2D, animación generativa y microinteracciones. En Modo Aura: ¿el radar chart sigue visible (debe estar oculto/reemplazado por canvas de partículas)? ¿Las cards tienen backdrop-filter blur real o fondo sólido? ¿Las animaciones son orgánicas o mecánicas? ¿El FAB tiene glow suave con ✦? ¿Los fondos son cálidos perla/crema (#FDFBF7, #F7F8FC) o blanco/negro puro? ¿Las transiciones de módulo son fluidas con stagger? Detecta cualquier rastro de estética cyberpunk en Aura como bug de identidad visual.
+
 ========================
 LA APP: LIFE OS
 ========================
@@ -230,11 +232,19 @@ Visual: color derivado del accent del usuario (--aura-accent, --aura-accent2, --
 Terminología correcta: Aura, Esencia, Flujo Continuo, Aura Total. FAB muestra "✦".
 
 Verificaciones obligatorias en Modo Aura:
-- Cards con backdrop-filter blur, no fondos sólidos agresivos.
-- Botones NO deben ser cyan genérico.
-- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug.
-- Charts con paleta Aura, no cyan.
-- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → probable bug en _setAuraAccentVars().
+- Cards con backdrop-filter blur real, NO fondos sólidos. Si se ve plano → bug de glassmorphism.
+- Fondo global cálido perla (#FDFBF7 / #F7F8FC), NO negro ni blanco puro → bug de tokens.
+- Botones NO deben ser cyan genérico → bug de override .btn-a.
+- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug data-term.
+- Charts con paleta Aura, no cyan. Si hay radar chart visible en Aura → bug crítico (debe ser canvas de partículas).
+- FAB con ✦ y glow pastel, NO "+" con cyan → bug de identidad.
+- Animaciones suaves y orgánicas. Si hay transiciones bruscas o mecánicas → bug de motion.
+- Tipografía Inter/Manrope, NO Orbitron en Aura → bug de tipografía.
+- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → bug en _setAuraAccentVars().
+- border-radius generoso (20-28px). Si hay bordes filosos en cards → bug de tokens.
+
+CALIDAD AURA ESPERADA — la interfaz debe sentirse: premium wellness-tech, vidrio esmerilado, paz + avance + recompensa emocional.
+NO debe sentirse: cyberpunk con colores pastel, dashboard corporativo, radar militar con tonos suaves.
 
 ========================
 BUGS CONOCIDOS A VIGILAR
@@ -299,7 +309,9 @@ Solo propón cuando haya evidencia que lo justifique.
 
 4. MODO AURA PULIDO — buscar elementos cyan persistentes, inline styles sin override, charts con paleta XP.
 
-5. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
+5. AURA CHART (CANVAS PARTÍCULAS) — prioridad alta. El radar chart de Chart.js debe desaparecer en Modo Aura y ser reemplazado por un canvas de partículas orgánicas. Arquitectura: class AuraParticleSystem con 6 nodos (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo), partículas atraídas por scores ponderados, movimiento con fricción + ruido + sin/cos, render con radialGradient pastel, alpha animado. Desktop: 120-220 partículas. Mobile: 60-110. Reduced motion: 20-40 estáticas. API pública: window.LifeOSAuraChart.updateScores(scores) y emitBurst(). Si en screenshots ves radar chart en Modo Aura → propuesta CRÍTICA de reemplazo. Si ya hay canvas pero sin física de nodos → propuesta de mejora.
+
+6. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
 
 ========================
 REPORTE DE HOY
@@ -402,7 +414,7 @@ Una frase honesta, directa y útil.
 TIPOS VÁLIDOS
 ========================
 
-BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA`;
+BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, CANVAS, MOTION`;
 
 
   // OpenAI content array format: text + image_url items
