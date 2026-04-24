@@ -777,7 +777,7 @@ function callGeminiOnce(content, maxTokens) {
       model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
       temperature: 0.2,
-      max_tokens: Math.min(maxTokens, 4096),
+      max_completion_tokens: Math.min(maxTokens, 4096),
     });
     const options = {
       hostname: 'api.openai.com',

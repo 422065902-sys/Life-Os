@@ -426,7 +426,7 @@ function callOpenAIOnce(content) {
       messages: [{ role: 'user', content }],
       temperature: 0.2,
       top_p: 0.9,
-      max_tokens: 4096,
+      max_completion_tokens: 4096,
     });
 
     const options = {
