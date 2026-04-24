@@ -241,51 +241,28 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 - **Regla**: si analyze-deep reporta "Gestión/Sesión de Lectura en módulos no relacionados" → alucinación, ignorar
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-23 (continuación)
-- Último commit conocido: `6b8f4da`
-- Deploy: staging ✅ (post identity engine)
+- Fecha: 2026-04-24
+- Último commit: `5225de7`
+- Deploy: staging ✅ https://mylifeos-staging.web.app
 
-### Cambios sesión anterior (6b8f4da)
-
-#### main.js
-- `init()`: tracking de sesiones en `localStorage._lifeos_sessions` — incrementa por boot; usuarios existentes (fuera de primera semana) arrancan en 99
-- `_isEarlyUser()`: nueva función — retorna true si sessions ≤ 4 OR primera semana (`_isFirstWeek()`)
-- `showModuleCard()` / `showSubCard()`: usan `_isEarlyUser()` — onboarding "Entendido" se oculta automáticamente después de 4 sesiones o primera semana
-- `initSocialPlans()`: aliados-tip también respeta `_isEarlyUser()` — no aparece para usuarios veteranos
-
-#### scripts/runner.js
-- `testFinanzas()`: captura IDs de transacciones antes del test, elimina exactamente la tx QA añadida post-test (`deleteTx`) — fix de acumulación de $250 entrada en "Otro" cada run
-
-### Cambios sesión actual — Dual Identity Engine (Modo XP / Modo Aura)
+### Cambios sesión actual (5225de7) — Dashboard Inteligente + Pilar 1 infra
 
 #### main.js
-- **`IDENTITY` object**: constante con dos identidades completas — `xp` (gaming: XP, Level Up, neón) y `aura` (mindfulness: Aura, Expansión, flujo, orbs)
-- **`iid()`**: helper que devuelve la identidad activa según `S.visualMode`
-- **`_adaptRewardMsg(msg)`**: reemplaza strings XP→Aura en mensajes de toast automáticamente
-- **`showToast()`**: llama `_adaptRewardMsg()` en modo Aura — cero cambios en call sites
-- **`updateXP()`**: reescrita completa — usa `iid()` para todos los labels (sidebar, settings, barra de progreso, mensajes de level-up)
-- **`spawnAuraOrbs()`**: 16 orbs suaves con posiciones aleatorias, gradientes radiales, float+fade animation
-- **`spawnConfetti()`**: usa `iid().particleColors` — cyan en XP, lavanda/menta en Aura
-- **`_applyVisualMode()`**: aplica `data-mode` + clase `light`, parchea atributos SVG via `setAttribute`, actualiza FAB icono (✦/+), llama `updateXP()` para refrescar labels
-- **`getRadarAccentColor()`**: devuelve paleta lavanda `['#9B8CFF','#72B8FF','#7FE0C9']` en Aura
-- **`initRadarChart()`**: grid/angle lines con colores Aura, font Manrope en labels cuando aplica
-- **`S.visualMode`**: añadido a `_buildSavePayload()` — persiste en localStorage y Firestore
-- **`setVisualMode(mode)`**: nueva función pública llamada desde VM pills en Settings
-- **`_applyVisualMode()`** llamada en `init()` post-`cargarDatos()` y en `loginSuccess()` post-cloud-load
-
-#### styles.css
-- Bloque completo `body[data-mode="aura"]` (oscuro): variables glassmorphism, sidebar, topbar, cards, botones, tabs, inputs, modales, heatmap, etc.
-- Bloque completo `body[data-mode="aura"].light`: paleta perla #F7F8FC, lavanda #9B8CFF, Manrope/Inter
-- Overrides `!important` para inline styles y atributos SVG hardcodeados (dashboard-header, ci-dot.lit, ui-grid cards nth-child, etc.)
-- `.vm-pill` / `.vm-selector`: estilos del selector de modo en Settings
-- `@keyframes auraOrbFloat` + `.aura-orb`: animación de orbs recompensa
+- **`TERM_DICT`**: diccionario XP↔Aura para terminología DOM — claves: `level-label`, `bar-label`, `settings-level-label`, `settings-xp-label`, `streak-label`
+- **`_applyVisualMode()`**: ahora itera `[data-term]` y aplica TERM_DICT en tiempo real antes de todo lo demás
+- **`setVisualMode()`**: dispara `CustomEvent('lifeos:theme-change', { detail: { mode } })` — módulos futuros escuchan sin acoplarse
+- **`renderDynamicShortcuts()`**: nueva función — lee `localStorage._bnVisitCount`, filtra top 3 módulos más visitados (excl. dashboard/settings), renderiza grid de 3 botones de acceso rápido con icono + label + conteo de visitas
+- **`hydrateDashboard()`**: llama `renderDynamicShortcuts()` en cada visita al dashboard
+- **`navigate()`**: incrementa `localStorage._bnVisitCount[id]` en cada navegación — feed para el dashboard inteligente
 
 #### index.html
-- Google Fonts: Manrope + Inter añadidas
-- Settings "TEMA Y COLOR": `.vm-selector` con dos `.vm-pill` (`#vm-pill-xp`, `#vm-pill-aura`)
-- `id="set-level-label"` en span "Nivel Actual" → se renombra a "Esencia Actual" en Aura
-- `id="set-xp-label"` en span "XP Total" → se renombra a "Aura Total" en Aura
-- `id="sb-xp-label"` en sidebar label de barra XP
+- `<div id="db-dynamic-shortcuts">` añadido entre `#morning-briefing` y `.ui-grid` en `page-dashboard`
+- `data-term="level-label"` en stat-card "⭐ Nivel Actual" del dashboard
+- `data-term="bar-label"` en `#sb-xp-label` del sidebar
+- `data-term="settings-level-label"` en `#set-level-label` en Settings
+- `data-term="settings-xp-label"` en `#set-xp-label` en Settings
+- `data-term="streak-label"` en stat-card "🔥 Racha Activa" en Hábitos
+- Info text del toggle `#dynamic-dashboard-info` actualizado con descripción funcional real
 
 ### Verificado (ya correcto, no cambiar)
 - `renderLeaderboard()` → usa `r.alias` siempre (nunca nombre real)
@@ -299,16 +276,17 @@ analyze-deep siempre recibe QA_SHOTS_DIR con la carpeta del run actual → nunca
 
 #### Alta prioridad
 1. **VPS sync** — `cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js`
-2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (verificar cleanup tx QA + estado post identity engine)
-3. **Dashboard Dinámico funcional** — toggle existe en Settings (`#dynamic-dashboard-toggle`) pero no reordena widgets realmente; necesita leer frecuencia de navegación y reordenar `#content .page` o los widgets del dashboard
+2. **Runner --deep** — `cd /opt/openclaw && node runner.js --deep` (verificar estado post identity engine)
+3. **AuraChart** — canvas partículas (Pilar 1 completo): partículas del centro del canvas, 6 atractores por score de ámbito, efecto estela con fondo semitransparente, monta/desmonta via `lifeos:theme-change` event
 
 #### Media prioridad
-4. **Aura light polish** — verificar en staging que los overrides `!important` cubren todos los elementos hardcodeados; puede haber inline styles no contemplados
-5. **Push notifications deep linking** — `activarNotificaciones()` en main.js suscribe pero no envía recordatorios; implementar: hábitos pendientes a las 8pm si no completados, racha en riesgo a las 9pm, briefing diario 7am — URLs deep link `?module=productividad&tab=habits`
-6. **Carrusel bottom nav** — verificar en PWA real que `_bnAnimating` flag resolvió el bug del dashboard trabado al navegar desde dentro de la app
-7. **Orden dinámico carrusel** — guardar conteo de visitas por módulo en `localStorage._bnVisitCount` y reordenar `BN_ORDER` según frecuencia
+4. **Aura light polish** — verificar en staging que los overrides `!important` cubren todos los elementos hardcodeados
+5. **Push notifications deep linking** — `activarNotificaciones()` suscribe pero no envía; hábitos pendientes 8pm, racha en riesgo 9pm, briefing 7am — deep links `?module=productividad&tab=habits`
+6. **Orden dinámico carrusel bottom nav** — usar `_bnVisitCount` (ya existe) para reordenar `BN_ORDER` según frecuencia; reconstruir `buildBottomNav()` cuando el orden cambia
+7. **Onboarding narrativo** (Pilar 3) — pantalla de decisión XP/Aura con animación de absorción; operación atómica Auth+Firestore+theme antes del primer dashboard
 
 #### Baja prioridad
 8. **Demo user** — crear `demo@mylifeos.lat` en Firebase producción para iPhone mockup en landing
-9. **Leaderboard cleanup script** — `scripts/cleanup-leaderboard.js` inactivo, filtra usuarios sin actividad últimos 7 días
-10. **Runner nocturno automático** — esperar usuarios reales antes de activar cron
+9. **Vitrina pública** (Pilar 2) — carruseles horizontales auto-poblados desde dailyLogs; privacidad por categoría en Firestore Rules
+10. **Pilar 5 security** — suite en runner.js: cross-user access, reward validation Cloud Function, sanitización inputs
+11. **Runner nocturno automático** — esperar usuarios reales antes de activar cron
