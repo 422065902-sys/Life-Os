@@ -436,8 +436,6 @@ function callOpenAIOnce(content) {
     const body = JSON.stringify({
       model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
-      temperature: 0.2,
-      top_p: 0.9,
       max_completion_tokens: 4096,
     });
 

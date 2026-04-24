@@ -776,7 +776,6 @@ function callGeminiOnce(content, maxTokens) {
     const body = JSON.stringify({
       model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
-      temperature: 0.2,
       max_completion_tokens: Math.min(maxTokens, 4096),
     });
     const options = {
