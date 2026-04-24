@@ -29,3 +29,18 @@
 
 ---
 
+## Run: 2026-04-24_12-09.md
+
+- [ ] [BUG] GLOBAL: Paywall del Gemelo bloquea toda la aplicación | SOLUCIÓN: Modificar `main.js` para que el componente `gemeloPotenciadoModal` no se renderice como un overlay global. Reubicarlo como una sección dentro del tab "Gemelo" del módulo "Mente & Poder" o como un banner no intrusivo en el Dashboard. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [UX] PAYWALL: Touch target del botón de cierre 'X' en modal | SOLUCIÓN: Aumentar el `padding` o `min-width`/`min-height` del elemento `.modal-close-button` en `styles.css` para asegurar un touch target mínimo de 44x44px en viewports mobile. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [RETENCIÓN] PAYWALL: Mensaje inicial del Gemelo Potenciado | SOLUCIÓN: Revisar el copy en `gemeloPotenciadoModal.html` (o `main.js` si es dinámico). Para nuevos usuarios, usar un mensaje aspiracional (ej. "Tu Gemelo IA está listo para revelar patrones ocultos...") en lugar de uno basado en el 1% de tareas, que es desmotivador y potencialmente impreciso. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] LANDING PAGE: Animación "glow pulse" en CTA principal | SOLUCIÓN: Añadir una `@keyframes` animation a la clase `.btn-primary.cta-landing` (o similar) en `styles.css` que alterne el `box-shadow` con un color acento y un `blur-radius` para crear el efecto de pulso continuo. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [FRONTEND] LANDING PAGE: Animación de línea conectora en "Cómo funciona" | SOLUCIÓN: Implementar un `IntersectionObserver` en `main.js` para detectar la visibilidad de la sección. Al entrar en viewport, animar el `stroke-dashoffset` de un SVG de línea o el `width` de un elemento con `border-left` en `styles.css` para dibujar la línea progresivamente. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] LANDING PAGE: Completar Hero y Pricing con mensaje clave | SOLUCIÓN: Priorizar la implementación completa de la `section#landing-page` en `index.html`. Asegurar que el mensaje "Sin tarjeta de crédito. 30 días gratis. Cancela cuando quieras." esté visible en el Hero (debajo del CTA principal) y en la sección de Pricing, como restricción de negocio inamovible. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] IDENTIDAD-VISUAL: Auditoría post-paywall de identidad por módulo | SOLUCIÓN: Una vez resuelto el bloqueo del paywall, realizar una auditoría visual exhaustiva en desktop y mobile para cada módulo. Verificar que los colores de acento, tipografía, botones primarios y tabs activas correspondan a la identidad visual única definida para cada módulo (ej. Cyan para Dashboard, Verde neón para Flow). | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] DASHBOARD: Diseño e infraestructura para Dashboard Dinámico | SOLUCIÓN:
+- [ ] [ARQUITECTURA] MONETIZACIÓN: Reubicación estratégica del paywall del Gemelo | SOLUCIÓN: Mover el paywall del Gemelo de un modal global a una sección dedicada dentro del tab "Gemelo" del módulo "Mente & Poder". Permitir acceso a una versión básica o de prueba del Gemelo sin pago, y solo mostrar el paywall al intentar acceder a funciones "potenciadas" o análisis completos. | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA
+- [ ] [DISEÑO] FLOW (AGENDA): Empty state premium para el calendario | SOLUCIÓN: Crear un "empty state" visualmente atractivo para el tab "📅 Agenda" de Flow. Si el calendario está vacío o no carga, mostrar un mensaje como "Tu agenda está vacía. ¡Planifica tu día y sube de nivel!" con una micro-ilustración y un CTA "Añadir evento →". | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+
+---
+
