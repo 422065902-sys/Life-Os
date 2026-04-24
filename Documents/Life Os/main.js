@@ -9593,6 +9593,7 @@ function equipRoom(roomId) {
   guardarDatos();
   renderShop();
   showToast('🏠 Habitación equipada');
+  S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
 }
 
 /* ── Unlock + equip a room ── */

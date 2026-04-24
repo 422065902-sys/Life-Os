@@ -535,7 +535,7 @@ input:checked+.slider:before{transform:translateX(20px)}
 .upcoming-overdue{border-left-color:var(--red)!important;opacity:.85}
 .upcoming-today .upcoming-date{color:var(--green)}
 .upcoming-today{border-left-color:var(--green)!important}
-.cal-event{font-size:9px;background:rgba(0,229,255,.12);color:var(--accent);border-radius:3px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-event{font-size:9px;background:rgba(0,229,255,.12);color:var(--accent);border-radius:3px;padding:3px 6px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:22px;display:flex;align-items:center;cursor:pointer}
 .cal-day-num{font-family:'Orbitron',monospace;font-size:12px;font-weight:700}
 .today .cal-day-num{color:var(--accent)}
 
@@ -3892,7 +3892,7 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 }
 
 /* ── FLOW (ex-Productividad) ── */
-[data-module="flow"] .page-title          { color: var(--flow-accent); }
+[data-module="flow"] .page-title          { color: var(--flow-accent); text-shadow: 0 0 18px rgba(0,255,136,.35); }
 [data-module="flow"] .inner-tab.active    { background: var(--flow-accent); color: #000; }
 [data-module="flow"] .inner-tab:hover     { background: rgba(var(--flow-rgb),.1); color: var(--flow-accent); }
 [data-module="flow"] .inner-tabs          { border-color: rgba(var(--flow-rgb),.18); background: rgba(var(--flow-rgb),.04); }
