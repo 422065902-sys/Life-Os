@@ -8,15 +8,14 @@
 require('dotenv').config({ path: '/opt/openclaw/.env' });
 
 const https = require('https');
-const path  = require('path');
-const fs    = require('fs');
 
 const PROJECT    = 'mylifeos-staging';
-const QA_EMAIL   = process.env.QA_USER_EMAIL || 'qa-test@mylifeos-staging.com';
+const QA_EMAIL   = process.env.QA_USER_EMAIL    || 'qa-test@mylifeos-staging.com';
+const QA_PASS    = process.env.QA_USER_PASSWORD || '';
 const API_KEY    = process.env.FIREBASE_API_KEY;
-const ADC_PATH   = path.join(__dirname, 'firebase-adc.json');
 
-if (!API_KEY) { console.error('ERROR: FIREBASE_API_KEY no en .env'); process.exit(1); }
+if (!API_KEY)  { console.error('ERROR: FIREBASE_API_KEY no en .env'); process.exit(1); }
+if (!QA_PASS)  { console.error('ERROR: QA_USER_PASSWORD no en .env'); process.exit(1); }
 
 function post(hostname, path, body, headers) {
   return new Promise((resolve, reject) => {
@@ -50,25 +49,12 @@ function patch(hostname, urlPath, body, headers) {
   });
 }
 
-async function getAccessToken() {
-  const adc = JSON.parse(fs.readFileSync(ADC_PATH, 'utf8'));
-  const res = await post('oauth2.googleapis.com', '/token', {
-    client_id:     adc.client_id,
-    client_secret: adc.client_secret,
-    refresh_token: adc.refresh_token,
-    grant_type:    'refresh_token'
-  }, {});
-  if (!res.body.access_token) throw new Error('ADC token refresh falló: ' + JSON.stringify(res.body));
-  return res.body.access_token;
-}
-
-async function getQaUid() {
+async function signIn() {
   const res = await post('identitytoolkit.googleapis.com',
-    `/v1/accounts:lookup?key=${API_KEY}`,
-    { email: [QA_EMAIL] }, {});
-  const users = res.body.users;
-  if (!users || !users.length) throw new Error('Usuario QA no encontrado: ' + QA_EMAIL);
-  return users[0].localId;
+    `/v1/accounts:signInWithPassword?key=${API_KEY}`,
+    { email: QA_EMAIL, password: QA_PASS, returnSecureToken: true }, {});
+  if (!res.body.idToken) throw new Error('Sign-in falló: ' + JSON.stringify(res.body));
+  return { idToken: res.body.idToken, uid: res.body.localId };
 }
 
 async function setIsPro(token, uid) {
@@ -84,13 +70,11 @@ async function setIsPro(token, uid) {
 
 (async () => {
   try {
-    console.log('Obteniendo access token...');
-    const token = await getAccessToken();
-    console.log('Buscando UID de', QA_EMAIL);
-    const uid   = await getQaUid();
+    console.log('Autenticando como', QA_EMAIL);
+    const { idToken, uid } = await signIn();
     console.log('UID:', uid);
     console.log('Actualizando is_pro: true en Firestore...');
-    const res   = await setIsPro(token, uid);
+    const res   = await setIsPro(idToken, uid);
     if (res.status === 200) {
       console.log('✅ is_pro: true aplicado correctamente');
     } else {
