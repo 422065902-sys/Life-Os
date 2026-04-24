@@ -57,3 +57,15 @@
 
 ---
 
+## Run: 2026-04-24_15-56.md
+
+- [ ] [DISEÑO] FLOW: El color de los botones no coincide con el módulo | EVIDENCIA: 07-habitos_fold | CAUSA PROBABLE: Uso de color cyan genérico en lugar del color del módulo | SOLUCIÓN: Cambiar a `body[data-module='flow'] .btn-primary { background: #00ff88; }` | PRIORIDAD: MEDIA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [BUG] MENTE & PODER: Texto "Nivel" en lugar de "Esencia" en Modo Aura | EVIDENCIA: 09-gemelo_fold | CAUSA PROBABLE: Terminología incorrecta en Modo Aura | SOLUCIÓN: Revisar y corregir terminología en el archivo JS correspondiente | PRIORIDAD: ALTA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [UX] AGENDA: Fold inicial vacío en Flow | EVIDENCIA: 13-flow-agenda_fold | CAUSA PROBABLE: Layout no muestra contenido inicial | SOLUCIÓN: Asegurar que el contenido relevante se cargue en el fold inicial | PRIORIDAD: ALTA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [IDENTIDAD-VISUAL] FINANCIERO: Uso de cyan en lugar de dorado | EVIDENCIA: 06-finanzas_fold | CAUSA PROBABLE: Falta de aplicación del color del módulo | SOLUCIÓN: `body[data-module='financiero'] .chart { color: #fbbf24; }` | PRIORIDAD: MEDIA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [MOBILE] FLOW: FAB tapando contenido en Android | EVIDENCIA: responsive-android-07-habitos_fold | CAUSA PROBABLE: Posicionamiento incorrecto del FAB | SOLUCIÓN: Ajustar posición del FAB en CSS para evitar superposición | PRIORIDAD: ALTA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [GAMIFICACIÓN] ANÁLISIS: Progreso no visible claramente | EVIDENCIA: 11-gamificacion_fold | CAUSA PROBABLE: Falta de indicadores visuales de progreso | SOLUCIÓN: Añadir barra de progreso visible en el módulo | PRIORIDAD: MEDIA | CATEGORÍA: MICRO | CONFIANZA: MEDIA
+- [ ] [ARQUITECTURA] LANDING PAGE: Ausencia de mensaje claro en hero | EVIDENCIA: No hay captura de landing | IMPACTO: Conversión | SOLUCIÓN: Asegurar que el mensaje "Sin tarjeta de crédito. 30 días gratis. Cancela cuando quieras." esté visible | PRIORIDAD: ALTA | CATEGORÍA: ARQUITECTURA | CONFIANZA: MEDIA
+
+---
+
