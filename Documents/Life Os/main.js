@@ -396,7 +396,7 @@ const PIE_COLORS = ['#00e5ff','#a855f7','#ffd700','#4ade80','#ff6b35','#f472b6',
 const NAV = [
   {id:'dashboard',    icon:'⚡', label:'Tablero'},
   {id:'world',        icon:'🗺️', label:'Life OS World'},
-  {id:'productividad',icon:'🌊', label:'Flow'},
+  {id:'productividad',icon:'✅', label:'Flow'},
   {id:'cuerpo',       icon:'💪', label:'Cuerpo'},
   {id:'financial',    icon:'💰', label:'Financiero'},
   {id:'mente',        icon:'🧠', label:'Mente & Poder'},
@@ -427,7 +427,7 @@ function _bnGetDynamicOrder() {
     const counts = JSON.parse(localStorage.getItem('_bnVisits') || '{}');
     const fixed = [{id:'dashboard', icon:'⚡', label:'Dashboard'}];
     const left0  = [{id:'settings',icon:'⚙️',label:'Ajustes'},{id:'aprende',icon:'📖',label:'Aprende'},{id:'stats',icon:'📊',label:'Análisis'},{id:'mente',icon:'🧠',label:'Mente'}];
-    const right0 = [{id:'productividad',icon:'🌊',label:'Flow'},{id:'cuerpo',icon:'💪',label:'Cuerpo'},{id:'financial',icon:'💰',label:'Finanzas'},{id:'world',icon:'🗺️',label:'World'}];
+    const right0 = [{id:'productividad',icon:'✅',label:'Flow'},{id:'cuerpo',icon:'💪',label:'Cuerpo'},{id:'financial',icon:'💰',label:'Finanzas'},{id:'world',icon:'🗺️',label:'World'}];
     const all = [...left0, ...right0].sort((a,b) => (counts[b.id]||0) - (counts[a.id]||0));
     // Top 4 más usados van a los lados más cercanos al dashboard
     const sorted = all.slice(0,4);
@@ -448,7 +448,7 @@ const BN_ORDER = [
   // ── CENTRO (índice 5) ──
   {id:'dashboard',    icon:'⚡', label:'Tablero'},
   // Derecha → más cercano al dashboard primero, más lejano último
-  {id:'productividad',icon:'🌊', label:'Flow'},
+  {id:'productividad',icon:'✅', label:'Flow'},
   {id:'cuerpo',       icon:'💪', label:'Cuerpo'},
   {id:'financial',    icon:'💰', label:'Finanzas'},
 ];
@@ -6067,7 +6067,7 @@ function renderDynamicShortcuts() {
   if (!sorted.length) { el.style.display = 'none'; return; }
 
   const isAura = S.visualMode === 'aura';
-  const iconMap = { productividad:'🌊', financial:'💰', cuerpo:'💪', mente:'🧠',
+  const iconMap = { productividad:'✅', financial:'💰', cuerpo:'💪', mente:'🧠',
     world:'🗺️', stats:'📊', aprende:'📖', settings:'⚙️' };
   const labelMap = { productividad:'Flow', financial:'Finanzas', cuerpo:'Cuerpo',
     mente:'Mente', world:'World', stats:'Análisis', aprende:'Aprende', settings:'Ajustes' };
