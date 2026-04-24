@@ -112,10 +112,17 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
     {
       id: 'dashboard-stats',
       name: 'Dashboard (Tablero) y Análisis/Stats',
-      accent: '#00e5ff cyan (Dashboard) · #6366f1 índigo (Stats)',
-      desc: 'Dashboard = vista principal al abrir la app: saludo, radar chart, anillo SVG de progreso del Gemelo, ' +
-            'focus bars, check-in diario, widget de saldo, lista de tareas. ' +
-            'Stats/Gamificación = leaderboard, XP total, nivel, logros, métricas de uso.',
+      accent: '#00e5ff cyan (Dashboard XP) · var(--aura-accent) pastel (Dashboard Aura) · #6366f1 índigo (Stats)',
+      desc: 'Dashboard = vista principal: saludo dinámico, radar chart, anillo SVG Gemelo, focus bars, check-in, widget saldo, tareas.\n\n' +
+            'NUEVO — DASHBOARD INTELIGENTE: si el toggle está activado, encima del ui-grid aparece ' +
+            '#db-dynamic-shortcuts con 3 botones de acceso rápido a los módulos más visitados. ' +
+            'Cada botón muestra ícono del módulo, nombre y "N visitas". ' +
+            'Si está vacía la sección (toggle ON pero sin historial de visitas) → correcto, es expected.\n\n' +
+            'MODO XP vs MODO AURA en Dashboard: en Aura el radar chart debe tener grid lines pastel ' +
+            '(no cyan), los stat-cards tienen glassmorphism, el label "⭐ Nivel Actual" debe ' +
+            'mostrar "✦ Esencia Actual". Si los colores siguen siendo cyan en Aura → bug.\n\n' +
+            'Stats/Gamificación: leaderboard (siempre alias, nunca nombre real), XP total/Aura Total, ' +
+            'nivel/Esencia, logros, métricas de uso.',
       shots: pick('05-', '11-'),
       maxTokens: 6000,
     },
@@ -190,11 +197,20 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
     },
     {
       id: 'tech-settings',
-      name: 'Settings, Stripe, Admin, FCM y PWA',
-      accent: 'Accent global',
-      desc: 'Settings: suscripción Stripe, plan badge, toggle de notificaciones push. ' +
-            'Admin: panel de agencias para el rol admin. ' +
-            'FCM: service worker de notificaciones. PWA: manifest, offline mode.',
+      name: 'Settings, Modo XP/Aura, Dashboard Inteligente, Stripe y PWA',
+      accent: 'Accent global del usuario',
+      desc: 'Settings tiene tres secciones clave que verificar:\n\n' +
+            '1. SELECTOR DE MODO VISUAL (VM selector): dos pills #vm-pill-xp y #vm-pill-aura. ' +
+            'La pill activa debe tener border y background destacados. ' +
+            'Verifica que cambiar de modo actualiza el body[data-mode] en tiempo real sin recarga.\n\n' +
+            '2. DASHBOARD INTELIGENTE: toggle #dynamic-dashboard-toggle. ' +
+            'Con toggle ON aparece info de que la app aprende el comportamiento del usuario. ' +
+            'Con toggle OFF → info oculta. Verifica que el toggle tiene estado visual correcto.\n\n' +
+            '3. GAMIFICACIÓN: filas "Esencia Actual" / "Aura Total" en Modo Aura, ' +
+            '"Nivel Actual" / "XP Total" en Modo XP. Si hay discrepancia → bug de data-term.\n\n' +
+            '4. SELECTOR DE COLOR DE ACENTO: 8 dots de colores. El elegido debe tener borde/selección visible. ' +
+            'En Modo Aura, cambiar el dot debe actualizar toda la paleta Aura (--aura-accent) en tiempo real.\n\n' +
+            'Stripe: plan badge, botón de suscripción. Admin: panel de agencias. PWA: manifest, offline.',
       shots: pick('10-', '18-', '19-', '20-'),
       maxTokens: 5000,
     },
@@ -240,27 +256,57 @@ Eres el equipo senior completo detrás de Life OS en 2026 — la app que convier
 LA APP: LIFE OS
 ═══════════════════════════════════════
 PWA gamificada = Notion + Duolingo + RPG. El usuario gestiona su vida completa y gana XP.
-Stack: SPA archivo único (main.js + index.html), Firebase Firestore/Auth, Stripe, Gemini AI, Chart.js.
+Stack: SPA archivo único (main.js + index.html), Firebase Firestore/Auth, Stripe, GPT-4o, Chart.js.
 Target: usuarios hispanohablantes 20-35 años que quieren productividad con engagement de videojuego.
 
-ARQUITECTURA IMPLEMENTADA:
+ARQUITECTURA IMPLEMENTADA (abril 2026):
 | Módulo       | Nav icon | Accent       | Tabs internas                          |
 |-------------|----------|--------------|---------------------------------------|
-| Dashboard   | ⚡        | cyan #00e5ff | —                                     |
+| Dashboard   | ⚡        | cyan #00e5ff | — (con sección dinámica de accesos)   |
 | World       | 🗺️        | teal #06b6d4 | —                                     |
 | Flow        | 🌊        | verde #00ff88| Hábitos · Metas · Ideas · Agenda      |
 | Cuerpo      | 💪        | naranja #ff6b35 | Físico · Salud                     |
 | Financiero  | 💰        | dorado #fbbf24 | —                                   |
 | Mente       | 🧠        | púrpura #a855f7 | Bitácora · Gemelo · Poder          |
 | Stats       | 📊        | índigo #6366f1 | Análisis · Nexus                   |
-| Settings    | ⚙️        | —            | —                                     |
+| Settings    | ⚙️        | —            | (VM selector XP/Aura, Dashboard toggle)|
 
 DECISIONES ARQUITECTURALES INAMOVIBLES:
 - Flow ABSORBE el Calendario (tab Agenda dentro de Flow)
 - Gemelo VIVE en Mente → tab "Gemelo". Flujo: Bitácora → Gemelo → insights.
 - Cada módulo tiene CSS data-module scope con su accent color propio.
 - El Gemelo NO muestra análisis hasta que hay suficientes datos del usuario.
-- PRECIO: $99 MXN/mes (pesos mexicanos) ≈ ~$5 USD. NO es caro. No reportar precio como problema de conversión ni "prohibitivo". Es intencional y competitivo para el mercado hispanohablante.
+- PRECIO: $99 MXN/mes ≈ ~$5 USD. NO es caro. No reportar precio como problema. Es intencional.
+
+SISTEMA DUAL DE IDENTIDAD VISUAL — MOTOR PSICOGRÁFICO (implementado abril 2026):
+La app tiene DOS modos que el usuario elige en Settings y persisten cross-device:
+
+MODO XP (body sin data-mode o body[data-mode="xp"]):
+- Estética gaming/cyberpunk: neón cyan #00e5ff, Orbitron, partículas, glow effects
+- Terminología: "XP", "Nivel", "Racha Activa", "Level Up", "+ N XP"
+- FAB muestra "+"
+- Radar Chart: paleta cyan
+
+MODO AURA (body[data-mode="aura"] — oscuro, o body[data-mode="aura"].light — claro):
+- Estética ethereal/glassmorphism: cards con backdrop-filter blur, borders translúcidos, border-radius 20-28px
+- Color: NO es fijo lavanda — se deriva del color de acento elegido por el usuario (8 presets).
+  --aura-accent, --aura-accent2, --aura-rgb se setean dinámicamente en JS via _setAuraAccentVars()
+  Ejemplo: si usuario eligió Rosa (#f472b6), el Aura será en tonos rosa suave, NO lavanda
+- Terminología: "Aura" (no XP), "Esencia Actual" (no Nivel), "Flujo Continuo" (no Racha), "Expansión" (no Level Up)
+- FAB muestra "✦"
+- Modo claro Aura: fondo perla #F7F8FC, texto oscuro #2F3A5A, glassmorphism blanco
+
+DETECCIÓN DE BUGS DE MODO AURA:
+- Si en modo Aura ves botones con fondo cyan sólido → falta override CSS en .btn-a
+- Si la barra de progreso sigue en cyan → no aplicó .xp-bar-fill gradient
+- Si los labels dicen "Nivel Actual" o "XP Total" en lugar de "Esencia Actual" / "Aura Total" → data-term no se actualizó
+- Si el color del Aura es siempre lavanda sin importar el acento del usuario → bug en _setAuraAccentVars()
+- Si al cambiar de XP a Aura el radar chart no cambia de color → initRadarChart() no se llamó post-cambio
+
+DASHBOARD INTELIGENTE (implementado abril 2026):
+Toggle en Settings activa S.dynamicDashboard. Con ON: #db-dynamic-shortcuts muestra los 3 módulos
+más visitados como accesos rápidos (lee _bnVisitCount de localStorage, se incrementa en navigate()).
+Verifica: botones tienen ícono + nombre + "N visitas". Con toggle ON y sin uso previo → sección oculta (correcto).
 
 CONVENCIÓN DE SCREENSHOTS:
 - 00-landing-* = landing page pública (antes del login) — la carta de presentación

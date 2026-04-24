@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Analyst — Life OS
- * Versión: 2.0 (Vision + Propuestas)
- * Fecha: 2026-04-15
+ * Versión: 3.0 (GPT-4o Vision — Modo XP/Aura + Dashboard Inteligente)
+ * Fecha: 2026-04-24
  *
- * Lee reportes QA + screenshots y genera diagnóstico visual con Gemini 2.5 Flash.
+ * Lee reportes QA + screenshots y genera diagnóstico visual con GPT-4o.
  * Produce análisis en el reporte + archivo PROPOSALS separado para revisión humana.
  *
  * Uso manual:
@@ -166,7 +166,7 @@ Life OS es una PWA de productividad gamificada — la intersección entre **Noti
 
 ---
 
-## ARQUITECTURA ACTUAL (estado implementado)
+## ARQUITECTURA ACTUAL (estado implementado — abril 2026)
 
 La app ya fue reorganizada. Esta es la estructura **real y actual**:
 
@@ -184,9 +184,23 @@ La app ya fue reorganizada. Esta es la estructura **real y actual**:
 
 **Decisiones arquitecturales ya tomadas (NO reversar):**
 - **Flow absorbe Calendario:** el tab "📅 Agenda" dentro de Flow ES el calendario. No hay módulo Calendario separado.
-- **Gemelo es STANDALONE dentro de Mente:** el Gemelo vive en el tab "Gemelo" de Mente & Poder. NO moverlo fuera de Mente, NO convertirlo en módulo separado. El flujo correcto es: Bitácora → Gemelo → insights.
-- **Identidad visual por módulo implementada:** CSS data-module scope en cada página. Cada módulo tiene su accent color propio, tabs activas con ese color, botones primarios coloreados.
-- **PRECIO: $99 MXN/mes** (pesos mexicanos) ≈ ~$5 USD. Es competitivo para el mercado hispanohablante. NO reportar como "prohibitivo" ni problema de conversión.
+- **Gemelo es STANDALONE dentro de Mente:** Bitácora → Gemelo → insights.
+- **Identidad visual por módulo:** CSS `data-module` scope. Cada módulo tiene su accent color propio.
+- **PRECIO: $99 MXN/mes** ≈ ~$5 USD. Competitivo para el mercado hispanohablante. NO reportar como problema.
+
+**SISTEMA DUAL DE IDENTIDAD VISUAL — MOTOR PSICOGRÁFICO (implementado abril 2026):**
+La app tiene DOS modos de identidad visual que el usuario elige en Settings y persisten en localStorage + Firestore:
+
+- **Modo XP** (por defecto): estética gaming/cyberpunk — neón cyan `#00e5ff`, Orbitron, partículas, terminología "XP / Nivel / Racha activa". body[data-mode="xp"] o sin data-mode.
+- **Modo Aura**: estética ethereal/glassmorphism — color derivado del acento del usuario (suavizado 10% blanco), Manrope/Inter, orbs suaves, terminología "Aura / Esencia / Flujo continuo". body[data-mode="aura"] (oscuro) o body[data-mode="aura"].light (modo claro perla #F7F8FC).
+
+El color del Modo Aura NO es fijo — se deriva del color de acento elegido por el usuario (8 presets: Cyan/Verde/Violeta/Naranja/Rosa/Oro/Coral/Azul). `--aura-accent`, `--aura-accent2` y `--aura-rgb` se setean dinámicamente via JS.
+
+Cuando veas screenshots en modo Aura: glassmorphism en cards, borders redondeados (radius 20-28px), sin gradientes duros, colores pastel.
+Cuando veas el toggle VM en Settings: dos pills `#vm-pill-xp` y `#vm-pill-aura` — la activa tiene border/background del acento.
+
+**DASHBOARD INTELIGENTE (implementado abril 2026):**
+Toggle en Settings → activa `S.dynamicDashboard`. Con toggle ON, el dashboard muestra una sección `#db-dynamic-shortcuts` con los 3 módulos más visitados como accesos rápidos (lee `localStorage._bnVisitCount`). El conteo se incrementa en cada navegación. Con toggle OFF → sección oculta.
 
 ### Identidad visual única por módulo — VERIFICAR EN SCREENSHOTS
 Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
@@ -205,9 +219,19 @@ Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
 - NaN, undefined, 0 donde deberían haber valores reales
 - Elementos rotos en mobile (360px Android / 390px iOS)
 - Inconsistencias visual desktop vs mobile, o diferencias entre Android e iOS
-- **Layout bug detectado:** algunos módulos muestran el fold inicial vacío (fondo negro) aunque el contenido existe abajo. Busca este patrón en los _fold screenshots y genera fix de CSS/posicionamiento.
-- **Tab Agenda en Flow:** debe mostrar el calendario completo con grid de días. Si aparece vacío, es bug de inicialización (debe llamar renderCalendar() al activar el tab).
-- Módulos que visualmente se ven idénticos entre sí — sin identidad propia (deberían tener accent colors distintos por CSS data-module scope)
+- **Layout bug detectado:** algunos módulos muestran el fold inicial vacío (fondo negro) aunque el contenido existe abajo.
+- **Tab Agenda en Flow:** debe mostrar el calendario completo con grid de días. Si aparece vacío es bug de inicialización.
+- Módulos que visualmente se ven idénticos entre sí — sin identidad propia
+
+**MODO AURA — qué verificar:**
+- En body[data-mode="aura"]: cards con glassmorphism (backdrop-filter blur), NO fondos sólidos
+- Botones primarios (.btn-a) con gradiente lavanda/pastel, NO cyan
+- Barra de XP/Aura con gradiente var(--aura-accent) → var(--aura-accent2)
+- Labels DOM: "Esencia Actual" (no "Nivel"), "Aura Total" (no "XP"), "🌊 Flujo Continuo" (no "🔥 Racha")
+- FAB muestra ✦ en Aura, + en XP
+- Si ves "Nivel", "XP Total", "Racha Activa" en Modo Aura → bug de data-term no aplicado
+- Radar Chart en Aura: grid lines lavanda, no cyan
+- Si el acento del usuario es Rosa (#f472b6) y el Aura chart/botones siguen en lavanda → bug de _setAuraAccentVars()
 
 ---
 
@@ -314,23 +338,30 @@ La landing NO es una página corporativa genérica. Es la pantalla de título de
 3. Si el diseño actual de la app tiene elementos suficientemente premium para la landing, o qué habría que pulir primero
 4. El orden de implementación: qué construir primero para lanzar rápido con impacto máximo
 
-### 🧠 DASHBOARD DINÁMICO (ALTA PRIORIDAD)
-La app debe aprender del comportamiento del usuario y reorganizar el dashboard según sus hábitos reales.
+### ✅ DASHBOARD DINÁMICO — IMPLEMENTADO (no proponer de nuevo)
+Toggle "Dashboard Inteligente" en Settings ya funciona. `#db-dynamic-shortcuts` muestra top 3 módulos más visitados. `_bnVisitCount` en localStorage. Cuando lo veas en screenshots: verifica que los 3 botones de acceso rápido tienen ícono, nombre y conteo de visitas. Si el toggle está ON y no aparece la sección → bug de `renderDynamicShortcuts()`.
 
-**Visión completa:**
-- Opt-in explícito: el usuario activa "Dashboard Inteligente" en Settings
-- Sin opt-in → dashboard estático como ahora
-- Con opt-in → la app analiza frecuencia de uso por módulo, hora del día y día de la semana
-- Los widgets del dashboard se reordenan automáticamente por relevancia real del usuario
-- El Gemelo actúa como cerebro: a las 7am muestra check-in + tareas, a las 8pm muestra resumen + hábitos pendientes, los lunes muestra metas semanales
-- Infraestructura ya existe: registrarEvento() en Firebase + Gemelo analizando patrones
-- Lo que falta: lógica de reordenamiento, preferencia opt-in en S (estado global), contexto horario/día en el Gemelo
+### 🎨 MODO AURA — PULIDO Y PARIDAD VISUAL (ALTA PRIORIDAD)
+El Modo Aura está implementado pero puede tener elementos con inline styles no cubiertos por los overrides CSS.
 
-**Cuando veas el Dashboard en screenshots, propón:**
-1. Dónde colocar el toggle de opt-in en Settings
-2. Qué estructura de datos usar en Firestore para guardar frecuencia por módulo
-3. El algoritmo de scoring para reordenar widgets (frecuencia × recencia × hora del día)
-4. Cómo el Gemelo comunica al dashboard qué mostrar según contexto temporal
+**Qué buscar en screenshots con body[data-mode="aura"]:**
+- ¿Hay elementos que siguen con colores cyan en lugar del color del usuario?
+- ¿Los inline styles de elementos del dashboard-header siguen siendo cyan?
+- ¿Los charts (radar, pie, volumen) tienen su paleta Aura o siguen con colores XP?
+- ¿La landing page se ve bien en Aura o ignora el modo?
+- ¿Los estados vacíos (empty states) respetan el glassmorphism Aura?
+
+**Propón overrides CSS específicos** con el selector exacto y la propiedad corregida.
+
+### 🔔 PUSH NOTIFICATIONS DEEP LINKING (MEDIA PRIORIDAD)
+`activarNotificaciones()` en main.js ya suscribe el dispositivo a FCM pero no envía recordatorios útiles.
+
+**Implementar estos 3 triggers con deep link:**
+1. **8:00pm — hábitos pendientes**: si el usuario tiene hábitos sin completar hoy → push "Tienes X hábitos pendientes hoy 🔥" → deep link `?module=productividad&tab=habits`
+2. **9:00pm — racha en riesgo**: si la racha es ≥3 días y no hizo check-in → push "Tu racha de X días está en riesgo ⚠️" → deep link `?module=dashboard`
+3. **7:00am — briefing diario**: push "Buenos días [nombre]. Tu briefing está listo." → deep link `?module=dashboard`
+
+**Implementación:** Cloud Function con trigger cron (Firebase Scheduled Functions), consulta usuarios activos, envía via FCM Admin SDK. Service worker `notificationclick` ya existe en `firebase-messaging-sw.js` — agregar `clients.openWindow(url)` con el deep link.
 
 ---
 
