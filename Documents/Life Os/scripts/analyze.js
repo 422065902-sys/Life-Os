@@ -187,6 +187,8 @@ Analiza desde TODOS estos roles simultáneamente. No los menciones como teatro; 
 
 ⚫ RETENTION ANALYST — ¿qué haría que un usuario abandone en los primeros 30 segundos? Fricción inicial, pantallas que no explican valor, copy frío, ausencia de CTA, primera impresión, motivación para volver mañana.
 
+🌌 LIVING DATA & MOTION UX STRATEGIST — detecta partes de la app que se sienten estáticas, frías o planas y propone cómo convertirlas en momentos visuales vivos. Busca: (1) datos importantes sin feedback visual (números, progreso, barras), (2) acciones sin recompensa visual (completar hábito, ganar XP, registrar ingreso, subir racha), (3) pantallas muertas o estados vacíos sin personalidad, (4) transiciones bruscas entre módulos/tabs/modales, (5) charts que no comunican el concepto del módulo. Para cada oportunidad propone: qué tecnología usar (CSS/SVG/Canvas/Chart.js), costo de performance (BAJO/MEDIO/ALTO), cómo reducir con prefers-reduced-motion, y cómo diferencia Modo XP (energía, sparks, glow neon, HUD) de Modo Aura (orbes pastel, respiración, ingravidez, glassmorphism). NO propone animaciones decorativas sin propósito — solo si mejoran comprensión del dato, recompensan acción, refuerzan identidad o retención. Usa tipos: LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, CANVAS, SVG-MOTION, CSS-MOTION.
+
 🎨 MOTION/CANVAS ENGINEER — especialista en Canvas 2D, animación generativa y microinteracciones. En Modo Aura: ¿el radar chart sigue visible (debe estar oculto/reemplazado por canvas de partículas)? ¿Las cards tienen backdrop-filter blur real o fondo sólido? ¿Las animaciones son orgánicas o mecánicas? ¿El FAB tiene glow suave con ✦? ¿Los fondos son cálidos perla/crema (#FDFBF7, #F7F8FC) o blanco/negro puro? ¿Las transiciones de módulo son fluidas con stagger? Detecta cualquier rastro de estética cyberpunk en Aura como bug de identidad visual.
 
 ========================
@@ -380,6 +382,8 @@ CATEGORÍA A — MICRO-MEJORAS
 
 - [TIPO] MÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
 
+Para propuestas de tipo LIVING-DATA / MICROINTERACTION / MOTION / CANVAS / SVG-MOTION / CSS-MOTION / AMBIENT-MOTION / GAMIFICATION-FEEDBACK / EMPTY-STATE-MOTION añadir además: | MOMENTO DE USO: cuándo se activa | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: cómo se reduce
+
 CATEGORÍA B — ARQUITECTURA
 
 - [TIPO] MÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad | SOLUCIÓN: decisión concreta para el owner | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
@@ -404,6 +408,9 @@ Máximo 70 palabras. Android vs iOS y riesgo principal.
 🎨 VEREDICTO DE IDENTIDAD VISUAL
 Máximo 70 palabras. Qué módulos se sienten únicos y cuáles parecen clones.
 
+🌌 VEREDICTO DE MOTION & LIVING DATA
+Máximo 80 palabras. ¿La app se siente viva o estática? Menciona el módulo con mayor oportunidad de visualización generativa o microinteracción. Di si conviene Canvas/CSS/SVG/Chart.js para el caso más importante. Si hay partes sin recompensa visual a acciones clave, nómbralas.
+
 🎯 OPORTUNIDAD MAYOR
 Un solo cambio con mayor impacto en retención/conversión. Específico.
 
@@ -414,7 +421,7 @@ Una frase honesta, directa y útil.
 TIPOS VÁLIDOS
 ========================
 
-BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, CANVAS, MOTION`;
+BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, CANVAS, MOTION, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, SVG-MOTION, CSS-MOTION`;
 
 
   // OpenAI content array format: text + image_url items
