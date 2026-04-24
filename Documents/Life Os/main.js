@@ -189,6 +189,44 @@ const IDENTITY = {
 function iid() { return S.visualMode === 'aura' ? IDENTITY.aura : IDENTITY.xp; }
 
 /**
+ * Derives Aura accent palette from the user's chosen accent color.
+ * Applies a mild pastelization (10% white mix) so neons feel airy in Aura.
+ * Sets --aura-accent, --aura-accent2, --aura-rgb on :root.
+ * Called on mode switch and on accent color change.
+ */
+/** Returns a resolved rgba() string using the current --aura-rgb values. For SVG attrs that can't use CSS vars. */
+function _auraRgba(alpha) {
+  const rgb = getComputedStyle(document.documentElement).getPropertyValue('--aura-rgb').trim() || '155,140,255';
+  return `rgba(${rgb},${alpha})`;
+}
+
+function _setAuraAccentVars() {
+  const hex = (S.accent || '#9B8CFF').replace('#', '');
+  const r = parseInt(hex.slice(0,2), 16);
+  const g = parseInt(hex.slice(2,4), 16);
+  const b = parseInt(hex.slice(4,6), 16);
+  // Primary: mild pastel — 90% user color + 10% white
+  const pr = Math.min(255, Math.round(r * 0.9 + 255 * 0.1));
+  const pg = Math.min(255, Math.round(g * 0.9 + 255 * 0.1));
+  const pb = Math.min(255, Math.round(b * 0.9 + 255 * 0.1));
+  // Secondary: shift toward cool/airy — blend with sky blue for gradients
+  const sr = Math.min(255, Math.round(pr * 0.6 + 114 * 0.4));
+  const sg = Math.min(255, Math.round(pg * 0.6 + 184 * 0.4));
+  const sb = Math.min(255, Math.round(pb * 0.6 + 255 * 0.4));
+  const h = n => n.toString(16).padStart(2,'0');
+  const root = document.documentElement;
+  root.style.setProperty('--aura-accent', `#${h(pr)}${h(pg)}${h(pb)}`);
+  root.style.setProperty('--aura-accent2', `#${h(sr)}${h(sg)}${h(sb)}`);
+  root.style.setProperty('--aura-rgb', `${pr},${pg},${pb}`);
+  // Also update IDENTITY.aura particle colors to match
+  IDENTITY.aura.particleColors = [
+    `#${h(pr)}${h(pg)}${h(pb)}`,
+    `#${h(sr)}${h(sg)}${h(sb)}`,
+    '#7FE0C9','#B9E7FF','#C9D2EA','#E8DFFF'
+  ];
+}
+
+/**
  * Adapts a reward message for the current visual mode.
  * Replaces XP language with Aura language when mode is 'aura'.
  * Called inside showToast() — no call site changes needed.
@@ -692,6 +730,8 @@ const TERM_DICT = {
 
 function _applyVisualMode(mode) {
   document.body.dataset.mode = mode || 'xp';
+  // Sync Aura accent vars with user's chosen color
+  if (mode === 'aura') _setAuraAccentVars();
   // data-term DOM terminology update
   const dict = TERM_DICT[mode] || TERM_DICT.xp;
   document.querySelectorAll('[data-term]').forEach(el => {
@@ -704,12 +744,15 @@ function _applyVisualMode(mode) {
   if (auraPill) auraPill.classList.toggle('vm-active', mode === 'aura');
   // SVG presentation attribute overrides (CSS can't always override these cross-browser)
   document.querySelectorAll('svg circle[stroke="rgba(0,229,255,.1)"]').forEach(c =>
-    c.setAttribute('stroke', mode==='aura' ? 'rgba(155,140,255,.15)' : 'rgba(0,229,255,.1)'));
+    c.setAttribute('stroke', mode==='aura' ? _auraRgba(.15) : 'rgba(0,229,255,.1)'));
   document.querySelectorAll('svg circle[stroke="rgba(0,229,255,.07)"]').forEach(c =>
-    c.setAttribute('stroke', mode==='aura' ? 'rgba(155,140,255,.10)' : 'rgba(0,229,255,.07)'));
+    c.setAttribute('stroke', mode==='aura' ? _auraRgba(.10) : 'rgba(0,229,255,.07)'));
   // Nucleo SVG gradient
   const nuclStop = document.querySelector('#nuclGrad stop');
-  if (nuclStop) nuclStop.setAttribute('stop-color', mode==='aura' ? '#9B8CFF' : '#00e5ff');
+  if (nuclStop) {
+    const av = getComputedStyle(document.documentElement).getPropertyValue('--aura-accent').trim() || '#9B8CFF';
+    nuclStop.setAttribute('stop-color', mode==='aura' ? av : '#00e5ff');
+  }
   // Refresh all identity labels (badges, bars, static text)
   updateXP();
   // FAB button icon/label
@@ -820,6 +863,8 @@ function applyAccent(c) {
   buildAccentPresets();
   document.getElementById('custom-hex') && (document.getElementById('custom-hex').value = c);
   document.getElementById('custom-color') && (document.getElementById('custom-color').value = c);
+  // In Aura mode: re-derive Aura palette from new accent
+  if (S.visualMode === 'aura') _setAuraAccentVars();
   setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); syncHeatmapColors(); }, 100);
   guardarDatos();
   // Persistir color ORIGINAL (no el ajustado) en Firebase profile
@@ -1008,9 +1053,9 @@ function getRadarData(mode) {
 function getRadarAccentColor(data) {
   const avg = data.reduce((a,b)=>a+b,0) / data.length;
   if (S.visualMode === 'aura') {
-    if (avg >= 70) return { border:'#9B8CFF', bg:'rgba(155,140,255,.22)' };
-    if (avg >= 40) return { border:'rgba(155,140,255,.82)', bg:'rgba(155,140,255,.12)' };
-    return { border:'rgba(114,184,255,.8)', bg:'rgba(114,184,255,.10)' };
+    if (avg >= 70) return { border:_auraRgba(1), bg:_auraRgba(.22) };
+    if (avg >= 40) return { border:_auraRgba(.82), bg:_auraRgba(.12) };
+    return { border:_auraRgba(.8), bg:_auraRgba(.10) };
   }
   const accent = S.accent || '#00e5ff';
   if (avg >= 70) return { border: accent, bg: accent + '44' };
@@ -1042,8 +1087,8 @@ function initRadarChart() {
     options: {
       animation: { duration: 700, easing: 'easeInOutQuart' },
       scales:{ r:{
-        grid:{color: S.visualMode==='aura' ? 'rgba(155,140,255,.12)' : 'rgba(0,229,255,.12)'},
-        angleLines:{color: S.visualMode==='aura' ? 'rgba(155,140,255,.10)' : 'rgba(0,229,255,.1)'},
+        grid:{color: S.visualMode==='aura' ? _auraRgba(.12) : 'rgba(0,229,255,.12)'},
+        angleLines:{color: S.visualMode==='aura' ? _auraRgba(.10) : 'rgba(0,229,255,.1)'},
         ticks:{display:false},
         pointLabels:{
           color: S.dark ? 'rgba(255,255,255,.6)' : (S.visualMode==='aura' ? '#7E89A8' : 'rgba(0,0,0,.5)'),
@@ -6026,9 +6071,11 @@ function renderDynamicShortcuts() {
   const labelMap = { productividad:'Flow', financial:'Finanzas', cuerpo:'Cuerpo',
     mente:'Mente', world:'World', stats:'Análisis', aprende:'Aprende', settings:'Ajustes' };
 
-  const accentBorder = isAura ? 'rgba(155,140,255,.25)' : 'rgba(0,229,255,.2)';
-  const accentBg     = isAura ? 'rgba(155,140,255,.07)' : 'rgba(0,229,255,.06)';
-  const accentColor  = isAura ? '#9B8CFF' : 'var(--accent)';
+  const accentBorder = isAura ? _auraRgba(.25) : 'rgba(0,229,255,.2)';
+  const accentBg     = isAura ? _auraRgba(.07) : 'rgba(0,229,255,.06)';
+  const accentColor  = isAura
+    ? (getComputedStyle(document.documentElement).getPropertyValue('--aura-accent').trim() || '#9B8CFF')
+    : 'var(--accent)';
 
   el.style.display = 'block';
   el.innerHTML = `
