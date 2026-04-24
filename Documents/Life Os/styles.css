@@ -4268,3 +4268,540 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 .light .lp-btn-primary{color:#fff}
 /* Light mode — offline page */
 .light .offline-card{background:rgba(255,255,255,.98);border-color:rgba(0,80,180,.15)}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██████  MODO XP — VISUAL STYLE SELECTOR ████████████████████
+   XP = estilo actual (dark por defecto, light ya definido arriba).
+   El atributo data-mode="xp" no cambia nada; es solo la etiqueta
+   que el switcher usa para saber cuál modo está activo.
+═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   ██████  MODO AURA — SISTEMA OPERATIVO PERSONAL DE LUZ ███████
+   data-mode="aura" en <body>.
+   Dos variantes: oscura (por defecto) y clara (.light).
+═══════════════════════════════════════════════════════════════ */
+
+/* ── AURA: fuente preferida ── */
+body[data-mode="aura"]{
+  font-family:'Manrope','Inter','Syne',sans-serif;
+}
+
+/* ─────────────────────────────────────────────
+   AURA DARK — variables base
+───────────────────────────────────────────── */
+body[data-mode="aura"]{
+  --accent:#9B8CFF;
+  --accent-dim:rgba(155,140,255,.15);
+  --accent-glow:0 0 24px rgba(155,140,255,.45);
+  --accent-rgb:155,140,255;
+  --accent-dark:#7B6AE0;
+  --bg:#0C0D1A;
+  --bg2:rgba(18,20,42,.88);
+  --bg3:rgba(155,140,255,.04);
+  --border:rgba(155,140,255,.18);
+  --text:#E8EAFF;
+  --text2:rgba(232,234,255,.65);
+  --text3:rgba(200,206,255,.35);
+  --green:#7FE0C9;
+  --red:#f87171;
+  --gold:#e2b854;
+  --purple:#c4b5fd;
+  --radius:20px;
+}
+
+/* AURA DARK — body background */
+body[data-mode="aura"]:not(.light){
+  background:radial-gradient(ellipse at 20% 10%, rgba(114,88,255,.12) 0%, transparent 55%),
+             radial-gradient(ellipse at 80% 90%, rgba(72,184,255,.08) 0%, transparent 55%),
+             #0C0D1A;
+}
+
+/* AURA DARK — sidebar */
+body[data-mode="aura"] #sidebar{
+  background:rgba(12,13,30,.96);
+  border-right:1px solid rgba(155,140,255,.14);
+  box-shadow:2px 0 30px rgba(0,0,0,.4);
+}
+body[data-mode="aura"] .nav-item:hover{background:rgba(155,140,255,.09)}
+body[data-mode="aura"] .nav-item.active{
+  background:rgba(155,140,255,.14);
+  border-left-color:var(--accent);
+  color:var(--accent);
+  box-shadow:0 0 20px rgba(155,140,255,.12) inset;
+}
+body[data-mode="aura"] .xp-card{
+  background:rgba(155,140,255,.07);
+  border-color:rgba(155,140,255,.14);
+}
+body[data-mode="aura"] .xp-bar-fill{
+  background:linear-gradient(90deg,#9B8CFF,#72B8FF);
+}
+
+/* AURA DARK — topbar */
+body[data-mode="aura"] #topbar{
+  background:rgba(12,13,30,.92);
+  border-bottom:1px solid rgba(155,140,255,.14);
+  backdrop-filter:blur(18px) saturate(140%);
+}
+body[data-mode="aura"] .tb-icon-btn{
+  border-color:rgba(155,140,255,.25);
+  color:var(--accent);
+}
+body[data-mode="aura"] .tb-icon-btn:hover{border-color:var(--accent)}
+
+/* AURA DARK — cards */
+body[data-mode="aura"] .card{
+  background:rgba(20,22,48,.82);
+  border:1px solid rgba(155,140,255,.18);
+  border-radius:20px;
+  backdrop-filter:blur(18px) saturate(130%);
+  -webkit-backdrop-filter:blur(18px) saturate(130%);
+  box-shadow:0 8px 30px rgba(0,0,0,.25),0 0 0 1px rgba(255,255,255,.04) inset;
+}
+body[data-mode="aura"] .card:hover{
+  border-color:rgba(155,140,255,.32);
+  box-shadow:0 12px 40px rgba(0,0,0,.3),0 0 30px rgba(155,140,255,.08);
+}
+
+/* AURA DARK — buttons */
+body[data-mode="aura"] .btn-a{
+  background:linear-gradient(135deg,#9B8CFF,#72B8FF);
+  color:#fff;
+  box-shadow:0 4px 18px rgba(155,140,255,.3);
+}
+body[data-mode="aura"] .btn-a:hover{
+  filter:brightness(1.12);
+  box-shadow:0 6px 24px rgba(155,140,255,.45);
+}
+body[data-mode="aura"] .btn-g{
+  background:transparent;
+  border:1px solid rgba(155,140,255,.3)!important;
+  color:var(--accent);
+}
+body[data-mode="aura"] .btn-g:hover{background:rgba(155,140,255,.1)}
+
+/* AURA DARK — tabs */
+body[data-mode="aura"] .tab-btn.on{
+  background:linear-gradient(135deg,#9B8CFF,#72B8FF);
+  color:#fff;
+}
+body[data-mode="aura"] .tab-btn.off{background:rgba(155,140,255,.06);color:var(--text3)}
+body[data-mode="aura"] .tab-btn.off:hover{background:rgba(155,140,255,.12);color:var(--text)}
+
+/* AURA DARK — inputs */
+body[data-mode="aura"] .inp{
+  background:rgba(155,140,255,.06);
+  border:1px solid rgba(155,140,255,.2);
+  color:var(--text);
+}
+body[data-mode="aura"] .inp:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(155,140,255,.15);
+}
+
+/* AURA DARK — progress bars */
+body[data-mode="aura"] .prog-wrap{background:rgba(155,140,255,.12)}
+body[data-mode="aura"] .prog-fill{background:linear-gradient(90deg,#9B8CFF,#72B8FF)}
+
+/* AURA DARK — badges */
+body[data-mode="aura"] .badge-xp{
+  background:rgba(155,140,255,.15);
+  color:var(--accent);
+  border-color:rgba(155,140,255,.3);
+}
+
+/* AURA DARK — scrollbar */
+body[data-mode="aura"] ::-webkit-scrollbar-thumb{background:rgba(155,140,255,.35);border-radius:9px}
+
+/* AURA DARK — modals */
+body[data-mode="aura"] .modal-box{
+  background:rgba(18,20,48,.96);
+  border-color:rgba(155,140,255,.2);
+  border-radius:24px;
+  backdrop-filter:blur(22px) saturate(140%);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);
+  box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 0 1px rgba(155,140,255,.1) inset;
+}
+
+/* AURA DARK — heatmap cells */
+body[data-mode="aura"] .hm0{background:rgba(155,140,255,.07)}
+body[data-mode="aura"] .hm1{background:rgba(155,140,255,.28)}
+body[data-mode="aura"] .hm2{background:rgba(155,140,255,.52)}
+body[data-mode="aura"] .hm3{background:rgba(155,140,255,.76)}
+body[data-mode="aura"] .hm4{background:#9B8CFF}
+
+/* AURA DARK — chat */
+body[data-mode="aura"] .bubble-bot{background:rgba(155,140,255,.1);color:var(--text)}
+
+/* AURA DARK — nav calendar */
+body[data-mode="aura"] .cal-day.today{background:rgba(155,140,255,.14)}
+body[data-mode="aura"] .cal-day.selected{background:rgba(155,140,255,.22);border-color:var(--accent)}
+body[data-mode="aura"] .cal-day:hover{background:rgba(155,140,255,.09)}
+
+/* AURA DARK — card-title accent label */
+body[data-mode="aura"] .card-title{color:var(--accent)}
+body[data-mode="aura"] .page-title{color:var(--accent)}
+
+/* AURA DARK — switch */
+body[data-mode="aura"] input:checked+.slider{background:linear-gradient(90deg,#9B8CFF,#72B8FF)}
+
+/* AURA DARK — world panel */
+body[data-mode="aura"] #world-panel{background:rgba(18,20,48,.96);border-color:rgba(155,140,255,.15)}
+
+/* ─────────────────────────────────────────────
+   AURA LIGHT — variables
+───────────────────────────────────────────── */
+body[data-mode="aura"].light{
+  --accent:#9B8CFF;
+  --accent-dim:rgba(155,140,255,.14);
+  --accent-glow:0 0 24px rgba(155,140,255,.35);
+  --accent-rgb:155,140,255;
+  --accent-dark:#7B6AE0;
+  --bg:#F7F8FC;
+  --bg2:rgba(255,255,255,.82);
+  --bg3:rgba(248,250,255,.65);
+  --border:rgba(190,200,230,.45);
+  --text:#2F3A5A;
+  --text2:#445070;
+  --text3:#7E89A8;
+  --green:#57C8A5;
+  --red:#dc2626;
+  --gold:#b45309;
+  --purple:#9B8CFF;
+  --radius:20px;
+}
+
+/* AURA LIGHT — body background perlado */
+body[data-mode="aura"].light{
+  background:linear-gradient(145deg,#F7F8FC 0%,#F4F6FB 40%,#F0F3FF 70%,#F4FBF8 100%);
+}
+
+/* AURA LIGHT — sidebar */
+body[data-mode="aura"].light #sidebar{
+  background:rgba(255,255,255,.94);
+  border-right:1px solid rgba(190,200,230,.4);
+  box-shadow:2px 0 24px rgba(138,155,200,.1);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+}
+body[data-mode="aura"].light .logo{color:#7B6AE0}
+body[data-mode="aura"].light .logo-sub{color:var(--text3)}
+body[data-mode="aura"].light .xp-card{
+  background:rgba(155,140,255,.07);
+  border-color:rgba(155,140,255,.18);
+}
+body[data-mode="aura"].light .nav-item{color:var(--text2)}
+body[data-mode="aura"].light .nav-item:hover{
+  background:rgba(155,140,255,.08);
+  color:var(--text);
+}
+body[data-mode="aura"].light .nav-item.active{
+  background:linear-gradient(90deg,rgba(155,140,255,.12),rgba(114,184,255,.08));
+  border-left-color:#9B8CFF;
+  color:#7B6AE0;
+  box-shadow:inset 0 0 0 1px rgba(155,140,255,.15),0 0 18px rgba(155,140,255,.1);
+}
+
+/* AURA LIGHT — topbar */
+body[data-mode="aura"].light #topbar{
+  background:rgba(247,248,252,.94);
+  border-bottom:1px solid rgba(190,200,230,.4);
+  box-shadow:0 2px 18px rgba(138,155,200,.1);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+}
+body[data-mode="aura"].light .tb-logo-text{color:#2F3A5A}
+body[data-mode="aura"].light .tb-icon-btn{
+  border-color:rgba(155,140,255,.3);
+  color:#7B6AE0;
+}
+body[data-mode="aura"].light .tb-icon-btn:hover{
+  border-color:#9B8CFF;
+  background:rgba(155,140,255,.08);
+}
+
+/* AURA LIGHT — cards (glassmorphism suave) */
+body[data-mode="aura"].light .card{
+  background:linear-gradient(135deg,rgba(255,255,255,.88) 0%,rgba(245,248,255,.92) 50%,rgba(239,255,250,.86) 100%);
+  border:1px solid rgba(190,200,230,.45);
+  border-radius:20px;
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:0 8px 30px rgba(138,155,200,.1),0 2px 10px rgba(180,190,220,.08),0 0 0 1px rgba(255,255,255,.55) inset;
+}
+body[data-mode="aura"].light .card:hover{
+  box-shadow:0 12px 40px rgba(138,155,200,.16),0 4px 16px rgba(155,140,255,.1),0 0 0 1px rgba(155,140,255,.18) inset;
+  border-color:rgba(155,140,255,.35);
+  transform:translateY(-1px);
+}
+
+/* AURA LIGHT — card titles */
+body[data-mode="aura"].light .card-title{color:#7B6AE0}
+body[data-mode="aura"].light .page-title{color:#7B6AE0}
+body[data-mode="aura"].light .page-sub{color:var(--text2)}
+
+/* AURA LIGHT — buttons */
+body[data-mode="aura"].light .btn-a{
+  background:linear-gradient(135deg,#9B8CFF,#72B8FF);
+  color:#fff;
+  box-shadow:0 4px 18px rgba(155,140,255,.28);
+}
+body[data-mode="aura"].light .btn-a:hover{
+  filter:brightness(1.08);
+  box-shadow:0 6px 26px rgba(155,140,255,.42);
+}
+body[data-mode="aura"].light .btn-g{
+  background:transparent;
+  border:1px solid rgba(155,140,255,.35)!important;
+  color:#7B6AE0;
+}
+body[data-mode="aura"].light .btn-g:hover{background:rgba(155,140,255,.08)}
+body[data-mode="aura"].light .btn-d{
+  background:rgba(220,38,38,.06);
+  border-color:rgba(220,38,38,.22)!important;
+  color:#dc2626;
+}
+
+/* AURA LIGHT — tabs */
+body[data-mode="aura"].light .tab-btn.on{
+  background:linear-gradient(135deg,#9B8CFF,#72B8FF);
+  color:#fff;
+  box-shadow:0 3px 14px rgba(155,140,255,.28);
+}
+body[data-mode="aura"].light .tab-btn.off{
+  background:rgba(155,140,255,.06);
+  color:var(--text3);
+}
+body[data-mode="aura"].light .tab-btn.off:hover{
+  background:rgba(155,140,255,.12);
+  color:var(--text2);
+}
+
+/* AURA LIGHT — inputs */
+body[data-mode="aura"].light .inp{
+  background:rgba(255,255,255,.9);
+  border:1px solid rgba(190,200,230,.55);
+  color:var(--text);
+  box-shadow:inset 0 1px 3px rgba(138,155,200,.06);
+}
+body[data-mode="aura"].light .inp:focus{
+  border-color:#9B8CFF;
+  box-shadow:0 0 0 3px rgba(155,140,255,.14);
+}
+body[data-mode="aura"].light .inp::placeholder{color:var(--text3)}
+body[data-mode="aura"].light select.inp option{background:#fff;color:var(--text)}
+
+/* AURA LIGHT — switches */
+body[data-mode="aura"].light .slider{background:rgba(155,140,255,.2)}
+body[data-mode="aura"].light input:checked+.slider{background:linear-gradient(90deg,#9B8CFF,#72B8FF)}
+
+/* AURA LIGHT — progress bars */
+body[data-mode="aura"].light .prog-wrap{background:rgba(155,140,255,.12)}
+body[data-mode="aura"].light .prog-fill{background:linear-gradient(90deg,#9B8CFF,#72B8FF)}
+
+/* AURA LIGHT — badges */
+body[data-mode="aura"].light .badge-xp{
+  background:rgba(155,140,255,.1);
+  color:#7B6AE0;
+  border-color:rgba(155,140,255,.25);
+}
+body[data-mode="aura"].light .badge-lvl,
+body[data-mode="aura"].light .badge-coin{
+  background:linear-gradient(135deg,#b45309,#d97706);
+  color:#fff;
+}
+
+/* AURA LIGHT — stat cards */
+body[data-mode="aura"].light .stat-val{color:var(--text)}
+body[data-mode="aura"].light .stat-label{color:var(--text2)}
+body[data-mode="aura"].light .stat-sub{color:var(--text3)}
+
+/* AURA LIGHT — scrollbar */
+body[data-mode="aura"].light ::-webkit-scrollbar-thumb{background:rgba(155,140,255,.35);border-radius:9px}
+
+/* AURA LIGHT — modals */
+body[data-mode="aura"].light .modal-box{
+  background:linear-gradient(135deg,rgba(255,255,255,.99),rgba(248,250,255,.99));
+  border:1px solid rgba(190,200,230,.5);
+  border-radius:24px;
+  box-shadow:0 24px 80px rgba(138,155,200,.18),0 0 0 1px rgba(255,255,255,.7) inset;
+}
+
+/* AURA LIGHT — heatmap */
+body[data-mode="aura"].light .hm0{background:rgba(155,140,255,.07)}
+body[data-mode="aura"].light .hm1{background:rgba(155,140,255,.25)}
+body[data-mode="aura"].light .hm2{background:rgba(155,140,255,.5)}
+body[data-mode="aura"].light .hm3{background:rgba(155,140,255,.75)}
+body[data-mode="aura"].light .hm4{background:#9B8CFF}
+
+/* AURA LIGHT — habit items */
+body[data-mode="aura"].light .habit-item{
+  background:rgba(255,255,255,.8);
+  border-color:rgba(190,200,230,.4);
+}
+body[data-mode="aura"].light .habit-item.done-h{background:rgba(155,140,255,.07)}
+
+/* AURA LIGHT — task checkboxes */
+body[data-mode="aura"].light .task-cb{border-color:rgba(155,140,255,.3)}
+body[data-mode="aura"].light .task-item{border-color:rgba(190,200,230,.25)}
+
+/* AURA LIGHT — chat */
+body[data-mode="aura"].light .chat-area{background:rgba(248,250,255,.6);border-color:rgba(190,200,230,.3)}
+body[data-mode="aura"].light .bubble-bot{background:rgba(155,140,255,.08);color:var(--text)}
+
+/* AURA LIGHT — calendar */
+body[data-mode="aura"].light .cal-day:hover{background:rgba(155,140,255,.09)}
+body[data-mode="aura"].light .cal-day.today{background:rgba(155,140,255,.13)}
+body[data-mode="aura"].light .cal-day.selected{background:rgba(155,140,255,.2);border-color:#9B8CFF}
+body[data-mode="aura"].light .cal-day-num{color:var(--text2)}
+
+/* AURA LIGHT — plan cards */
+body[data-mode="aura"].light .plan-card{background:rgba(255,255,255,.95)}
+body[data-mode="aura"].light .plan-member{background:rgba(155,140,255,.05);border-color:rgba(190,200,230,.3)}
+
+/* AURA LIGHT — Nucleo */
+body[data-mode="aura"].light .nucleo-card{background:rgba(255,255,255,.98);border-color:rgba(190,200,230,.35)}
+body[data-mode="aura"].light .nucleo-big-pct{color:var(--text)}
+body[data-mode="aura"].light .nucleo-state-label{color:var(--text2)}
+body[data-mode="aura"].light .nucleo-metric-val{color:var(--text)}
+body[data-mode="aura"].light .nucleo-metric-label{color:var(--text3)}
+
+/* AURA LIGHT — world panel */
+body[data-mode="aura"].light #world-panel{background:rgba(255,255,255,.97);border-color:rgba(190,200,230,.4);box-shadow:0 4px 24px rgba(138,155,200,.1)}
+
+/* AURA LIGHT — bitácora */
+body[data-mode="aura"].light #bitacora-list > div{background:rgba(248,250,255,.8);border-color:rgba(190,200,230,.25)}
+
+/* AURA LIGHT — landing */
+body[data-mode="aura"].light #landing-page{background:var(--bg)}
+body[data-mode="aura"].light .lp-nav{background:rgba(247,248,252,.92);border-color:rgba(190,200,230,.35)}
+
+/* AURA LIGHT — mobile topbar */
+@media(max-width:767px){body[data-mode="aura"].light #topbar{background:rgba(247,248,252,.96)}}
+
+/* AURA LIGHT — offline card */
+body[data-mode="aura"].light .offline-card{background:rgba(255,255,255,.98);border-color:rgba(190,200,230,.4)}
+
+/* ── Visual mode selector pill (settings) ── */
+.vm-selector{display:flex;gap:10px;margin-bottom:20px}
+.vm-pill{
+  flex:1;padding:14px 10px;border-radius:14px;cursor:pointer;
+  border:2px solid transparent;
+  transition:all .22s ease;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.vm-pill-xp{
+  background:linear-gradient(135deg,rgba(0,229,255,.1),rgba(0,80,180,.08));
+  border-color:rgba(0,229,255,.2);
+}
+.vm-pill-xp:hover{border-color:rgba(0,229,255,.45);box-shadow:0 0 18px rgba(0,229,255,.12)}
+.vm-pill-xp.vm-active{
+  border-color:#00e5ff;
+  box-shadow:0 0 24px rgba(0,229,255,.2),inset 0 0 0 1px rgba(0,229,255,.15);
+}
+.vm-pill-aura{
+  background:linear-gradient(135deg,rgba(155,140,255,.12),rgba(114,184,255,.08));
+  border-color:rgba(155,140,255,.22);
+}
+.vm-pill-aura:hover{border-color:rgba(155,140,255,.48);box-shadow:0 0 18px rgba(155,140,255,.14)}
+.vm-pill-aura.vm-active{
+  border-color:#9B8CFF;
+  box-shadow:0 0 24px rgba(155,140,255,.22),inset 0 0 0 1px rgba(155,140,255,.18);
+}
+.vm-pill-name{
+  font-family:'Orbitron',monospace;font-size:12px;font-weight:900;
+  letter-spacing:.08em;margin-bottom:4px;
+}
+.vm-pill-xp .vm-pill-name{color:#00e5ff}
+.vm-pill-aura .vm-pill-name{color:#9B8CFF}
+.vm-pill-desc{font-size:10px;color:var(--text3);line-height:1.4}
+.vm-active-dot{
+  position:absolute;top:8px;right:8px;width:6px;height:6px;
+  border-radius:50%;display:none;
+}
+.vm-pill-xp .vm-active-dot{background:#00e5ff;box-shadow:0 0 6px #00e5ff}
+.vm-pill-aura .vm-active-dot{background:#9B8CFF;box-shadow:0 0 6px #9B8CFF}
+.vm-active .vm-active-dot{display:block}
+/* Light mode pill overrides */
+.light .vm-pill-desc{color:var(--text3)}
+
+/* ═══════════════════════════════════════════════════════════════
+   AURA LIGHT — HARDCODED INLINE STYLE OVERRIDES
+   !important para sobreescribir inline styles y reglas CSS con
+   valores cyan absolutos (rgba(0,229,255,...) y #00e5ff).
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Dashboard hero card ── */
+body[data-mode="aura"].light #dashboard-header{background:linear-gradient(135deg,rgba(155,140,255,.10) 0%,rgba(114,184,255,.07) 55%,rgba(127,224,201,.05) 100%)!important;border-color:rgba(155,140,255,.22)!important}
+
+/* ── Gemelo progress bar ── */
+body[data-mode="aura"].light #gemelo-progress-wrap{background:linear-gradient(135deg,rgba(155,140,255,.07),rgba(114,184,255,.04),transparent)!important;border-color:rgba(155,140,255,.18)!important}
+body[data-mode="aura"].light #gemelo-progress-wrap::before{background:radial-gradient(circle,rgba(155,140,255,.08),transparent 70%)!important}
+body[data-mode="aura"].light .gpb-fill{background:linear-gradient(90deg,#9B8CFF,#72B8FF,#7FE0C9)!important}
+body[data-mode="aura"].light .gpb-track{background:rgba(155,140,255,.12)!important}
+body[data-mode="aura"].light .gpb-label{color:rgba(155,140,255,.75)!important}
+body[data-mode="aura"].light .gpb-pct{color:#9B8CFF!important}
+body[data-mode="aura"].light .gpb-sigil{color:#9B8CFF!important}
+body[data-mode="aura"].light .gpb-cta{border-color:rgba(155,140,255,.3)!important;color:rgba(155,140,255,.75)!important}
+body[data-mode="aura"].light .gpb-cta:hover{border-color:#9B8CFF!important;color:#9B8CFF!important;background:rgba(155,140,255,.06)!important}
+body[data-mode="aura"].light .gpb-mark-dot{background:rgba(155,140,255,.2)!important;border-color:rgba(155,140,255,.35)!important}
+body[data-mode="aura"].light .gpb-mark.passed .gpb-mark-dot{background:#9B8CFF!important;border-color:#9B8CFF!important;box-shadow:0 0 6px rgba(155,140,255,.6)!important}
+body[data-mode="aura"].light .gpb-mark-lbl{color:rgba(155,140,255,.35)!important}
+body[data-mode="aura"].light .gpb-mark.passed .gpb-mark-lbl{color:rgba(155,140,255,.65)!important}
+
+/* ── Morning briefing ── */
+body[data-mode="aura"].light #morning-briefing{background:linear-gradient(135deg,rgba(248,250,255,.88),rgba(242,250,255,.84),rgba(242,255,252,.80))!important;border-color:rgba(190,200,230,.38)!important}
+
+/* ── Racha semanal card ── */
+body[data-mode="aura"].light #dashboard-ci-row{background:linear-gradient(135deg,rgba(155,140,255,.08),rgba(114,184,255,.04))!important;border-color:rgba(155,140,255,.22)!important}
+
+/* ── Stat KPI cards — per-module tinting ── */
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(1){background:linear-gradient(135deg,rgba(87,200,165,.09),rgba(127,224,201,.04))!important;border-color:rgba(87,200,165,.24)!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(1) .stat-val{color:#57C8A5!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(2){background:linear-gradient(135deg,rgba(114,184,255,.10),rgba(185,231,255,.05))!important;border-color:rgba(114,184,255,.25)!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(2) .stat-val{color:#72B8FF!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(3){background:linear-gradient(135deg,rgba(155,140,255,.10),rgba(185,165,255,.05))!important;border-color:rgba(155,140,255,.26)!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(3) .stat-val{color:#9B8CFF!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(4){background:linear-gradient(135deg,rgba(127,224,201,.09),rgba(87,200,165,.04))!important;border-color:rgba(127,224,201,.25)!important}
+body[data-mode="aura"].light #page-dashboard .ui-grid>.card:nth-child(4) .stat-val{color:#7FE0C9!important}
+
+/* ── Check-in dots ── */
+body[data-mode="aura"].light .ci-dot{background:rgba(155,140,255,.12)!important;border-color:rgba(155,140,255,.22)!important}
+body[data-mode="aura"].light .ci-dot.lit{background:#9B8CFF!important;border-color:#9B8CFF!important;box-shadow:0 0 8px rgba(155,140,255,.7),0 0 18px rgba(155,140,255,.4),0 0 30px rgba(155,140,255,.2)!important}
+
+/* ── Saldo personal card (Financiero) ── */
+body[data-mode="aura"].light #saldo-personal-card{background:linear-gradient(135deg,rgba(114,184,255,.09),rgba(114,184,255,.02))!important;border-color:rgba(114,184,255,.22)!important}
+
+/* ── Focus / Núcleo bars ── */
+body[data-mode="aura"].light #bar-claridad,
+body[data-mode="aura"].light #bar-energia,
+body[data-mode="aura"].light #bar-productividad{background:linear-gradient(90deg,#9B8CFF,#72B8FF)!important}
+body[data-mode="aura"].light #salud-xp-bar{background:linear-gradient(90deg,#7FE0C9,#9B8CFF)!important}
+body[data-mode="aura"].light #exec-clock{text-shadow:0 0 20px rgba(155,140,255,.4)!important}
+
+/* ── Global active badge ── */
+body[data-mode="aura"].light #global-active-badge{background:rgba(155,140,255,.1)!important;border-color:rgba(155,140,255,.25)!important;color:#7B6AE0!important}
+
+/* ── Heatmap range buttons ── */
+body[data-mode="aura"].light .hm-range-btn.on{background:linear-gradient(135deg,#9B8CFF,#72B8FF)!important;color:#fff!important}
+
+/* ── SVG presentation attribute overrides ── */
+body[data-mode="aura"].light svg circle[stroke="rgba(0,229,255,.1)"]{stroke:rgba(155,140,255,.15)!important}
+body[data-mode="aura"].light svg circle[stroke="rgba(0,229,255,.07)"]{stroke:rgba(155,140,255,.10)!important}
+body[data-mode="aura"].light svg circle[stroke="rgba(0,229,255,.04)"]{stroke:rgba(155,140,255,.06)!important}
+
+/* ── Nucleo arc glow ── */
+body[data-mode="aura"].light #nucleo-arc-fill{filter:drop-shadow(0 0 5px rgba(155,140,255,.6))!important}
+
+/* ── Calendar export menu ── */
+body[data-mode="aura"].light #cal-export-menu{background:rgba(255,255,255,.98)!important;border-color:rgba(190,200,230,.4)!important;box-shadow:0 8px 30px rgba(138,155,200,.15)!important}
+
+/* ── Saas/plan badges ── */
+body[data-mode="aura"].light #saas-plan-badge{background:rgba(155,140,255,.1)!important;border-color:rgba(155,140,255,.25)!important}
+body[data-mode="aura"].light #saas-pro-active-card{background:rgba(155,140,255,.04)!important;border-color:rgba(155,140,255,.15)!important}
+
+/* ── Aura orb reward animation ── */
+@keyframes auraOrbFloat{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-120px) scale(.3);opacity:0}}
+.aura-orb{position:absolute;border-radius:50%;pointer-events:none;animation:auraOrbFloat var(--dur,1.4s) ease-out forwards}

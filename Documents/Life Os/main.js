@@ -110,7 +110,7 @@ function _buildSavePayload() {
     pomoMinutos:S.pomoMinutos, pomoSesiones:S.pomoSesiones,
     muscleMap:S.muscleMap, muscleLastUpdate:S.muscleLastUpdate,
     claridad:S.claridad, energia:S.energia, productividad:S.productividad,
-    xpHistory:S.xpHistory, dark:S.dark, accent:S.accent,
+    xpHistory:S.xpHistory, dark:S.dark, accent:S.accent, visualMode:S.visualMode||'xp',
     lastCalibDate:S.lastCalibDate,
     poderUsage:S.poderUsage,
     saldos:S.saldos||[],
@@ -141,12 +141,89 @@ function _buildSavePayload() {
   return p;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   IDENTITY ENGINE
+   Controla terminología, recompensas, feedback visual y animaciones
+   según el modo activo (xp | aura). TODO el sistema depende de esto.
+═══════════════════════════════════════════════════════════════ */
+const IDENTITY = {
+  xp: {
+    currency:         'XP',
+    currencyIcon:     '⚡',
+    coinIcon:         '🪙',
+    levelPrefix:      'Nv.',
+    levelPrefixFull:  'Nv. ',
+    barLabel:         'XP en nivel actual',
+    totalLabel:       (x) => `${x} XP`,
+    barFraction:      (n) => `${n}/1000 XP`,
+    barFractionShort: (n) => `${n}/1000`,
+    levelUpMsg:       (n) => `⚡ ¡LEVEL UP! → Nivel ${n}`,
+    gainMsg:          (amt, ctx) => ctx ? `⚡ +${amt} XP · ${ctx}` : `⚡ +${amt} XP`,
+    lossMsg:          (amt, ctx) => ctx ? `⚠️ −${amt} XP · ${ctx}` : `⚠️ −${amt} XP`,
+    settingsLvlLabel: 'Nivel Actual',
+    settingsXPLabel:  'XP Total',
+    particleColors:   ['#00e5ff','#ffd700','#ff4d6d','#7fff00','#ff9500','#a855f7'],
+    spawnReward:      null, // wired after spawnConfetti is defined
+  },
+  aura: {
+    currency:         'Aura',
+    currencyIcon:     '✦',
+    coinIcon:         '💎',
+    levelPrefix:      '✦',
+    levelPrefixFull:  'Esencia ',
+    barLabel:         'Flujo de energía',
+    totalLabel:       (x) => `${x} Aura`,
+    barFraction:      (n) => `${n}/1000 Flujo`,
+    barFractionShort: (n) => `${n}/1000`,
+    levelUpMsg:       (n) => `✦ Expansión de energía — Esencia ${n}`,
+    gainMsg:          (amt, ctx) => ctx ? `✦ +${amt} Aura · ${ctx}` : `✦ Tu Aura creció +${amt}`,
+    lossMsg:          (amt, ctx) => ctx ? `○ −${amt} Aura · ${ctx}` : `○ −${amt} Aura`,
+    settingsLvlLabel: 'Esencia Actual',
+    settingsXPLabel:  'Aura Total',
+    particleColors:   ['#9B8CFF','#72B8FF','#7FE0C9','#B9E7FF','#C9D2EA','#E8DFFF'],
+    spawnReward:      null, // wired after spawnAuraOrbs is defined
+  }
+};
+
+/** Returns active identity config */
+function iid() { return S.visualMode === 'aura' ? IDENTITY.aura : IDENTITY.xp; }
+
+/**
+ * Adapts a reward message for the current visual mode.
+ * Replaces XP language with Aura language when mode is 'aura'.
+ * Called inside showToast() — no call site changes needed.
+ */
+function _adaptRewardMsg(msg) {
+  return msg
+    .replace(/\+(\d+) XP Mental/g,  '+$1 Aura Mental')
+    .replace(/\+(\d+) XP/g,          '+$1 Aura')
+    .replace(/−(\d+) XP/g,           '−$1 Aura')
+    .replace(/(\d+) XP\b/g,          '$1 Aura')
+    .replace(/\bXP ganado!/g,         'Aura ganada ✦')
+    .replace(/\bXP insuficiente\b/g,  'Aura insuficiente')
+    .replace(/\bXP hoy\b/g,          'Aura hoy')
+    .replace(/XP al plan\b/g,         'Aura al flujo')
+    .replace(/\bXP\b/g,              'Aura')
+    .replace(/SYSTEM BLACKOUT/g,      'FLUJO INTERRUMPIDO')
+    .replace(/¡NÚCLEO AL 100%!/g,    '¡NEXO EN PLENA EXPANSIÓN!')
+    .replace(/NÚCLEO AL 100%/g,       'NEXO EN PLENA EXPANSIÓN')
+    .replace(/Núcleo al 0%/g,         'Nexo en contracción')
+    .replace(/\bNúcleo\b/g,          'Nexo')
+    .replace(/\bNÚCLEO\b/g,          'NEXO')
+    .replace(/⚡ ¡LEVEL UP! → Nivel (\d+)/g, '✦ Expansión de energía — Esencia $1')
+    .replace(/Zona óptima de sueño/g, 'Descanso profundo restaurado')
+    .replace(/Deep Work completada/g, 'Flujo profundo alcanzado')
+    .replace(/Sesión completada/g,    'Ciclo completado')
+    .replace(/🎉/g, '✦')
+    .replace(/^⚡ /,                  '✦ ');
+}
+
 /* ═══════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════ */
 const S = {
   userName: 'Usuario',
-  dark: true, accent: '#00e5ff',
+  dark: true, accent: '#00e5ff', visualMode: 'xp',
   xp: 0, level: 1, coins: 0,
   tasks: [], habits: [], routines: [],
   transactions: [], debts: [], cards: [],
@@ -547,6 +624,12 @@ function navigate(id) {
   if (id==='analisis')  { navigate('stats');  switchInnerTab('stats','analisis');  return; }
   if (id==='saas')      { navigate('stats');  switchInnerTab('stats','saas');      return; }
   if (id==='routines')  { navigate('cuerpo'); switchInnerTab('cuerpo','physical'); return; }
+  // ── Visit count para Dashboard Inteligente ──
+  try {
+    const vc = JSON.parse(localStorage._bnVisitCount || '{}');
+    vc[id] = (vc[id] || 0) + 1;
+    localStorage._bnVisitCount = JSON.stringify(vc);
+  } catch(e) {}
   // ── Telemetría: módulo visitado ──
   registrarEvento('modulo_visitado', { modulo: id });
   // ── userActivity: tracking de frecuencia para Dashboard Inteligente ──
@@ -588,6 +671,63 @@ function toggleTheme() {
   guardarDatos();
   // Redraw charts
   setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); }, 100);
+}
+
+const TERM_DICT = {
+  xp: {
+    'level-label':          '⭐ Nivel Actual',
+    'bar-label':            'XP en nivel actual',
+    'settings-level-label': 'Nivel Actual',
+    'settings-xp-label':    'XP Total',
+    'streak-label':         '🔥 Racha Activa',
+  },
+  aura: {
+    'level-label':          '✦ Esencia Actual',
+    'bar-label':            'Flujo de energía',
+    'settings-level-label': 'Esencia Actual',
+    'settings-xp-label':    'Aura Total',
+    'streak-label':         '🌊 Flujo Continuo',
+  }
+};
+
+function _applyVisualMode(mode) {
+  document.body.dataset.mode = mode || 'xp';
+  // data-term DOM terminology update
+  const dict = TERM_DICT[mode] || TERM_DICT.xp;
+  document.querySelectorAll('[data-term]').forEach(el => {
+    const key = el.dataset.term;
+    if (dict[key]) el.textContent = dict[key];
+  });
+  const xpPill   = document.getElementById('vm-pill-xp');
+  const auraPill = document.getElementById('vm-pill-aura');
+  if (xpPill)   xpPill.classList.toggle('vm-active',  mode !== 'aura');
+  if (auraPill) auraPill.classList.toggle('vm-active', mode === 'aura');
+  // SVG presentation attribute overrides (CSS can't always override these cross-browser)
+  document.querySelectorAll('svg circle[stroke="rgba(0,229,255,.1)"]').forEach(c =>
+    c.setAttribute('stroke', mode==='aura' ? 'rgba(155,140,255,.15)' : 'rgba(0,229,255,.1)'));
+  document.querySelectorAll('svg circle[stroke="rgba(0,229,255,.07)"]').forEach(c =>
+    c.setAttribute('stroke', mode==='aura' ? 'rgba(155,140,255,.10)' : 'rgba(0,229,255,.07)'));
+  // Nucleo SVG gradient
+  const nuclStop = document.querySelector('#nuclGrad stop');
+  if (nuclStop) nuclStop.setAttribute('stop-color', mode==='aura' ? '#9B8CFF' : '#00e5ff');
+  // Refresh all identity labels (badges, bars, static text)
+  updateXP();
+  // FAB button icon/label
+  const fabBtn = document.getElementById('fab-btn');
+  if (fabBtn) {
+    const inner = fabBtn.querySelector('.fab-inner, span');
+    if (inner) inner.textContent = mode === 'aura' ? '✦' : '+';
+  }
+}
+
+function setVisualMode(mode) {
+  S.visualMode = mode;
+  _applyVisualMode(mode);
+  guardarDatos();
+  // Redraw charts so colors match new palette
+  setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); }, 80);
+  showToast(mode === 'aura' ? '✦ Modo Aura activado — presencia silenciosa' : '⚡ Modo XP activado — a subir de nivel');
+  document.dispatchEvent(new CustomEvent('lifeos:theme-change', { detail: { mode } }));
 }
 
 const ACCENT_PRESETS = [
@@ -702,7 +842,8 @@ document.getElementById('custom-color')?.addEventListener('input', e=>{
 ═══════════════════════════════════════════ */
 let toastTimer;
 function showToast(msg) {
-  // Bloquear toasts mientras la animación terminal está activa
+  // Auto-adapt reward language when in Aura mode
+  if (S.visualMode === 'aura' && typeof msg === 'string') msg = _adaptRewardMsg(msg);
   if (!_bootAnimDone) { _toastQueue.push(msg); return; }
   const t = document.getElementById('toast');
   document.getElementById('toast-text').textContent = msg;
@@ -712,8 +853,8 @@ function showToast(msg) {
 }
 
 function spawnConfetti() {
+  const colors = iid().particleColors;
   const wrap = document.getElementById('confetti-wrap');
-  const colors = ['#00e5ff','#ffd700','#ff4d6d','#7fff00','#ff9500','#a855f7'];
   wrap.innerHTML = '';
   for (let i=0;i<28;i++) {
     const el = document.createElement('div');
@@ -723,6 +864,26 @@ function spawnConfetti() {
   }
   setTimeout(()=>wrap.innerHTML='', 2000);
 }
+
+/** Aura mode particle reward — soft orbs that float upward and fade */
+function spawnAuraOrbs() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = IDENTITY.aura.particleColors;
+  wrap.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const el = document.createElement('div');
+    el.className = 'aura-orb';
+    const c = colors[i % colors.length];
+    const sz = 5 + Math.random() * 14;
+    el.style.cssText = `width:${sz}px;height:${sz}px;background:radial-gradient(circle,${c}dd,${c}44);left:${(Math.random()-.5)*180}px;box-shadow:0 0 ${sz*1.4}px ${c}88;animation-delay:${Math.random()*.45}s;animation-duration:${1.1+Math.random()*.9}s`;
+    wrap.appendChild(el);
+  }
+  setTimeout(()=>wrap.innerHTML='', 2400);
+}
+
+// Wire reward particle functions into IDENTITY config
+IDENTITY.xp.spawnReward   = spawnConfetti;
+IDENTITY.aura.spawnReward = spawnAuraOrbs;
 
 /* ═══════════════════════════════════════════
    MODAL HELPERS
@@ -772,28 +933,46 @@ document.addEventListener('click', e=>{
    XP / LEVEL / COINS
 ═══════════════════════════════════════════ */
 function updateXP() {
+  const id  = iid();
   const lvl = Math.max(1, Math.floor(S.xp/1000) + 1);
+  // Level-up detection — only fire after boot animation is done (skip initial load)
+  const justLeveledUp = _bootAnimDone && lvl > (S.level || 1) && (S.level || 1) > 0 && S.xp > 0;
   S.level = lvl;
   const inLvl = S.xp % 1000;
-  const pct = inLvl/10;
-  document.getElementById('sb-level').textContent = 'Nv.'+lvl;
-  document.getElementById('sb-xp').textContent = S.xp+' XP';
-  document.getElementById('sb-coins').textContent = '🪙 '+S.coins;
-  document.getElementById('sb-xpbar').style.width = pct+'%';
-  document.getElementById('sb-xpnum').textContent = inLvl+'/1000';
-  document.getElementById('tb-xp').textContent = S.xp+' XP';
-  document.getElementById('tb-lvl').textContent = 'Nv.'+lvl;
-  document.getElementById('tb-coins').textContent = '🪙 '+S.coins;
-  document.getElementById('db-level').textContent = 'Nv. '+lvl;
-  document.getElementById('db-xp-sub').textContent = inLvl+'/1000 XP';
-  document.getElementById('set-level') && (document.getElementById('set-level').textContent = 'Nv. '+lvl);
-  document.getElementById('set-xp') && (document.getElementById('set-xp').textContent = S.xp+' XP');
-  document.getElementById('set-coins') && (document.getElementById('set-coins').textContent = '🪙 '+S.coins);
-  // Mobile drawer badges
-  document.getElementById('mob-lvl') && (document.getElementById('mob-lvl').textContent = 'Nv.'+lvl);
-  document.getElementById('mob-xp') && (document.getElementById('mob-xp').textContent = S.xp+' XP');
-  document.getElementById('mob-coins') && (document.getElementById('mob-coins').textContent = '🪙 '+S.coins);
-  document.getElementById('mob-xpbar') && (document.getElementById('mob-xpbar').style.width = pct+'%');
+  const pct   = inLvl / 10;
+
+  // ── Badges & bars ──────────────────────────────────────
+  document.getElementById('sb-level').textContent = id.levelPrefix + lvl;
+  document.getElementById('sb-xp').textContent    = id.totalLabel(S.xp);
+  document.getElementById('sb-coins').textContent = id.coinIcon + ' ' + S.coins;
+  document.getElementById('sb-xpbar').style.width = pct + '%';
+  document.getElementById('sb-xpnum').textContent = id.barFractionShort(inLvl);
+  document.getElementById('tb-xp').textContent    = id.totalLabel(S.xp);
+  document.getElementById('tb-lvl').textContent   = id.levelPrefix + lvl;
+  document.getElementById('tb-coins').textContent = id.coinIcon + ' ' + S.coins;
+  document.getElementById('db-level').textContent = id.levelPrefixFull + lvl;
+  document.getElementById('db-xp-sub').textContent = id.barFraction(inLvl);
+
+  const $set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  $set('set-level',  id.levelPrefixFull + lvl);
+  $set('set-xp',     id.totalLabel(S.xp));
+  $set('set-coins',  id.coinIcon + ' ' + S.coins);
+  $set('mob-lvl',    id.levelPrefix + lvl);
+  $set('mob-xp',     id.totalLabel(S.xp));
+  $set('mob-coins',  id.coinIcon + ' ' + S.coins);
+  const mob = document.getElementById('mob-xpbar');
+  if (mob) mob.style.width = pct + '%';
+
+  // ── Static identity labels (updated on mode switch + every updateXP call) ──
+  $set('sb-xp-label',    id.barLabel);
+  $set('set-xp-label',   id.settingsXPLabel);
+  $set('set-level-label', id.settingsLvlLabel);
+
+  // ── Level-up reward ────────────────────────────────────
+  if (justLeveledUp) {
+    showToast(id.levelUpMsg(lvl));
+    id.spawnReward && id.spawnReward();
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -828,8 +1007,12 @@ function getRadarData(mode) {
 
 function getRadarAccentColor(data) {
   const avg = data.reduce((a,b)=>a+b,0) / data.length;
+  if (S.visualMode === 'aura') {
+    if (avg >= 70) return { border:'#9B8CFF', bg:'rgba(155,140,255,.22)' };
+    if (avg >= 40) return { border:'rgba(155,140,255,.82)', bg:'rgba(155,140,255,.12)' };
+    return { border:'rgba(114,184,255,.8)', bg:'rgba(114,184,255,.10)' };
+  }
   const accent = S.accent || '#00e5ff';
-  // Low (<40): muted purple tint; Mid (40-70): accent dim; High (>70): full neon
   if (avg >= 70) return { border: accent, bg: accent + '44' };
   if (avg >= 40) return { border: accent + 'cc', bg: accent + '22' };
   return { border: '#a855f7cc', bg: 'rgba(168,85,247,.15)' };
@@ -859,10 +1042,13 @@ function initRadarChart() {
     options: {
       animation: { duration: 700, easing: 'easeInOutQuart' },
       scales:{ r:{
-        grid:{color:'rgba(0,229,255,.12)'},
-        angleLines:{color:'rgba(0,229,255,.1)'},
+        grid:{color: S.visualMode==='aura' ? 'rgba(155,140,255,.12)' : 'rgba(0,229,255,.12)'},
+        angleLines:{color: S.visualMode==='aura' ? 'rgba(155,140,255,.10)' : 'rgba(0,229,255,.1)'},
         ticks:{display:false},
-        pointLabels:{color:S.dark?'rgba(255,255,255,.6)':'rgba(0,0,0,.5)', font:{family:'Syne',size:11}},
+        pointLabels:{
+          color: S.dark ? 'rgba(255,255,255,.6)' : (S.visualMode==='aura' ? '#7E89A8' : 'rgba(0,0,0,.5)'),
+          font:{family: S.visualMode==='aura' ? 'Manrope,Inter,Syne,sans-serif' : 'Syne,sans-serif', size:11}
+        },
         min:0, max:100
       }},
       plugins:{legend:{display:false}},
@@ -2693,6 +2879,9 @@ function init() {
   initChat();
   // Cargar datos guardados primero
   cargarDatos();
+  // Aplicar modo visual y tema guardados
+  document.body.classList.toggle('light', !S.dark);
+  _applyVisualMode(S.visualMode || 'xp');
   // Actualizar radar con datos reales cargados
   setTimeout(() => { updateRadarColors(); updateBioMainBtn(); }, 100);
   // Degradar músculos al iniciar
@@ -5272,6 +5461,8 @@ async function loginSuccess(userObj) {
     try {
       // 1. Datos principales (hábitos, finanzas, XP, etc.)
       await cargarDatosNube(myUid);
+      // Restaurar modo visual desde nube (puede diferir del caché local)
+      _applyVisualMode(S.visualMode || 'xp');
 
       // 2. Restaurar color de acento guardado en perfil Firebase
       try {
@@ -5811,6 +6002,48 @@ function hydrateDashboard() {
   updateFinancialDisplay();
   updateDashboardTaskCount();
   updateFisicoWidget();
+  renderDynamicShortcuts();
+}
+
+function renderDynamicShortcuts() {
+  const el = document.getElementById('db-dynamic-shortcuts');
+  if (!el) return;
+  if (!S.dynamicDashboard) { el.style.display = 'none'; return; }
+
+  // Read visit counts and pick top 3 non-dashboard modules
+  let vc = {};
+  try { vc = JSON.parse(localStorage._bnVisitCount || '{}'); } catch(e) {}
+  const sorted = Object.entries(vc)
+    .filter(([id]) => id !== 'dashboard' && id !== 'settings')
+    .sort(([,a],[,b]) => b - a)
+    .slice(0, 3);
+
+  if (!sorted.length) { el.style.display = 'none'; return; }
+
+  const isAura = S.visualMode === 'aura';
+  const iconMap = { productividad:'🌊', financial:'💰', cuerpo:'💪', mente:'🧠',
+    world:'🗺️', stats:'📊', aprende:'📖', settings:'⚙️' };
+  const labelMap = { productividad:'Flow', financial:'Finanzas', cuerpo:'Cuerpo',
+    mente:'Mente', world:'World', stats:'Análisis', aprende:'Aprende', settings:'Ajustes' };
+
+  const accentBorder = isAura ? 'rgba(155,140,255,.25)' : 'rgba(0,229,255,.2)';
+  const accentBg     = isAura ? 'rgba(155,140,255,.07)' : 'rgba(0,229,255,.06)';
+  const accentColor  = isAura ? '#9B8CFF' : 'var(--accent)';
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px">
+      <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:${accentColor};letter-spacing:.08em;font-weight:700">▸ TUS MÓDULOS</span>
+      <span style="font-size:10px;color:var(--text3)">acceso rápido</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      ${sorted.map(([id, count]) => `
+        <button onclick="navigate('${id}')" style="background:${accentBg};border:1px solid ${accentBorder};border-radius:12px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color .2s" onmouseover="this.style.borderColor='${accentColor}'" onmouseout="this.style.borderColor='${accentBorder}'">
+          <span style="font-size:22px">${iconMap[id] || '📱'}</span>
+          <span style="font-size:11px;color:var(--text);font-weight:600">${labelMap[id] || id}</span>
+          <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${count} visitas</span>
+        </button>`).join('')}
+    </div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -6790,6 +7023,7 @@ function _applyFABResult(p) {
         S.habits.push(newH);
         gainXP(25);
         _logActivity('habit', 25, newH.name);
+        showToast(iid().gainMsg(25, `"${(newH.name||'hábito').substring(0,20)}" creado`));
         if (typeof renderHabits==='function') renderHabits();
         routed.push({ mod:'habit', detail:(newH.name||'').substring(0,22) });
       }
@@ -6801,6 +7035,7 @@ function _applyFABResult(p) {
       if (!S.victorias) S.victorias=[];
       S.victorias.unshift({ id:uid(), text:moodText, date:today() });
       gainXP(10);
+      showToast(iid().gainMsg(10, 'entrada de energía registrada'));
       routed.push({ mod:'mood', detail:moodText.substring(0,24) });
     }
 
@@ -8965,14 +9200,10 @@ function _initInnerTab(pageId) {
 ═══════════════════════════════════════════════════════════════ */
 function gainXP(amount, skipBlackout = false) {
   S.xp += amount;
-  // Track daily XP history
   const t = today();
   S.xpHistory[t] = (S.xpHistory[t] || 0) + amount;
-  // Desactivar Blackout cuando hay acción real (no check-in / calibración)
-  if (!skipBlackout) {
-    S.blackoutOverrideToday = t;
-  }
-  updateXP();
+  if (!skipBlackout) S.blackoutOverrideToday = t;
+  updateXP();       // includes level-up detection + identity label update
   updateGlobalCore();
   guardarDatos();
 }
