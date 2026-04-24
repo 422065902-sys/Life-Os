@@ -44,3 +44,16 @@
 
 ---
 
+## Run: 2026-04-24_13-38.md
+
+- [ ] [BUG] MÓDULO: Flow - Agenda | SOLUCIÓN: Asegurar que el calendario se inicialice correctamente al cargar el tab Agenda. Revisar función `initializeCalendar()` en `main.js` para asegurar que se ejecuta al cambiar de tab. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [DISEÑO] MÓDULO: Finanzas | SOLUCIÓN: Ajustar el color de fondo del módulo para que el dorado del texto tenga mejor contraste. Cambiar `background-color` a un tono más oscuro en el CSS del módulo Finanzas. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [UX] MÓDULO: Ajustes | SOLUCIÓN: Mejorar la visibilidad del toggle de modo visual. Aumentar el tamaño de las pills `#vm-pill-xp` y `#vm-pill-aura` para facilitar el cambio de modo. | PRIORIDAD: MEDIA | CATEGORÍA: MICRO
+- [ ] [IDENTIDAD-VISUAL] MÓDULO: Mente & Poder | SOLUCIÓN: Asegurar que el fondo cálido sutil se aplique correctamente. Verificar CSS para `background-color` en el módulo Mente & Poder y ajustar si es necesario. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [GAMIFICACIÓN] MÓDULO: Dashboard | SOLUCIÓN: Añadir animaciones de entrada para los elementos de XP y nivel para hacer el progreso más visible y motivador. Usar `@keyframes` en CSS para animar la entrada. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [MOBILE] MÓDULO: World | SOLUCIÓN: Asegurar que el mapa se vea correctamente en dispositivos móviles. Revisar `responsive.css` para ajustar el tamaño y posición del mapa en pantallas pequeñas. | PRIORIDAD: ALTA | CATEGORÍA: MICRO
+- [ ] [ARQUITECTURA] MÓDULO: Mente & Poder | SOLUCIÓN: Evaluar la fusión del Gemelo con el módulo Mente para mejorar la cohesión y contexto. El Gemelo extrae valor del contexto de Mente, lo que podría mejorar la experiencia del usuario. | PRIORIDAD: MEDIA | CATEGORÍA: ARQUITECTURA
+- [ ] [ARQUITECTURA] MÓDULO: Flow | SOLUCIÓN: Considerar la separación de Ideas y Metas en módulos independientes si el contenido es suficientemente rico. Esto podría mejorar la claridad y enfoque de cada funcionalidad. | PRIORIDAD: BAJA | CATEGORÍA: ARQUITECTURA
+
+---
+
