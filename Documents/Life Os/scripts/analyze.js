@@ -185,22 +185,22 @@ La app ya fue reorganizada. Esta es la estructura **real y actual**:
 **Decisiones arquitecturales ya tomadas (NO reversar):**
 - **Flow absorbe Calendario:** el tab "📅 Agenda" dentro de Flow ES el calendario. No hay módulo Calendario separado.
 - **Gemelo es STANDALONE dentro de Mente:** Bitácora → Gemelo → insights.
-- **Identidad visual por módulo:** CSS `data-module` scope. Cada módulo tiene su accent color propio.
+- **Identidad visual por módulo:** CSS \`data-module\` scope. Cada módulo tiene su accent color propio.
 - **PRECIO: $99 MXN/mes** ≈ ~$5 USD. Competitivo para el mercado hispanohablante. NO reportar como problema.
 
 **SISTEMA DUAL DE IDENTIDAD VISUAL — MOTOR PSICOGRÁFICO (implementado abril 2026):**
 La app tiene DOS modos de identidad visual que el usuario elige en Settings y persisten en localStorage + Firestore:
 
-- **Modo XP** (por defecto): estética gaming/cyberpunk — neón cyan `#00e5ff`, Orbitron, partículas, terminología "XP / Nivel / Racha activa". body[data-mode="xp"] o sin data-mode.
+- **Modo XP** (por defecto): estética gaming/cyberpunk — neón cyan \`#00e5ff\`, Orbitron, partículas, terminología "XP / Nivel / Racha activa". body[data-mode="xp"] o sin data-mode.
 - **Modo Aura**: estética ethereal/glassmorphism — color derivado del acento del usuario (suavizado 10% blanco), Manrope/Inter, orbs suaves, terminología "Aura / Esencia / Flujo continuo". body[data-mode="aura"] (oscuro) o body[data-mode="aura"].light (modo claro perla #F7F8FC).
 
-El color del Modo Aura NO es fijo — se deriva del color de acento elegido por el usuario (8 presets: Cyan/Verde/Violeta/Naranja/Rosa/Oro/Coral/Azul). `--aura-accent`, `--aura-accent2` y `--aura-rgb` se setean dinámicamente via JS.
+El color del Modo Aura NO es fijo — se deriva del color de acento elegido por el usuario (8 presets: Cyan/Verde/Violeta/Naranja/Rosa/Oro/Coral/Azul). \`--aura-accent\`, \`--aura-accent2\` y \`--aura-rgb\` se setean dinámicamente via JS.
 
 Cuando veas screenshots en modo Aura: glassmorphism en cards, borders redondeados (radius 20-28px), sin gradientes duros, colores pastel.
-Cuando veas el toggle VM en Settings: dos pills `#vm-pill-xp` y `#vm-pill-aura` — la activa tiene border/background del acento.
+Cuando veas el toggle VM en Settings: dos pills \`#vm-pill-xp\` y \`#vm-pill-aura\` — la activa tiene border/background del acento.
 
 **DASHBOARD INTELIGENTE (implementado abril 2026):**
-Toggle en Settings → activa `S.dynamicDashboard`. Con toggle ON, el dashboard muestra una sección `#db-dynamic-shortcuts` con los 3 módulos más visitados como accesos rápidos (lee `localStorage._bnVisitCount`). El conteo se incrementa en cada navegación. Con toggle OFF → sección oculta.
+Toggle en Settings → activa \`S.dynamicDashboard\`. Con toggle ON, el dashboard muestra una sección \`#db-dynamic-shortcuts\` con los 3 módulos más visitados como accesos rápidos (lee \`localStorage._bnVisitCount\`). El conteo se incrementa en cada navegación. Con toggle OFF → sección oculta.
 
 ### Identidad visual única por módulo — VERIFICAR EN SCREENSHOTS
 Cada módulo debe tener su propia "firma visual" que lo haga inconfundible:
@@ -339,7 +339,7 @@ La landing NO es una página corporativa genérica. Es la pantalla de título de
 4. El orden de implementación: qué construir primero para lanzar rápido con impacto máximo
 
 ### ✅ DASHBOARD DINÁMICO — IMPLEMENTADO (no proponer de nuevo)
-Toggle "Dashboard Inteligente" en Settings ya funciona. `#db-dynamic-shortcuts` muestra top 3 módulos más visitados. `_bnVisitCount` en localStorage. Cuando lo veas en screenshots: verifica que los 3 botones de acceso rápido tienen ícono, nombre y conteo de visitas. Si el toggle está ON y no aparece la sección → bug de `renderDynamicShortcuts()`.
+Toggle "Dashboard Inteligente" en Settings ya funciona. \`#db-dynamic-shortcuts\` muestra top 3 módulos más visitados. \`_bnVisitCount\` en localStorage. Cuando lo veas en screenshots: verifica que los 3 botones de acceso rápido tienen ícono, nombre y conteo de visitas. Si el toggle está ON y no aparece la sección → bug de \`renderDynamicShortcuts()\`.
 
 ### 🎨 MODO AURA — PULIDO Y PARIDAD VISUAL (ALTA PRIORIDAD)
 El Modo Aura está implementado pero puede tener elementos con inline styles no cubiertos por los overrides CSS.
@@ -354,14 +354,14 @@ El Modo Aura está implementado pero puede tener elementos con inline styles no 
 **Propón overrides CSS específicos** con el selector exacto y la propiedad corregida.
 
 ### 🔔 PUSH NOTIFICATIONS DEEP LINKING (MEDIA PRIORIDAD)
-`activarNotificaciones()` en main.js ya suscribe el dispositivo a FCM pero no envía recordatorios útiles.
+\`activarNotificaciones()\` en main.js ya suscribe el dispositivo a FCM pero no envía recordatorios útiles.
 
 **Implementar estos 3 triggers con deep link:**
-1. **8:00pm — hábitos pendientes**: si el usuario tiene hábitos sin completar hoy → push "Tienes X hábitos pendientes hoy 🔥" → deep link `?module=productividad&tab=habits`
-2. **9:00pm — racha en riesgo**: si la racha es ≥3 días y no hizo check-in → push "Tu racha de X días está en riesgo ⚠️" → deep link `?module=dashboard`
-3. **7:00am — briefing diario**: push "Buenos días [nombre]. Tu briefing está listo." → deep link `?module=dashboard`
+1. **8:00pm — hábitos pendientes**: si el usuario tiene hábitos sin completar hoy → push "Tienes X hábitos pendientes hoy 🔥" → deep link \`?module=productividad&tab=habits\`
+2. **9:00pm — racha en riesgo**: si la racha es ≥3 días y no hizo check-in → push "Tu racha de X días está en riesgo ⚠️" → deep link \`?module=dashboard\`
+3. **7:00am — briefing diario**: push "Buenos días [nombre]. Tu briefing está listo." → deep link \`?module=dashboard\`
 
-**Implementación:** Cloud Function con trigger cron (Firebase Scheduled Functions), consulta usuarios activos, envía via FCM Admin SDK. Service worker `notificationclick` ya existe en `firebase-messaging-sw.js` — agregar `clients.openWindow(url)` con el deep link.
+**Implementación:** Cloud Function con trigger cron (Firebase Scheduled Functions), consulta usuarios activos, envía via FCM Admin SDK. Service worker \`notificationclick\` ya existe en \`firebase-messaging-sw.js\` — agregar \`clients.openWindow(url)\` con el deep link.
 
 ---
 
