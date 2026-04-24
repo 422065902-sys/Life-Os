@@ -889,7 +889,7 @@ async function main() {
       // Intercalar screenshots con etiquetas de nombre
       for (const shot of group.shots) {
         content.push({ type: 'text', text: `\n📸 ${shot.name}` });
-        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}` } });
+        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
       }
 
       const raw = await callGemini(content, group.maxTokens);

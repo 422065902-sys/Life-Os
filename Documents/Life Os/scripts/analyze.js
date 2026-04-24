@@ -99,7 +99,7 @@ function loadScreenshots(shotsDir) {
     !f.startsWith('responsive-android-17') && !f.startsWith('responsive-ios-17')
   ).slice(0, 12); // máx 12 responsive
   const ordered = [...foldFiltered, ...responsiveFiltered];
-  const files = ordered.slice(0, 35); // cap absoluto: nunca más de 35 imágenes al análisis ligero
+  const files = ordered.slice(0, 20); // cap absoluto: max 20 imágenes (TPM limit gpt-4o tier 1)
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
@@ -482,7 +482,7 @@ REGLA ABSOLUTA: Propuestas SIEMPRE antes de ---ANALYSIS---. Nunca omitas ninguna
 
   screenshots.forEach(shot => {
     content.push({ type: 'text', text: `\n📸 Screenshot: ${shot.name}` });
-    content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}` } });
+    content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
   });
 
   return content;
