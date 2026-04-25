@@ -519,6 +519,7 @@ async function main() {
 
   const groupResults = [];
   const allProposals = [];
+  let consecutiveEmpty = 0;
 
   // ── Analizar cada grupo ──────────────────────────────────────
   for (const group of groups) {
@@ -538,6 +539,7 @@ async function main() {
       const raw = await callGemini(content, group.maxTokens);
       const { analysis, proposals, health } = parseResponse(raw);
 
+      consecutiveEmpty = 0;
       groupResults.push({ group: group.name, analysis, proposals, health });
       allProposals.push(...proposals);
 
@@ -548,8 +550,18 @@ async function main() {
         await new Promise(r => setTimeout(r, 4000));
       }
     } catch(e) {
-      log(`❌ ${group.name} — Error: ${e.message}`);
-      groupResults.push({ group: group.name, analysis: `Error en análisis: ${e.message}`, proposals: [], health: null });
+      const isEmptyOutput = e.message.includes('vacía') || e.message.includes('finish=length');
+      log(`❌ ${group.name} — Error: ${e.message.slice(0, 120)}`);
+      groupResults.push({ group: group.name, analysis: `Error: ${e.message.slice(0, 200)}`, proposals: [], health: null });
+      if (isEmptyOutput) {
+        consecutiveEmpty++;
+        if (consecutiveEmpty >= 3) {
+          log('🛑 AUTO-STOP: 3 errores de output vacío consecutivos — el modelo no puede generar más. Revisa max_completion_tokens.');
+          break;
+        }
+      } else {
+        consecutiveEmpty = 0;
+      }
     }
   }
 
