@@ -346,9 +346,7 @@ FEATURES DIFERENCIADORES QUE DEBEN BRILLAR EN EL LANDING:
 // ══════════════════════════════════════════════════════════════
 function buildLandingPrompt(group) {
   const shotList = group.shots.map(s => s.name).join('\n  - ');
-  return `${BASE_CONTEXT}
-
-${'═'.repeat(60)}
+  return `${'═'.repeat(60)}
 ANÁLISIS ESPECIAL: LANDING PAGE — CONVERSIÓN Y PRIMERA IMPRESIÓN
 ${'═'.repeat(60)}
 
@@ -459,9 +457,7 @@ ${'─'.repeat(60)}
 
 function buildFABPrompt(group) {
   const shotList = group.shots.map(s => s.name).join('\n  - ');
-  return `${BASE_CONTEXT}
-
-${'═'.repeat(60)}
+  return `${'═'.repeat(60)}
 ANÁLISIS ESPECIAL: FAB CONSOLA UNIVERSAL — NLP Y SEMÁNTICA
 ${'═'.repeat(60)}
 
@@ -591,9 +587,7 @@ function buildGroupPrompt(group) {
 
   const shotList = group.shots.map(s => s.name).join('\n  - ');
 
-  return `${BASE_CONTEXT}
-
-${'═'.repeat(60)}
+  return `${'═'.repeat(60)}
 ANÁLISIS PROFUNDO: ${group.name.toUpperCase()}
 ${'═'.repeat(60)}
 
@@ -697,9 +691,7 @@ function buildSynthesisPrompt(groupResults, totalShots) {
   const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
   const highs = allProposals.filter(p => p.includes('ALTA'));
 
-  return `${BASE_CONTEXT}
-
-${'═'.repeat(60)}
+  return `${'═'.repeat(60)}
 SÍNTESIS EJECUTIVA — ANÁLISIS PROFUNDO COMPLETO
 ${'═'.repeat(60)}
 
@@ -775,7 +767,10 @@ function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: 'gpt-5.5',
-      messages: [{ role: 'user', content }],
+      messages: [
+        { role: 'system', content: BASE_CONTEXT },
+        { role: 'user', content },
+      ],
       max_completion_tokens: Math.min(maxTokens, 8000),
     });
     const options = {
@@ -816,7 +811,8 @@ async function callGemini(content, maxTokens, retries = 3) {
       return await callGeminiOnce(content, maxTokens);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
+      const isEmptyContent = e.message.includes('vacía') || e.message.includes('content": ""');
+      const isRetryable = !isEmptyContent && (isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503'));
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
