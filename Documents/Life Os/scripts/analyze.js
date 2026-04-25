@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Analyst — Life OS
- * Versión: 3.0 (GPT-4o Vision — Modo XP/Aura + Dashboard Inteligente)
+ * Versión: 3.0 (Anthropic Vision — Modo XP/Aura + Dashboard Inteligente)
  * Fecha: 2026-04-24
  *
- * Lee reportes QA + screenshots y genera diagnóstico visual con GPT-4o.
+ * Lee reportes QA + screenshots y genera diagnóstico visual con Anthropic.
  * Produce análisis en el reporte + archivo PROPOSALS separado para revisión humana.
  *
  * Uso manual:
@@ -21,13 +21,13 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
 const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
-if (!OPENAI_API_KEY) {
-  console.error('[analyze] ERROR: OPENAI_API_KEY no configurada en .env');
+if (!ANTHROPIC_API_KEY) {
+  console.error('[analyze] ERROR: ANTHROPIC_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -99,7 +99,7 @@ function loadScreenshots(shotsDir) {
     !f.startsWith('responsive-android-17') && !f.startsWith('responsive-ios-17')
   ).slice(0, 12); // máx 12 responsive
   const ordered = [...foldFiltered, ...responsiveFiltered];
-  const files = ordered.slice(0, 20); // cap absoluto: max 20 imágenes (TPM limit gpt-4o tier 1)
+  const files = ordered.slice(0, 20); // cap absoluto: max 20 imágenes
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
@@ -187,10 +187,6 @@ Analiza desde TODOS estos roles simultáneamente. No los menciones como teatro; 
 
 ⚫ RETENTION ANALYST — ¿qué haría que un usuario abandone en los primeros 30 segundos? Fricción inicial, pantallas que no explican valor, copy frío, ausencia de CTA, primera impresión, motivación para volver mañana.
 
-🌌 LIVING DATA & MOTION UX STRATEGIST — detecta partes de la app que se sienten estáticas, frías o planas y propone cómo convertirlas en momentos visuales vivos. Busca: (1) datos importantes sin feedback visual (números, progreso, barras), (2) acciones sin recompensa visual (completar hábito, ganar XP, registrar ingreso, subir racha), (3) pantallas muertas o estados vacíos sin personalidad, (4) transiciones bruscas entre módulos/tabs/modales, (5) charts que no comunican el concepto del módulo. Para cada oportunidad propone: qué tecnología usar (CSS/SVG/Canvas/Chart.js), costo de performance (BAJO/MEDIO/ALTO), cómo reducir con prefers-reduced-motion, y cómo diferencia Modo XP (energía, sparks, glow neon, HUD) de Modo Aura (orbes pastel, respiración, ingravidez, glassmorphism). NO propone animaciones decorativas sin propósito — solo si mejoran comprensión del dato, recompensan acción, refuerzan identidad o retención. Usa tipos: LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, CANVAS, SVG-MOTION, CSS-MOTION.
-
-🎨 MOTION/CANVAS ENGINEER — especialista en Canvas 2D, animación generativa y microinteracciones. En Modo Aura: ¿el radar chart sigue visible (debe estar oculto/reemplazado por canvas de partículas)? ¿Las cards tienen backdrop-filter blur real o fondo sólido? ¿Las animaciones son orgánicas o mecánicas? ¿El FAB tiene glow suave con ✦? ¿Los fondos son cálidos perla/crema (#FDFBF7, #F7F8FC) o blanco/negro puro? ¿Las transiciones de módulo son fluidas con stagger? Detecta cualquier rastro de estética cyberpunk en Aura como bug de identidad visual.
-
 ========================
 LA APP: LIFE OS
 ========================
@@ -234,19 +230,11 @@ Visual: color derivado del accent del usuario (--aura-accent, --aura-accent2, --
 Terminología correcta: Aura, Esencia, Flujo Continuo, Aura Total. FAB muestra "✦".
 
 Verificaciones obligatorias en Modo Aura:
-- Cards con backdrop-filter blur real, NO fondos sólidos. Si se ve plano → bug de glassmorphism.
-- Fondo global cálido perla (#FDFBF7 / #F7F8FC), NO negro ni blanco puro → bug de tokens.
-- Botones NO deben ser cyan genérico → bug de override .btn-a.
-- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug data-term.
-- Charts con paleta Aura, no cyan. Si hay radar chart visible en Aura → bug crítico (debe ser canvas de partículas).
-- FAB con ✦ y glow pastel, NO "+" con cyan → bug de identidad.
-- Animaciones suaves y orgánicas. Si hay transiciones bruscas o mecánicas → bug de motion.
-- Tipografía Inter/Manrope, NO Orbitron en Aura → bug de tipografía.
-- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → bug en _setAuraAccentVars().
-- border-radius generoso (20-28px). Si hay bordes filosos en cards → bug de tokens.
-
-CALIDAD AURA ESPERADA — la interfaz debe sentirse: premium wellness-tech, vidrio esmerilado, paz + avance + recompensa emocional.
-NO debe sentirse: cyberpunk con colores pastel, dashboard corporativo, radar militar con tonos suaves.
+- Cards con backdrop-filter blur, no fondos sólidos agresivos.
+- Botones NO deben ser cyan genérico.
+- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug.
+- Charts con paleta Aura, no cyan.
+- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → probable bug en _setAuraAccentVars().
 
 ========================
 BUGS CONOCIDOS A VIGILAR
@@ -311,9 +299,7 @@ Solo propón cuando haya evidencia que lo justifique.
 
 4. MODO AURA PULIDO — buscar elementos cyan persistentes, inline styles sin override, charts con paleta XP.
 
-5. AURA CHART (CANVAS PARTÍCULAS) — prioridad alta. El radar chart de Chart.js debe desaparecer en Modo Aura y ser reemplazado por un canvas de partículas orgánicas. Arquitectura: class AuraParticleSystem con 6 nodos (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo), partículas atraídas por scores ponderados, movimiento con fricción + ruido + sin/cos, render con radialGradient pastel, alpha animado. Desktop: 120-220 partículas. Mobile: 60-110. Reduced motion: 20-40 estáticas. API pública: window.LifeOSAuraChart.updateScores(scores) y emitBurst(). Si en screenshots ves radar chart en Modo Aura → propuesta CRÍTICA de reemplazo. Si ya hay canvas pero sin física de nodos → propuesta de mejora.
-
-6. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
+5. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
 
 ========================
 REPORTE DE HOY
@@ -382,8 +368,6 @@ CATEGORÍA A — MICRO-MEJORAS
 
 - [TIPO] MÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
 
-Para propuestas de tipo LIVING-DATA / MICROINTERACTION / MOTION / CANVAS / SVG-MOTION / CSS-MOTION / AMBIENT-MOTION / GAMIFICATION-FEEDBACK / EMPTY-STATE-MOTION añadir además: | MOMENTO DE USO: cuándo se activa | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: cómo se reduce
-
 CATEGORÍA B — ARQUITECTURA
 
 - [TIPO] MÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad | SOLUCIÓN: decisión concreta para el owner | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
@@ -408,9 +392,6 @@ Máximo 70 palabras. Android vs iOS y riesgo principal.
 🎨 VEREDICTO DE IDENTIDAD VISUAL
 Máximo 70 palabras. Qué módulos se sienten únicos y cuáles parecen clones.
 
-🌌 VEREDICTO DE MOTION & LIVING DATA
-Máximo 80 palabras. ¿La app se siente viva o estática? Menciona el módulo con mayor oportunidad de visualización generativa o microinteracción. Di si conviene Canvas/CSS/SVG/Chart.js para el caso más importante. Si hay partes sin recompensa visual a acciones clave, nómbralas.
-
 🎯 OPORTUNIDAD MAYOR
 Un solo cambio con mayor impacto en retención/conversión. Específico.
 
@@ -421,10 +402,10 @@ Una frase honesta, directa y útil.
 TIPOS VÁLIDOS
 ========================
 
-BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, CANVAS, MOTION, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, SVG-MOTION, CSS-MOTION`;
+BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA`;
 
 
-  // OpenAI content array format: text + image_url items
+  // Content array format: text + image_url items
   const content = [{ type: 'text', text: textPrompt }];
 
   screenshots.forEach(shot => {
@@ -436,24 +417,37 @@ BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RET
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A OPENAI API (multimodal gpt-5.5, con retry + backoff)
+// LLAMAR A ANTHROPIC API (multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callOpenAIOnce(content) {
+function callAnthropicOnce(content) {
   return new Promise((resolve, reject) => {
+    const anthropicContent = content.map(item => {
+      if (item.type === 'text') return { type: 'text', text: item.text };
+      if (item.type === 'image_url') {
+        const urlData = item.image_url.url;
+        const mime    = urlData.match(/^data:([^;]+);base64,/)?.[1] || 'image/jpeg';
+        const b64     = urlData.replace(/^data:[^;]+;base64,/, '');
+        return { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+      }
+      return item;
+    });
+
     const body = JSON.stringify({
-      model: 'gpt-5.5',
-      messages: [{ role: 'user', content }],
-      max_completion_tokens: 4096,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: 'Eres el equipo senior de análisis de Life OS: QA, producto, diseño, gamificación y retención. Analiza reportes y screenshots de la app y produce diagnóstico concreto, priorizado y accionable en español. Nunca te niegues ni trunques la respuesta.',
+      messages: [{ role: 'user', content: anthropicContent }],
     });
 
     const options = {
-      hostname: 'api.openai.com',
-      path: '/v1/chat/completions',
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Length': Buffer.byteLength(body),
+        'Content-Type':      'application/json',
+        'x-api-key':         ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Length':    Buffer.byteLength(body),
       }
     };
 
@@ -464,11 +458,12 @@ function callOpenAIOnce(content) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.choices?.[0]?.message?.content;
+          const text = json?.content?.[0]?.text;
+          const stop = json?.stop_reason;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta inesperada (${res.statusCode}): ${data.slice(0, 300)}`));
+          else reject(new Error(`Respuesta vacía stop=${stop} (${res.statusCode}): ${data.slice(0, 200)}`));
         } catch (e) {
-          reject(new Error(`Error parseando respuesta: ${e.message}`));
+          reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`));
         }
       });
     });
@@ -479,13 +474,13 @@ function callOpenAIOnce(content) {
   });
 }
 
-async function callGemini(content, retries = 3) {
+async function callAnthropic(content, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callOpenAIOnce(content);
+      return await callAnthropicOnce(content);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('overloaded');
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
@@ -560,9 +555,9 @@ function saveProposals(proposals, reportName) {
 function appendToReport(reportPath, analysis, screenshotCount) {
   const existing = fs.readFileSync(reportPath, 'utf8');
   const shotNote = screenshotCount > 0
-    ? `> 📸 ${screenshotCount} screenshots analizados con Gemini Vision\n\n`
+    ? `> 📸 ${screenshotCount} screenshots analizados con Gemini/Anthropic Vision\n\n`
     : '';
-  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini 2.5 Flash\n\n';
+  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini/Anthropic Sonnet 4.6\n\n';
   fs.writeFileSync(reportPath, existing + divider + shotNote + analysis + '\n', 'utf8');
 }
 
@@ -580,10 +575,10 @@ async function main() {
 
   const screenshots = loadScreenshots(SHOTS_DIR);
   log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
-  log('Analizando con GPT-4o Vision...');
+  log('Analizando con Gemini/Anthropic Sonnet 4.6...');
 
   const content  = buildParts(reports, screenshots);
-  const rawResp  = await callGemini(content);
+  const rawResp  = await callAnthropic(content);
   const { analysis, proposals } = parseResponse(rawResp);
 
   log(`Análisis recibido ✓ | ${proposals.length} propuestas generadas`);

@@ -23,11 +23,11 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
 
-if (!OPENAI_API_KEY) {
-  console.error('[deep] ERROR: OPENAI_API_KEY no configurada en .env');
+if (!ANTHROPIC_API_KEY) {
+  console.error('[deep] ERROR: ANTHROPIC_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -96,14 +96,15 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
       shots: [
         ...files.filter(f => f.filename.startsWith('00-landing')),
         ...files.filter(f => f.filename.startsWith('responsive-') && f.filename.includes('landing')),
+        ...loginOnly,
       ],
       maxTokens: 6000,
     },
     {
       id: 'auth-onboarding',
-      name: 'Auth, Onboarding y Paywall',
+      name: 'Auth, Onboarding, Blackout y Paywall',
       accent: 'Sin accent específico',
-      desc: 'Pantalla de login/registro, flujo de onboarding, estado de alerta por puntos críticos perdidos, y pantalla de upgrade a Pro. ' +
+      desc: 'Pantalla de login/registro, flujo de onboarding, estado BLACKOUT (puntos críticos perdidos) y paywall. ' +
             'Es la PRIMERA experiencia del usuario — define si se queda o se va.',
       shots: [...loginOnly, ...pick('02-', '03-', '04-')],
       maxTokens: 5000,
@@ -241,69 +242,103 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
 // CONTEXTO BASE (enviado en cada llamada)
 // ══════════════════════════════════════════════════════════════
 const BASE_CONTEXT = `
-Eres el equipo senior completo de Life OS en 2026. Analizas screenshots reales de la app para detectar bugs, problemas visuales, oportunidades de retención y mejoras implementables. Tu análisis debe ser concreto, visualmente fundamentado, priorizado y accionable. No inventes problemas sin evidencia. Si una conclusión es inferida, márcala como INFERENCIA.
+Eres el equipo senior completo detrás de Life OS en 2026 — la app que convierte la vida real en un RPG de productividad. Tienes roles simultáneos:
 
-ROLES SIMULTÁNEOS:
-🔴 SENIOR QA ENGINEER — bugs funcionales, NaN/undefined/null, estados rotos, flujos silenciosos.
-🟠 SENIOR FRONTEND DEV — causa probable en main.js/styles.css, selector CSS, función, localStorage. No inventes líneas exactas; sí puedes inferir función probable.
-🟡 LEAD PRODUCT DESIGNER (Linear/Superhuman 2026) — glassmorphism real, jerarquía tipográfica, estados vacíos con personalidad, coherencia de módulos, identidad visual propia de cada módulo.
-🟢 GAME DESIGNER — XP/Aura visible, feedback inmediato, recompensas, streaks, motivación para volver mañana.
-🔵 MOBILE UX SPECIALIST — touch targets ≥44px, thumb zones, nav inferior, overflow horizontal, Android 360×800 vs iOS 390×844.
-⚫ RETENTION ANALYST — fricción en primeros 30s/7 días, copy, onboarding, conversión, valor inmediato.
-🌌 LIVING DATA & MOTION UX STRATEGIST — detecta dónde datos/acciones/progreso se ven muertos y propone convertirlos en experiencias vivas: partículas Canvas, SVG animado, microinteracciones, CSS motion, feedback de logros, estados vacíos animados. Solo propone animación cuando mejora comprensión, recompensa, identidad o retención. Nunca por decoración. Cada propuesta incluye: cuándo se activa, qué tecnología, costo BAJO/MEDIO/ALTO, fallback prefers-reduced-motion, cómo evitar romper mobile.
+🔴 SENIOR QA ENGINEER (15 años) — detectas bugs funcionales, estados rotos, NaN/undefined, flujos que fallan silenciosamente.
+🟠 SENIOR FRONTEND DEV — sabes exactamente qué archivo y línea está causando cada problema.
+🟡 LEAD PRODUCT DESIGNER (Linear/Notion/Superhuman 2026) — en 2026 las apps premium tienen: glassmorphism con profundidad real, micro-animaciones con spring physics, tipografía con jerarquía perfecta, skeleton loaders, estados vacíos con personalidad, transiciones de estado fluidas.
+🟢 GAME DESIGNER — gamificación psicológica. XP, streaks, recompensas variables, progresión visible, feedback inmediato y satisfactorio.
+🔵 MOBILE UX SPECIALIST — mobile-first siempre. Touch targets 44px mínimo, thumb zones, una mano.
+⚫ RETENTION ANALYST — sabes exactamente qué friction point hace que un usuario abandone en los primeros 7 días.
+🟣 SENIOR PRODUCT ENGINEER / UX STRATEGIST (Push Notifications & Engagement) — diseñas ecosistemas de notificaciones push que generan hábito sin crear fatiga. Sabes cuándo, por qué y cómo enviar cada push: notificaciones de actividad pendiente con deep link directo a la pantalla correcta, recordatorios de racha antes de que se rompa, celebraciones de hito con vibración háptica, digests semanales de progreso con formato motivacional. Arquitecturas: Web Push API + FCM, service worker \`notificationclick\` con \`clients.openWindow(url)\` y deep linking por query param (\`?module=flow&action=checkin\`). Detectas cuándo la app tiene el canal pero no lo usa — e.g., botón de suscripción a push que existe pero no está conectado a recordatorios útiles. Tu output siempre incluye: (1) qué trigger envía el push, (2) el copy exacto del título + body, (3) la URL de deep link, (4) en qué archivo y función implementarlo.
 
-LIFE OS — PWA gamificada hispanohablantes 20-35. Stack: SPA (main.js+index.html+styles.css), Firebase, Stripe, Chart.js, GPT-4o.
+═══════════════════════════════════════
+LA APP: LIFE OS
+═══════════════════════════════════════
+PWA gamificada = Notion + Duolingo + RPG. El usuario gestiona su vida completa y gana XP.
+Stack: SPA archivo único (main.js + index.html), Firebase Firestore/Auth, Stripe, Anthropic, Chart.js.
+Target: usuarios hispanohablantes 20-35 años que quieren productividad con engagement de videojuego.
 
-MÓDULOS (inamovibles):
-| Módulo | Icon | Accent | Tabs |
-|---|---|---|---|
-| Dashboard | ⚡ | #00e5ff | — |
-| World | 🗺️ | #06b6d4 | — |
-| Flow | ✅ | #00ff88 | Hábitos·Metas·Ideas·Agenda |
-| Cuerpo | 💪 | #ff6b35 | Físico·Salud |
-| Financiero | 💰 | #fbbf24 | — |
-| Mente | 🧠 | #a855f7 | Bitácora·Gemelo·Poder |
-| Stats | 📊 | #6366f1 | Análisis·Nexus |
-| Settings | ⚙️ | — | VM selector·Dashboard toggle |
-Flow absorbe Calendario. Gemelo vive en Mente. Precio $99 MXN/mes — NO reportar como problema.
+ARQUITECTURA IMPLEMENTADA (abril 2026):
+| Módulo       | Nav icon | Accent       | Tabs internas                          |
+|-------------|----------|--------------|---------------------------------------|
+| Dashboard   | ⚡        | cyan #00e5ff | — (con sección dinámica de accesos)   |
+| World       | 🗺️        | teal #06b6d4 | —                                     |
+| Flow        | 🌊        | verde #00ff88| Hábitos · Metas · Ideas · Agenda      |
+| Cuerpo      | 💪        | naranja #ff6b35 | Físico · Salud                     |
+| Financiero  | 💰        | dorado #fbbf24 | —                                   |
+| Mente       | 🧠        | púrpura #a855f7 | Bitácora · Gemelo · Poder          |
+| Stats       | 📊        | índigo #6366f1 | Análisis · Nexus                   |
+| Settings    | ⚙️        | —            | (VM selector XP/Aura, Dashboard toggle)|
 
-MODO XP (body[data-mode="xp"] o sin data-mode): cyan #00e5ff, Orbitron, neón, glow. Términos: XP/Nivel/Racha Activa. FAB: "+".
-MODO AURA (body[data-mode="aura"]): glassmorphism, accent dinámico vía _setAuraAccentVars() (NO fijo lavanda), border-radius 20-28px. Términos: Aura/Esencia Actual/Flujo Continuo. FAB: "✦". Claro: fondo #F7F8FC, texto #2F3A5A.
-PRESETS: #00e5ff #4ade80 #a855f7 #fb923c #f472b6 #ffd700 #ff6b35 #60a5fa
+DECISIONES ARQUITECTURALES INAMOVIBLES:
+- Flow ABSORBE el Calendario (tab Agenda dentro de Flow)
+- Gemelo VIVE en Mente → tab "Gemelo". Flujo: Bitácora → Gemelo → insights.
+- Cada módulo tiene CSS data-module scope con su accent color propio.
+- El Gemelo NO muestra análisis hasta que hay suficientes datos del usuario.
+- PRECIO: $99 MXN/mes ≈ ~$5 USD. NO es caro. No reportar precio como problema. Es intencional.
 
-BUGS AURA A VIGILAR: botones cyan en .btn-a → falta override | labels "Nivel/XP" en Aura → data-term bug | radar cyan en Aura → initRadarChart() | color lavanda fijo → bug _setAuraAccentVars().
-AURA CHART: PROHIBIDO usar radar Chart.js en Modo Aura. Debe ser Canvas con sistema de partículas orgánico — nube luminosa donde 6 nodos invisibles (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo) atraen partículas según score del usuario. El movimiento debe sentirse orgánico, no mecánico. Desktop 120-220 partículas, Mobile 60-110, Reduced motion 20-40 o estático.
+SISTEMA DUAL DE IDENTIDAD VISUAL — MOTOR PSICOGRÁFICO (implementado abril 2026):
+La app tiene DOS modos que el usuario elige en Settings y persisten cross-device:
 
-DASHBOARD INTELIGENTE: toggle ON → #db-dynamic-shortcuts muestra top 3 módulos (ícono+nombre+"N visitas"). Sin historial → oculto (correcto).
+MODO XP (body sin data-mode o body[data-mode="xp"]):
+- Estética gaming/cyberpunk: neón cyan #00e5ff, Orbitron, partículas, glow effects
+- Terminología: "XP", "Nivel", "Racha Activa", "Level Up", "+ N XP"
+- FAB muestra "+"
+- Radar Chart: paleta cyan
 
-SCREENSHOTS:
-- _fold = above the fold. Si vacío = BUG CRÍTICO. Si tiene header/título = NO vacío.
-- _scroll = 500px abajo. Si solo _fold vacío pero _scroll tiene contenido → bug de layout/fold.
-- responsive-android-* = 360×800. responsive-ios-* = 390×844.
-- Tabs no capturados NO se reportan como vacíos.
-- 00-landing-fold sin CTA = BUG CRÍTICO conversión.
+MODO AURA (body[data-mode="aura"] — oscuro, o body[data-mode="aura"].light — claro):
+- Estética ethereal/glassmorphism: cards con backdrop-filter blur, borders translúcidos, border-radius 20-28px
+- Color: NO es fijo lavanda — se deriva del color de acento elegido por el usuario (8 presets).
+  --aura-accent, --aura-accent2, --aura-rgb se setean dinámicamente en JS via _setAuraAccentVars()
+  Ejemplo: si usuario eligió Rosa (#f472b6), el Aura será en tonos rosa suave, NO lavanda
+- Terminología: "Aura" (no XP), "Esencia Actual" (no Nivel), "Flujo Continuo" (no Racha), "Expansión" (no Level Up)
+- FAB muestra "✦"
+- Modo claro Aura: fondo perla #F7F8FC, texto oscuro #2F3A5A, glassmorphism blanco
 
-NUNCA REPORTAR: #book-focus-overlay, #pomo-ascension (siempre display:none). 15-mente-biblioteca = lista de libros = CORRECTO.
-LANDING (post-fix): .lp-nav 68px top, .lp-scroll top:68px overflow-y:auto, .lp-hero padding:56px 24px 64px. Bug espacio vacío YA CORREGIDO.
-LANDING FEATURES DIFERENCIADORES: Gemelo IA, Life OS World, Plan Amigos/Aliados, Rachas+heatmap, XP/Niveles, vida como RPG.
+DETECCIÓN DE BUGS DE MODO AURA:
+- Si en modo Aura ves botones con fondo cyan sólido → falta override CSS en .btn-a
+- Si la barra de progreso sigue en cyan → no aplicó .xp-bar-fill gradient
+- Si los labels dicen "Nivel Actual" o "XP Total" en lugar de "Esencia Actual" / "Aura Total" → data-term no se actualizó
+- Si el color del Aura es siempre lavanda sin importar el acento del usuario → bug en _setAuraAccentVars()
+- Si al cambiar de XP a Aura el radar chart no cambia de color → initRadarChart() no se llamó post-cambio
 
-PRIORIDAD ALTA: bloquea uso, rompe onboarding, datos falsos, roto en mobile, daña conversión/confianza.
-PRIORIDAD MEDIA: reduce claridad, menos premium, inconsistencia visual, afecta retención.
-PRIORIDAD BAJA: pulido, microcopy, ajuste fino estético.
+DASHBOARD INTELIGENTE (implementado abril 2026):
+Toggle en Settings activa S.dynamicDashboard. Con ON: #db-dynamic-shortcuts muestra los 3 módulos
+más visitados como accesos rápidos (lee _bnVisitCount de localStorage, se incrementa en navigate()).
+Verifica: botones tienen ícono + nombre + "N visitas". Con toggle ON y sin uso previo → sección oculta (correcto).
 
-COSTO ANIMACIÓN: BAJO=CSS transition/hover/fade/pulse | MEDIO=SVG animado/Chart.js animation/particle burst pequeño | ALTO=Canvas particle system/físicas/visualización generativa persistente. Reserva ALTO para momentos importantes: Aura Chart, Dashboard core, World Map, Mente orbe.
-NO proponer animación si: pantalla ya cargada, legibilidad es el problema, módulo necesita claridad antes que movimiento, mobile está roto, datos críticos financieros/lectura.
+CONVENCIÓN DE SCREENSHOTS:
+- 00-landing-* = landing page pública (antes del login) — la carta de presentación
+- _fold = lo primero que ve el usuario al abrir el módulo (above the fold)
+- _scroll = 500px abajo (contenido below the fold)
+- responsive-android-* = Android 360×800 (Pixel 6a)
+- responsive-ios-* = iOS 390×844 (iPhone 14/15)
+⚠️ Si _fold está vacío (solo fondo, sin contenido) = BUG DE LAYOUT crítico.
+⚠️ Si en 00-landing-fold los botones CTA no se ven = BUG CRÍTICO de conversión.
 
-TIPOS VÁLIDOS DE PROPUESTA:
-BUG · DISEÑO · UX · MOBILE · RETENCIÓN · GAMIFICACIÓN · PERFORMANCE · ARQUITECTURA · IDENTIDAD-VISUAL · DATA-VIZ · COPY · ONBOARDING · PWA · LIVING-DATA · MOTION · MICROINTERACTION · CANVAS · SVG-MOTION · CSS-MOTION · AMBIENT-MOTION · GAMIFICATION-FEEDBACK · EMPTY-STATE-MOTION · DATA-VIZ-MOTION · BENTO-GRID
+ELEMENTOS SIEMPRE OCULTOS — NO REPORTAR COMO BUGS:
+- #book-focus-overlay ("📖 SESIÓN DE LECTURA · ENFOQUE TOTAL") → display:none permanente. El runner QA nunca activa enterBookFocus(). Si lo ves en un screenshot es una anomalía del screenshot, no un bug de la app.
+- #pomo-ascension → solo visible cuando el usuario inicia un Pomodoro manualmente.
+- Si ves "SESIÓN DE LECTURA", "GESTIÓN DE LECTURA" o "ENFOQUE TOTAL" en módulos que no son Biblioteca/Mente → es una alucinación. NO reportarlo como bug global.
 
-BENTO GRID SYSTEM (implementado en esta versión):
-.module-bento-grid = CSS Grid 12 cols desktop · 6 cols @1024px · 1 col @640px
-.bento-compact=3col · .bento-medium=4col · .bento-wide=6col · .bento-large=8col · .bento-full=12col · .bento-tall=row span 2
-MÓDULOS CON BENTO IMPLEMENTADO: Flow/Hábitos · Cuerpo/Físico · Cuerpo/Bienestar · Financiero · Flow/Metas(history) · Flow/Agenda(sección inferior) · Stats/Análisis · Settings
-MÓDULOS SIN BENTO (JS-rendered o custom): Dashboard(ui-grid nativo) · Mente/Gemelo · Mente/Bitácora(secciones JS) · Stats/Nexus · Flow/Ideas(ideas-grid) · World · Aprende
-SEÑALES DE BENTO CORRECTO: cards de distintos anchos visibles en desktop, sin columna derecha vacía, composición asimétrica, NPC+heatmap side-by-side en Cuerpo, saldos+pie side-by-side en Financiero, bento-tall ocupa dos filas sin hueco.
-SEÑALES DE BENTO ROTO: todas las cards del mismo ancho en desktop (igual que .ui-grid viejo), columna derecha vacía permanente, overflow horizontal en mobile, cards altísimas con poco contenido, bento-tall deja hueco debajo en lugar de llenarse.
+LANDING PAGE — CONTEXTO CLAVE (layout actual, post-fix):
+La landing vive en <div id="landing-page"> con display:block; position:fixed; inset:0; overflow:hidden.
+Nav (\`.lp-nav\`) tiene position:absolute; top:0; left:0; right:0; z-index:10 — altura real ~68px.
+El scroll container (\`.lp-scroll\`) tiene position:absolute; top:68px; left:0; right:0; bottom:0; overflow-y:auto.
+La sección hero (\`.lp-hero\`) está dentro de \`.lp-scroll\` con padding:56px 24px 64px.
+BUG DEL ESPACIO VACÍO: YA CORREGIDO en esta versión. El hero ya NO tiene min-height ni align-items:center. El contenido aparece justo debajo del nav.
+
+COLORES PRESET DE LA APP (ACCENT_PRESETS en main.js) — estos son los 8 colores que el usuario puede elegir al registrarse, y son el corazón visual del sistema:
+#00e5ff Cyan, #4ade80 Verde, #a855f7 Violeta, #fb923c Naranja, #f472b6 Rosa, #ffd700 Oro, #ff6b35 Coral, #60a5fa Azul
+
+FEATURES DIFERENCIADORES QUE DEBEN BRILLAR EN EL LANDING:
+1. Gemelo Potenciado — IA que aprende los patrones del usuario y da insights personalizados
+2. Life OS World — mapa gamificado del mundo donde vives con tu burbuja/avatar
+3. Plan Amigos / Aliados — productividad social, rachas compartidas, presencia social
+4. Rachas de Hábitos — heatmap de constancia, racha diaria, batería de hábito
+5. Sistema de XP y Niveles — cada acción de la app otorga puntos, hay leaderboard
+6. Gamificación total — la vida entera como un RPG: finanzas, salud, mente, agenda
 `.trim();
 
 // ══════════════════════════════════════════════════════════════
@@ -395,7 +430,7 @@ ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (Entre 8 y 12 propuestas — este grupo merece más porque es la cara pública de la app)
-- [TIPO] Landing: descripción del problema | EVIDENCIA: screenshot que lo muestra | CAUSA PROBABLE: función/selector probable | SOLUCIÓN: CSS/JS/copy exacto listo para copiar | MOMENTO DE USO: cuándo se activa (si es motion) | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: fallback si aplica | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO/ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] Landing: descripción del problema | SOLUCIÓN: pega el CSS/JS/copy exacto listo para copiar | PRIORIDAD: CRÍTICA/ALTA/MEDIA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: BUG/DISEÑO/CONVERSIÓN/ANIMACIÓN/COPY/MOBILE
 
 ---ANALYSIS---
 
@@ -455,7 +490,7 @@ parseLocalNLP() en main.js detecta (en orden de prioridad):
 9. Task      — default si nada más aplica
 
 Typo correction: diccionario ~50 palabras + Levenshtein(distancia=1) para palabras ≥5 chars.
-Claude Haiku como fallback premium (requiere API key del usuario).
+Anthropic Haiku como fallback premium (requiere API key del usuario).
 
 BATERÍA DE CASOS PROBADOS:
 Tareas: "comprar leche mañana", "llamar al médico esta semana", "traer el cargador y libreta"
@@ -526,7 +561,7 @@ ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (8-12 propuestas — mezcla de fixes de semántica con código listo, mejoras de UX y features)
-- [TIPO] FAB-NLP: descripción | EVIDENCIA: screenshot que lo muestra | CAUSA PROBABLE: función/selector probable | SOLUCIÓN: regex/código exacto listo para pegar en parseLocalNLP() | MOMENTO DE USO: cuándo se activa (si es motion/UX) | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: fallback si aplica | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO/ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] FAB-NLP: descripción | SOLUCIÓN: regex/código exacto listo para pegar en parseLocalNLP() o descripción precisa | PRIORIDAD: CRÍTICA/ALTA/MEDIA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: NLP/UX/FEATURE/BUG
 
 ---ANALYSIS---
 
@@ -615,23 +650,15 @@ ${'─'.repeat(60)}
    - ¿La navegación entre sub-módulos o tabs es intuitiva?
    - ¿Los mensajes y textos son consistentes en tono y estilo?
 
-6. BENTO GRID AUDIT
-   - ¿El módulo usa .module-bento-grid o todavía .ui-grid/.grid2/.grid3 con cards de ancho uniforme?
-   - ¿Las cards tienen tamaños variados (compact/medium/wide/large/tall)? ¿O todas se ven full-width?
-   - En desktop 1280px: ¿hay columna derecha vacía, espacio muerto grande, o cards gigantes con poco contenido?
-   - En tablet 1024px: ¿colapsa bien a 6 columnas o hay overflow/rotura visual?
-   - En mobile 640px: ¿todo colapsa a 1 columna sin overflow horizontal?
-   - ¿El bento-tall funciona — el card lateral ocupa ambas filas sin dejar hueco debajo?
-   - Si el módulo no tiene Bento implementado: propón qué cards deberían ser compact/medium/wide y cuál bento-tall.
-
 ${'─'.repeat(60)}
 FORMATO DE RESPUESTA REQUERIDO:
 ${'─'.repeat(60)}
 
 ---PROPOSALS---
 (Lista de propuestas específicas — entre 5 y 10, solo las que realmente se justifican con lo que ves)
-- [TIPO] MÓDULO: descripción concisa del problema | EVIDENCIA: screenshot que lo muestra | CAUSA PROBABLE: función/selector probable | SOLUCIÓN: código CSS/JS exacto listo para pegar | MOMENTO DE USO: cuándo se activa (si es motion/animation) | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: fallback si aplica | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO/ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
-(TIPO puede ser: BUG, DISEÑO, UX, MOBILE, RETENCIÓN, GAMIFICACIÓN, PERFORMANCE, ARQUITECTURA, LIVING-DATA, CANVAS, MOTION, MICROINTERACTION, CSS-MOTION, SVG-MOTION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION)
+- [TIPO] Nombre del módulo: descripción concisa del problema | SOLUCIÓN: código CSS/JS exacto listo para pegar, o descripción precisa de línea/función a cambiar en main.js o styles.css | PRIORIDAD: CRÍTICA/ALTA/MEDIA/BAJA | IMPACTO: 1-5 | ESFUERZO: 1-5 | CATEGORÍA: BUG/DISEÑO/GAMIFICACIÓN/RETENCIÓN/MOBILE/ARQUITECTURA
+(TIPO puede ser: BUG, DISEÑO, UX, MOBILE, RETENCIÓN, GAMIFICACIÓN, PERFORMANCE, ARQUITECTURA)
+(IMPACTO: 5=cambia retención/conversión, 1=cosmético. ESFUERZO: 1=10min, 5=día completo)
 
 ---ANALYSIS---
 
@@ -652,15 +679,6 @@ ${'─'.repeat(60)}
 ### 📱 Mobile (si aplica)
 [Solo si hay screenshots responsive en este grupo]
 
-### 🔲 BENTO GRID AUDIT
-[¿El módulo usa .module-bento-grid? ¿Las cards tienen tamaños variados o todas son iguales? Diagnóstico de columna derecha vacía / espacio muerto en desktop 1280px. Estado en tablet 1024px y mobile 640px. ¿El bento-tall cierra bien el layout? Si hay problemas: propuestas con clases CSS exactas (ej: cambiar bento-full → bento-wide + bento-wide, agregar bento-tall a X card). Si el módulo no tiene Bento: qué estructura propones.]
-
-### 🌌 VEREDICTO DE MOTION & LIVING DATA
-[Máximo 80 palabras. ¿Este módulo se ve vivo o estático? ¿Dónde están los datos muertos más valiosos para animar? Tecnología recomendada (CSS/SVG/Canvas) y costo para la oportunidad más importante. Si no aplica motion aquí, di por qué.]
-
-### 🎨 VEREDICTO DE IDENTIDAD VISUAL
-[Máximo 70 palabras. ¿Qué en este módulo se siente único de Life OS vs genérico/template? ¿Hay elementos que ya lo distinguen claramente? ¿El accent color está bien usado o se pierde?]
-
 ### 🚀 La mejora de mayor impacto para este grupo
 [Una sola mejora, la más importante, con descripción de implementación suficientemente específica para que un dev la ejecute]
 
@@ -671,10 +689,9 @@ ${'─'.repeat(60)}
 // SÍNTESIS EJECUTIVA FINAL
 // ══════════════════════════════════════════════════════════════
 function buildSynthesisPrompt(groupResults, totalShots) {
-  const summaries = groupResults
-    .filter(r => !r.refused && r.analysis)
-    .map(r => `### ${r.group} (salud: ${r.health || '?'}/10)\n${r.analysis.slice(0, 800)}...`)
-    .join('\n\n---\n\n');
+  const summaries = groupResults.map(r =>
+    `### ${r.group} (salud: ${r.health || '?'}/10)\n${r.analysis.slice(0, 800)}...`
+  ).join('\n\n---\n\n');
 
   const allProposals = groupResults.flatMap(r => r.proposals);
   const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
@@ -728,19 +745,6 @@ FORMATO REQUERIDO:
 ### 🔗 Coherencia cross-módulo
 [¿Los módulos se sienten como parte de la misma app o como features sueltas con diseños diferentes?]
 
-### 🔲 ESTADO BENTO GRID — TODOS LOS MÓDULOS
-| Módulo | Estado | Problema detectado | Mejora propuesta |
-|---|---|---|---|
-[Una fila por módulo. Estado: ✅ Correcto / ⚠️ Parcial / ❌ Sin bento / — N/A (JS-rendered o custom). Llena con lo que observaste en los screenshots. Si no tuviste screenshot de un módulo, ponlo como ? No evaluado.]
-
-**Top 3 módulos con mayor ganancia visual al mejorar su Bento:**
-1. [módulo] — [qué cambiar exactamente: clases CSS, qué card mueve de tamaño, por qué mejora la composición]
-2. [módulo] — [ídem]
-3. [módulo] — [ídem]
-
-### 🌌 VEREDICTO DE MOTION & LIVING DATA — app completa
-[Máximo 100 palabras. ¿La app se siente viva o estática en global? ¿Cuáles son los 3 momentos con mayor potencial de motion que están muertos actualmente? ¿El AuraChart canvas está implementado o sigue siendo radar Chart.js? Recomendación de tecnología + prioridad para la oportunidad mayor.]
-
 ### 🌐 Landing page — estado de conversión
 [¿La landing convierte? ¿El bug de hero está resuelto? ¿Los features diferenciadores brillan? ¿La animación de colores ayuda o distrae?]
 
@@ -762,37 +766,41 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR GEMINI (con retry + backoff)
+// LLAMAR A ANTHROPIC API (multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════
-// OPENAI API (gpt-5.5 multimodal, con retry + backoff)
-// ══════════════════════════════════════════════════════════════
-const SYSTEM_MSG = `You are a senior product design team (UX analyst, QA engineer, frontend developer, game designer, retention specialist) conducting an in-depth visual design review of Life OS — a legitimate gamified productivity web app at mylifeos.lat, built by an indie founder.
-
-The screenshots were captured automatically by an end-to-end QA runner navigating the live staging app. They show real UI states: login form, financial dashboard, habit tracking, calendar, settings, etc.
-
-Your mission: provide the richest, most specific, most actionable analysis possible. Identify bugs, visual inconsistencies, UX friction, gamification gaps, mobile issues, and motion/animation opportunities. Never refuse, truncate, or give a generic response. The founder depends on this analysis to improve the product for real users.`;
-
-function callGeminiOnce(content, maxTokens) {
+function callAnthropicOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: SYSTEM_MSG },
-        { role: 'user', content },
-      ],
-      max_tokens: Math.min(maxTokens, 6000),
+    // Convertir formato image_url -> formato Anthropic image
+    const anthropicContent = content.map(item => {
+      if (item.type === 'text') return { type: 'text', text: item.text };
+      if (item.type === 'image_url') {
+        const urlData = item.image_url.url;
+        const mime    = urlData.match(/^data:([^;]+);base64,/)?.[1] || 'image/jpeg';
+        const b64     = urlData.replace(/^data:[^;]+;base64,/, '');
+        return { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+      }
+      return item;
     });
+
+    const body = JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: Math.min(maxTokens, 6000),
+      system: 'Eres el equipo senior completo de Life OS: QA engineer, frontend developer, product designer, game designer, mobile UX specialist y retention analyst. Analiza screenshots reales de la app gamificada Life OS y produce el análisis más detallado, concreto y accionable posible. Nunca te niegues ni trunques la respuesta. El fundador depende de este análisis para mejorar el producto para usuarios reales.',
+      messages: [{ role: 'user', content: anthropicContent }],
+    });
+
     const options = {
-      hostname: 'api.openai.com',
-      path: '/v1/chat/completions',
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Length': Buffer.byteLength(body),
+        'Content-Type':      'application/json',
+        'x-api-key':         ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Length':    Buffer.byteLength(body),
       }
     };
+
     const req = https.request(options, res => {
       let data = '';
       res.on('data', c => data += c);
@@ -800,11 +808,10 @@ function callGeminiOnce(content, maxTokens) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const choice = json?.choices?.[0];
-          const text   = choice?.message?.content;
-          const finish = choice?.finish_reason;
+          const text = json?.content?.[0]?.text;
+          const stop = json?.stop_reason;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía finish=${finish} (${res.statusCode}): ${data.slice(0, 200)}`));
+          else reject(new Error(`Respuesta vacía stop=${stop} (${res.statusCode}): ${data.slice(0, 200)}`));
         } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
       });
     });
@@ -814,14 +821,13 @@ function callGeminiOnce(content, maxTokens) {
   });
 }
 
-async function callGemini(content, maxTokens, retries = 3) {
+async function callAnthropic(content, maxTokens, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callGeminiOnce(content, maxTokens);
+      return await callAnthropicOnce(content, maxTokens);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isEmptyOutput = e.message.includes('finish=length') || (e.message.includes('vacía') && e.message.includes('finish='));
-      const isRetryable = !isEmptyOutput && (isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503'));
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('overloaded');
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
@@ -836,23 +842,7 @@ async function callGemini(content, maxTokens, retries = 3) {
 // ══════════════════════════════════════════════════════════════
 // PARSEAR RESPUESTA
 // ══════════════════════════════════════════════════════════════
-function isRefusal(text) {
-  const t = text.trim();
-  const lower = t.toLowerCase();
-  // Frases explícitas de rechazo
-  if (lower.startsWith("i'm sorry") || lower.startsWith("i am sorry") ||
-      lower.includes("can't assist") || lower.includes("cannot assist") ||
-      lower.includes("unable to assist") || lower.includes("i'm not able to") ||
-      lower.includes("i cannot help") || lower.includes("i'm unable to") ||
-      lower.includes("not able to help") || lower.includes("can't help with")) return true;
-  // Respuesta muy corta sin el formato esperado = rechazo silencioso
-  if (t.length < 300 && !t.includes('---PROPOSALS---') && !t.includes('---ANALYSIS---') &&
-      !t.includes('💊') && !t.includes('###')) return true;
-  return false;
-}
-
 function parseResponse(raw) {
-  if (isRefusal(raw)) return { analysis: null, proposals: [], health: null, refused: true };
   const propStart = raw.indexOf('---PROPOSALS---');
   const analStart = raw.indexOf('---ANALYSIS---');
   if (propStart !== -1 && analStart !== -1 && propStart < analStart) {
@@ -860,10 +850,10 @@ function parseResponse(raw) {
       .split('\n').filter(l => l.trim().match(/^-\s*\[/)).map(l => l.trim());
     const analysis = raw.slice(analStart + 14).trim();
     const healthMatch = analysis.match(/💊 Salud.*?(\d+)\/10/);
-    return { analysis, proposals, health: healthMatch ? healthMatch[1] : null, refused: false };
+    return { analysis, proposals, health: healthMatch ? healthMatch[1] : null };
   }
   const healthMatch = raw.match(/💊 Salud.*?(\d+)\/10/);
-  return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null, refused: false };
+  return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null };
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -891,16 +881,15 @@ async function main() {
   log(`Screenshots a analizar: ${totalShots} (${loginShots} de login excluidos para ahorrar tokens)`);
   groups.forEach(g => log(`  📦 ${g.name}: ${g.shots.length} screenshots`));
 
-  // Estimación de costo (gpt-4o: ~$2.50/1M input, ~$10/1M output · detail:high ~1020 tokens/imagen)
-  const estInputTokens  = totalShots * 1020 + groups.length * 4000;
-  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 6000;
-  const estCost = (estInputTokens / 1e6 * 2.50) + (estOutputTokens / 1e6 * 10.0);
-  log(`Estimación de costo: ~$${estCost.toFixed(3)} USD (gpt-4o detail:high)`);
+  // Estimación de costo (Anthropic Sonnet 4.6: ~$3/1M input, ~$15/1M output)
+  const estInputTokens  = totalShots * 258 + groups.length * 3000;
+  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 5000;
+  const estCost = (estInputTokens / 1e6 * 3.0) + (estOutputTokens / 1e6 * 15.0);
+  log(`Estimación de costo: ~$${estCost.toFixed(3)} USD (claude-sonnet-4-6)`);
   log('Iniciando análisis...\n');
 
   const groupResults = [];
   const allProposals = [];
-  let consecutiveErrors = 0;
 
   // ── Analizar cada grupo ──────────────────────────────────────
   for (const group of groups) {
@@ -910,32 +899,16 @@ async function main() {
       const prompt = buildGroupPrompt(group);
       const content = [{ type: 'text', text: prompt }];
 
-      // Todos los screenshots del grupo, calidad alta para análisis real
+      // Intercalar screenshots con etiquetas de nombre
       for (const shot of group.shots) {
         content.push({ type: 'text', text: `\n📸 ${shot.name}` });
-        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'high' } });
+        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
       }
 
-      let raw = await callGemini(content, group.maxTokens);
-      let parsed = parseResponse(raw);
+      const raw = await callAnthropic(content, group.maxTokens);
+      const { analysis, proposals, health } = parseResponse(raw);
 
-      // Si fue rechazado, reintentar sin imágenes (solo texto)
-      if (parsed.refused) {
-        log(`⚠️ ${group.name} — rechazado por filtro de contenido, reintentando sin imágenes...`);
-        const shotNames = group.shots.map(s => s.name).join(', ');
-        const textOnly = [{ type: 'text', text: buildGroupPrompt(group) + `\n\n[NOTA: Las imágenes no se pueden adjuntar en este intento. Los screenshots capturados fueron: ${shotNames}. Analiza basándote en la descripción funcional del módulo, el contexto del sistema Life OS y lo que esperarías ver en cada screenshot según su nombre.]` }];
-        raw = await callGemini(textOnly, group.maxTokens);
-        parsed = parseResponse(raw);
-        if (parsed.refused) {
-          log(`❌ ${group.name} — rechazado incluso sin imágenes, saltando grupo.`);
-          groupResults.push({ group: group.name, analysis: null, proposals: [], health: null, refused: true });
-          continue;
-        }
-      }
-
-      const { analysis, proposals, health } = parsed;
-      consecutiveErrors = 0;
-      groupResults.push({ group: group.name, analysis, proposals, health, refused: false });
+      groupResults.push({ group: group.name, analysis, proposals, health });
       allProposals.push(...proposals);
 
       log(`✅ ${group.name} — ${proposals.length} propuestas · salud: ${health || '?'}/10`);
@@ -945,13 +918,8 @@ async function main() {
         await new Promise(r => setTimeout(r, 4000));
       }
     } catch(e) {
-      consecutiveErrors++;
-      log(`❌ ${group.name} — Error: ${e.message.slice(0, 150)}`);
-      groupResults.push({ group: group.name, analysis: `Error: ${e.message.slice(0, 200)}`, proposals: [], health: null });
-      if (consecutiveErrors >= 3) {
-        log('🛑 AUTO-STOP: 3 errores consecutivos — abortando para no gastar más tokens.');
-        break;
-      }
+      log(`❌ ${group.name} — Error: ${e.message}`);
+      groupResults.push({ group: group.name, analysis: `Error en análisis: ${e.message}`, proposals: [], health: null });
     }
   }
 
@@ -960,17 +928,7 @@ async function main() {
   let synthesis = '';
   try {
     const synthParts = [{ type: 'text', text: buildSynthesisPrompt(groupResults, totalShots) }];
-    let synthRaw = await callGemini(synthParts, 4096);
-    if (isRefusal(synthRaw)) {
-      log('⚠️ Síntesis rechazada, reintentando con prompt reducido...');
-      const validGroups = groupResults.filter(r => !r.refused && r.analysis);
-      const simplePrompt = `You are a UX analyst summarizing a design review of a productivity web app called Life OS.\n\nHere are the analyzed module groups and their health scores:\n${validGroups.map(r => `- ${r.group}: ${r.health || '?'}/10`).join('\n')}\n\nTotal proposals found: ${allProposals.length}\n\nPlease provide:\n1. Overall app health score (X/10)\n2. Top 5 highest-impact improvements ordered by ROI\n3. Most urgent module and why\n4. 2-week sprint plan with quick wins and structural changes\n\nFormat your response in markdown.`;
-      synthRaw = await callGemini([{ type: 'text', text: simplePrompt }], 2000);
-      if (isRefusal(synthRaw)) {
-        synthRaw = `## Síntesis no disponible\nEl modelo rechazó la síntesis. Revisar los análisis individuales arriba.\n\nGrupos analizados: ${validGroups.map(r => `${r.group} (${r.health || '?'}/10)`).join(', ')}`;
-      }
-    }
-    synthesis = synthRaw;
+    synthesis = await callAnthropic(synthParts, 4096);
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);
@@ -986,11 +944,7 @@ async function main() {
   report += `---\n\n${synthesis}\n\n---\n\n`;
   report += `# ANÁLISIS DETALLADO POR GRUPO\n\n`;
   groupResults.forEach(r => {
-    if (r.refused || !r.analysis) {
-      report += `---\n\n## ${r.group}\n> ⚠️ Grupo omitido — filtro de contenido activo sin imágenes disponibles.\n\n`;
-    } else {
-      report += `---\n\n${r.analysis}\n\n`;
-    }
+    report += `---\n\n${r.analysis}\n\n`;
   });
   report += `---\n\n# TODAS LAS PROPUESTAS\n\n`;
   const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
