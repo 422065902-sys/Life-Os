@@ -296,7 +296,15 @@ COSTO ANIMACIÓN: BAJO=CSS transition/hover/fade/pulse | MEDIO=SVG animado/Chart
 NO proponer animación si: pantalla ya cargada, legibilidad es el problema, módulo necesita claridad antes que movimiento, mobile está roto, datos críticos financieros/lectura.
 
 TIPOS VÁLIDOS DE PROPUESTA:
-BUG · DISEÑO · UX · MOBILE · RETENCIÓN · GAMIFICACIÓN · PERFORMANCE · ARQUITECTURA · IDENTIDAD-VISUAL · DATA-VIZ · COPY · ONBOARDING · PWA · LIVING-DATA · MOTION · MICROINTERACTION · CANVAS · SVG-MOTION · CSS-MOTION · AMBIENT-MOTION · GAMIFICATION-FEEDBACK · EMPTY-STATE-MOTION · DATA-VIZ-MOTION
+BUG · DISEÑO · UX · MOBILE · RETENCIÓN · GAMIFICACIÓN · PERFORMANCE · ARQUITECTURA · IDENTIDAD-VISUAL · DATA-VIZ · COPY · ONBOARDING · PWA · LIVING-DATA · MOTION · MICROINTERACTION · CANVAS · SVG-MOTION · CSS-MOTION · AMBIENT-MOTION · GAMIFICATION-FEEDBACK · EMPTY-STATE-MOTION · DATA-VIZ-MOTION · BENTO-GRID
+
+BENTO GRID SYSTEM (implementado en esta versión):
+.module-bento-grid = CSS Grid 12 cols desktop · 6 cols @1024px · 1 col @640px
+.bento-compact=3col · .bento-medium=4col · .bento-wide=6col · .bento-large=8col · .bento-full=12col · .bento-tall=row span 2
+MÓDULOS CON BENTO IMPLEMENTADO: Flow/Hábitos · Cuerpo/Físico · Cuerpo/Bienestar · Financiero · Flow/Metas(history) · Flow/Agenda(sección inferior) · Stats/Análisis · Settings
+MÓDULOS SIN BENTO (JS-rendered o custom): Dashboard(ui-grid nativo) · Mente/Gemelo · Mente/Bitácora(secciones JS) · Stats/Nexus · Flow/Ideas(ideas-grid) · World · Aprende
+SEÑALES DE BENTO CORRECTO: cards de distintos anchos visibles en desktop, sin columna derecha vacía, composición asimétrica, NPC+heatmap side-by-side en Cuerpo, saldos+pie side-by-side en Financiero, bento-tall ocupa dos filas sin hueco.
+SEÑALES DE BENTO ROTO: todas las cards del mismo ancho en desktop (igual que .ui-grid viejo), columna derecha vacía permanente, overflow horizontal en mobile, cards altísimas con poco contenido, bento-tall deja hueco debajo en lugar de llenarse.
 `.trim();
 
 // ══════════════════════════════════════════════════════════════
@@ -608,6 +616,15 @@ ${'─'.repeat(60)}
    - ¿La navegación entre sub-módulos o tabs es intuitiva?
    - ¿Los mensajes y textos son consistentes en tono y estilo?
 
+6. BENTO GRID AUDIT
+   - ¿El módulo usa .module-bento-grid o todavía .ui-grid/.grid2/.grid3 con cards de ancho uniforme?
+   - ¿Las cards tienen tamaños variados (compact/medium/wide/large/tall)? ¿O todas se ven full-width?
+   - En desktop 1280px: ¿hay columna derecha vacía, espacio muerto grande, o cards gigantes con poco contenido?
+   - En tablet 1024px: ¿colapsa bien a 6 columnas o hay overflow/rotura visual?
+   - En mobile 640px: ¿todo colapsa a 1 columna sin overflow horizontal?
+   - ¿El bento-tall funciona — el card lateral ocupa ambas filas sin dejar hueco debajo?
+   - Si el módulo no tiene Bento implementado: propón qué cards deberían ser compact/medium/wide y cuál bento-tall.
+
 ${'─'.repeat(60)}
 FORMATO DE RESPUESTA REQUERIDO:
 ${'─'.repeat(60)}
@@ -635,6 +652,9 @@ ${'─'.repeat(60)}
 
 ### 📱 Mobile (si aplica)
 [Solo si hay screenshots responsive en este grupo]
+
+### 🔲 BENTO GRID AUDIT
+[¿El módulo usa .module-bento-grid? ¿Las cards tienen tamaños variados o todas son iguales? Diagnóstico de columna derecha vacía / espacio muerto en desktop 1280px. Estado en tablet 1024px y mobile 640px. ¿El bento-tall cierra bien el layout? Si hay problemas: propuestas con clases CSS exactas (ej: cambiar bento-full → bento-wide + bento-wide, agregar bento-tall a X card). Si el módulo no tiene Bento: qué estructura propones.]
 
 ### 🌌 VEREDICTO DE MOTION & LIVING DATA
 [Máximo 80 palabras. ¿Este módulo se ve vivo o estático? ¿Dónde están los datos muertos más valiosos para animar? Tecnología recomendada (CSS/SVG/Canvas) y costo para la oportunidad más importante. Si no aplica motion aquí, di por qué.]
@@ -707,6 +727,16 @@ FORMATO REQUERIDO:
 
 ### 🔗 Coherencia cross-módulo
 [¿Los módulos se sienten como parte de la misma app o como features sueltas con diseños diferentes?]
+
+### 🔲 ESTADO BENTO GRID — TODOS LOS MÓDULOS
+| Módulo | Estado | Problema detectado | Mejora propuesta |
+|---|---|---|---|
+[Una fila por módulo. Estado: ✅ Correcto / ⚠️ Parcial / ❌ Sin bento / — N/A (JS-rendered o custom). Llena con lo que observaste en los screenshots. Si no tuviste screenshot de un módulo, ponlo como ? No evaluado.]
+
+**Top 3 módulos con mayor ganancia visual al mejorar su Bento:**
+1. [módulo] — [qué cambiar exactamente: clases CSS, qué card mueve de tamaño, por qué mejora la composición]
+2. [módulo] — [ídem]
+3. [módulo] — [ídem]
 
 ### 🌌 VEREDICTO DE MOTION & LIVING DATA — app completa
 [Máximo 100 palabras. ¿La app se siente viva o estática en global? ¿Cuáles son los 3 momentos con mayor potencial de motion que están muertos actualmente? ¿El AuraChart canvas está implementado o sigue siendo radar Chart.js? Recomendación de tecnología + prioridad para la oportunidad mayor.]
