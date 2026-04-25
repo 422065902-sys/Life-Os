@@ -11,8 +11,8 @@ Producción nunca se toca durante pruebas. Staging es el campo de juego.
 | Script | Propósito | Modo | Estado |
 |---|---|---|---|
 | `scripts/runner.js` | Runner E2E diario — navega la app y verifica que todo funciona | Manual por ahora | Automático nocturno PENDIENTE hasta tener usuarios |
-| `scripts/analyze-deep.js` | Análisis GPT-4o Vision profundo — 11 grupos temáticos, max 6000 tokens por grupo, detail:high | Manual post-run | Activo |
-| `scripts/analyze.js` | Análisis GPT-5.5 Vision ligero — 3 días de reportes, propuestas de mejora | Manual post-run | ⚠️ Falla (GPT-5.5 devuelve content vacío) |
+| `scripts/analyze-deep.js` | Análisis Claude Sonnet 4.6 profundo — 11 grupos temáticos, max 6000 tokens por grupo | Manual post-run | ✅ Activo |
+| `scripts/analyze.js` | Análisis Claude Sonnet 4.6 ligero — 3 días de reportes + 20 screenshots, propuestas de mejora | Manual post-run | ✅ Activo |
 
 Flujo normal: `node runner.js --deep` — un solo comando hace todo: E2E → screenshots → analyze.js → analyze-deep.js.
 Para correr SOLO el análisis sin el runner: `node analyze.js` o `node analyze-deep.js`
@@ -116,36 +116,39 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 - Ubicación: `/opt/openclaw/.env`
 
 ## MODELO DE IA — IMPORTANTE
-- **analyze-deep.js** usa `gpt-4o` — `max_tokens` (NO `max_completion_tokens`), `detail:'high'` en imágenes, sin cap de screenshots por grupo
-- **analyze.js** usa `gpt-5.5` — `max_completion_tokens`, NO soporta `temperature` ni `top_p` — ⚠️ devuelve content vacío (bug pendiente)
-- GPT-4o content filter: se resuelve con `role:'system'` + SYSTEM_MSG rico + `isRefusal()` que detecta rechazos y reintenta sin imágenes
-- `detail:'high'` = ~1020 tokens/imagen, costo ~$0.50-1.50 por run completo (vs $0.02 con detail:low que era inútil)
-- Gemini 2.5 Flash era el modelo original — daba mejores resultados sin filtros. Migrado a GPT por decisión de sesión anterior. Si hay GEMINI_API_KEY en .env se puede regresar.
+- **Ambos scripts** usan `claude-sonnet-4-6` via `api.anthropic.com/v1/messages`
+- **analyze-deep.js** → `max_tokens: 6000`, imágenes en formato Anthropic (`source.base64`), sin cap de screenshots por grupo
+- **analyze.js** → `max_tokens: 4096`, cap 20 screenshots (ligero por diseño), lee 3 días de reportes
+- API headers: `x-api-key: ANTHROPIC_API_KEY`, `anthropic-version: 2023-06-01`
+- Response: `json.content[0].text`
+- Costo estimado analyze-deep.js: ~$1.15 USD por run completo (82 screenshots, 11 grupos)
+- `ANTHROPIC_API_KEY` en `/opt/openclaw/.env` — NUNCA en git
+- Respaldos históricos en scripts/ (NO eliminar): ORIGINAL-GEMINI.js, BACKUP-GPT4O, BACKUP-GPT55
 
 ## ESTADO ACTUAL
 - ✅ runner.js --deep pipeline completo funcionando
-- ✅ analyze-deep.js: GPT-4o, detail:high, sin cap screenshots, SYSTEM_MSG anti-filtro, isRefusal() + retry sin imágenes, retry síntesis
-- ✅ analyze-deep.js: PROMPT MAESTRO — formato completo (EVIDENCIA · CAUSA PROBABLE · MOMENTO DE USO · PERFORMANCE · REDUCED MOTION · CATEGORÍA · CONFIANZA)
-- ✅ analyze-deep.js: VEREDICTO DE MOTION & LIVING DATA + VEREDICTO DE IDENTIDAD VISUAL por grupo
-- ✅ analyze-deep.js: BENTO GRID AUDIT — dimensión 6 en cada grupo, tabla ESTADO BENTO GRID en síntesis
-- ✅ PWA offline: firebase-messaging-sw.js tiene install/activate/fetch handlers — ya no da white screen offline
+- ✅ analyze-deep.js: Claude Sonnet 4.6, prompts base ORIGINAL-GEMINI, sin cap screenshots por grupo
+- ✅ analyze-deep.js: health regex flexible — no depende del emoji 💊
+- ✅ analyze-deep.js: Bento Grid 2026 — dimensión 6 por grupo + veredictos BENTO/WEB/iOS/MOTION en síntesis
+- ✅ analyze-deep.js: roles nuevos — Living Data Strategist + Adaptive Bento Layout Strategist
+- ✅ analyze-deep.js: 25+ tipos válidos nuevos (BENTO-LAYOUT, CARD-DENSITY, LIVING-DATA, MICROINTERACTION, etc.)
+- ✅ analyze-deep.js: formato propuestas enriquecido — EVIDENCIA, PLATAFORMA, PERFORMANCE, REDUCED MOTION, CONFIANZA
+- ✅ analyze.js: Claude Sonnet 4.6, mismos roles y veredictos que analyze-deep.js
+- ✅ analyze.js: PLATAFORMA + PERFORMANCE + REDUCED MOTION en propuestas
+- ✅ PWA offline: firebase-messaging-sw.js tiene install/activate/fetch handlers
 - ✅ Bento Grid CSS: .module-bento-grid 12col + .bento-compact/medium/wide/large/full/tall en styles.css
-- ✅ Bento Grid aplicado en: Flow/Hábitos · Cuerpo/Físico · Cuerpo/Bienestar · Financiero · Flow/Metas(history) · Flow/Agenda · Stats/Análisis · Settings
+- ✅ Bento Grid aplicado en: Flow/Hábitos · Cuerpo/Físico · Cuerpo/Bienestar · Financiero · Flow/Metas · Flow/Agenda · Stats/Análisis · Settings
 - ✅ main.js: h-done-today stat en renderHabits()
-- ✅ analyze.js: prompt v2 — rol Motion/Canvas, rol Living Data & Motion UX Strategist, criterios Aura, AuraChart spec, veredicto motion
-- ✅ Flow: ícono menú cambiado a ✅ (quitó 🌊)
-- ✅ Flow: page-title con glow verde
+- ✅ Flow: ícono menú ✅, page-title glow verde
 - ✅ equipRoom() / toggleHabit() / unlockRoom(): confetti/orbs + unlock-glow
 - ✅ TERM_DICT + _applyVisualMode() — terminología dinámica XP↔Aura
 - ✅ renderDynamicShortcuts() — dashboard inteligente top 3 módulos
 - ✅ NLP: "me cayó el veinte" → crea tarea
 - ✅ Modo Aura .btn-a override CSS con !important
 - ✅ set-qa-pro.js — da is_pro:true al QA
-- ✅ Git: VPS hace commits directos a GitHub — siempre hacer `git pull --rebase` antes de push desde local
-- ⚠️ analyze.js falla: GPT-5.5 devuelve content vacío — pendiente fix o migrar a gpt-4o
+- ✅ Git: VPS hace commits directos a GitHub — siempre `git pull --rebase` antes de push desde local
 - ⚠️ Pendiente: AuraChart canvas partículas (alta prioridad)
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
-- ⚠️ Pendiente: verificar que runner --deep nuevo código da análisis rico (sesión en curso al cerrar)
 
 ## FLUJO RECOMENDADO
 ```bash
@@ -169,10 +172,29 @@ cd /opt/openclaw && node analyze-deep.js
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-25 (sesión 2)
-- Último commit: `fcfd8d0`
+- Fecha: 2026-04-25 (sesión 3)
+- Último commit: `a13a8a8`
 - Deploy: staging ✅ https://mylifeos-staging.web.app
-- VPS: pendiente sync con scripts migrados a Claude Sonnet 4.6
+- VPS: sincronizado ✅ — runner --deep corriendo con PID 312556 al cerrar sesión
+
+### Cambios sesión 2026-04-25 (sesión 3 — noche)
+
+#### analyze-deep.js
+- Migrado a Claude Sonnet 4.6 — base: prompts ORIGINAL-GEMINI (los buenos)
+- Fix health regex: `/(?:💊\s*)?[Ss]alud[^0-9\n]{0,30}(\d+)\/10/` — ya no falla si Claude omite emoji
+- Roles nuevos en BASE_CONTEXT: Living Data & Motion UX Strategist, Adaptive Bento Layout Strategist
+- Aura Chart spec en BASE_CONTEXT: Canvas 2D, 6 nodos, partículas, física atractores
+- Living Data Visuals framework en BASE_CONTEXT
+- Dimensión 6 en buildGroupPrompt: Bento Grid Audit (web + iOS separados)
+- Formato propuestas enriquecido: + EVIDENCIA, PLATAFORMA, PERFORMANCE, REDUCED MOTION, CONFIANZA
+- 25+ tipos válidos: BENTO-LAYOUT, ADAPTIVE-BENTO, CARD-DENSITY, CHART-SIZING, SUBMODULE-LAYOUT, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, CANVAS-VISUAL, CSS-MOTION, SVG-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, DATA-VIZ-MOTION, WEB-LAYOUT, IOS-LAYOUT
+- 4 veredictos nuevos por grupo: BENTO LAYOUT, WEB/DESKTOP, iOS/MOBILE, MOTION & LIVING DATA
+- 4 veredictos nuevos en síntesis final ídem
+
+#### analyze.js
+- Mismos roles, secciones y veredictos nuevos que analyze-deep.js
+- Formato propuestas: + PLATAFORMA, PERFORMANCE, REDUCED MOTION
+- Referencias "Gemini/GPT" eliminadas — ahora dice "Claude Sonnet 4.6"
 
 ### Cambios sesión 2026-04-25 (tarde)
 
@@ -236,8 +258,7 @@ cd /opt/openclaw && node analyze-deep.js
 
 #### Alta prioridad
 1. **AuraChart canvas** — Canvas de partículas, 6 nodos (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo), física de atractores, radialGradient pastel. Reemplaza radar Chart.js en Modo Aura. API: `window.LifeOSAuraChart.updateScores(scores)` + `emitBurst()`. Desktop: 120-220 partículas · Mobile: 60-110 · Reduced motion: 20-40.
-2. **Fix analyze.js** — GPT-5.5 devuelve content vacío. Migrar a gpt-4o igual que analyze-deep.js, o agregar detección de content vacío + retry.
-3. **Verificar runner --deep** — el código nuevo (detail:high, sin cap) no ha completado un run exitoso aún. Verificar que el análisis rico llega.
+2. **Revisar output del runner --deep** que corrió al cerrar sesión (PID 312556) — verificar calidad del análisis Claude Sonnet 4.6 con prompts enriquecidos.
 
 #### Media prioridad
 4. **Aura light polish** — overrides !important para todos los inline styles en modo claro
