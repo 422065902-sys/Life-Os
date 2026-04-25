@@ -96,15 +96,14 @@ SCROLLBAR: El .lp-scroll tiene scrollbar-width:thin para desktop, pero en mobile
       shots: [
         ...files.filter(f => f.filename.startsWith('00-landing')),
         ...files.filter(f => f.filename.startsWith('responsive-') && f.filename.includes('landing')),
-        ...loginOnly,
       ],
       maxTokens: 6000,
     },
     {
       id: 'auth-onboarding',
-      name: 'Auth, Onboarding, Blackout y Paywall',
+      name: 'Auth, Onboarding y Paywall',
       accent: 'Sin accent específico',
-      desc: 'Pantalla de login/registro, flujo de onboarding, estado BLACKOUT (puntos críticos perdidos) y paywall. ' +
+      desc: 'Pantalla de login/registro, flujo de onboarding, estado de alerta por puntos críticos perdidos, y pantalla de upgrade a Pro. ' +
             'Es la PRIMERA experiencia del usuario — define si se queda o se va.',
       shots: [...loginOnly, ...pick('02-', '03-', '04-')],
       maxTokens: 5000,
@@ -672,9 +671,10 @@ ${'─'.repeat(60)}
 // SÍNTESIS EJECUTIVA FINAL
 // ══════════════════════════════════════════════════════════════
 function buildSynthesisPrompt(groupResults, totalShots) {
-  const summaries = groupResults.map(r =>
-    `### ${r.group} (salud: ${r.health || '?'}/10)\n${r.analysis.slice(0, 800)}...`
-  ).join('\n\n---\n\n');
+  const summaries = groupResults
+    .filter(r => !r.refused && r.analysis)
+    .map(r => `### ${r.group} (salud: ${r.health || '?'}/10)\n${r.analysis.slice(0, 800)}...`)
+    .join('\n\n---\n\n');
 
   const allProposals = groupResults.flatMap(r => r.proposals);
   const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
@@ -832,7 +832,16 @@ async function callGemini(content, maxTokens, retries = 3) {
 // ══════════════════════════════════════════════════════════════
 // PARSEAR RESPUESTA
 // ══════════════════════════════════════════════════════════════
+function isRefusal(text) {
+  const lower = text.trim().toLowerCase();
+  return lower.startsWith("i'm sorry") || lower.startsWith("i am sorry") ||
+         lower.includes("can't assist") || lower.includes("cannot assist") ||
+         lower.includes("unable to assist") || lower.includes("i'm not able to") ||
+         (lower.length < 120 && (lower.includes("sorry") || lower.includes("assist")));
+}
+
 function parseResponse(raw) {
+  if (isRefusal(raw)) return { analysis: null, proposals: [], health: null, refused: true };
   const propStart = raw.indexOf('---PROPOSALS---');
   const analStart = raw.indexOf('---ANALYSIS---');
   if (propStart !== -1 && analStart !== -1 && propStart < analStart) {
@@ -840,10 +849,10 @@ function parseResponse(raw) {
       .split('\n').filter(l => l.trim().match(/^-\s*\[/)).map(l => l.trim());
     const analysis = raw.slice(analStart + 14).trim();
     const healthMatch = analysis.match(/💊 Salud.*?(\d+)\/10/);
-    return { analysis, proposals, health: healthMatch ? healthMatch[1] : null };
+    return { analysis, proposals, health: healthMatch ? healthMatch[1] : null, refused: false };
   }
   const healthMatch = raw.match(/💊 Salud.*?(\d+)\/10/);
-  return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null };
+  return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null, refused: false };
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -897,11 +906,25 @@ async function main() {
         content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
       }
 
-      const raw = await callGemini(content, group.maxTokens);
-      const { analysis, proposals, health } = parseResponse(raw);
+      let raw = await callGemini(content, group.maxTokens);
+      let parsed = parseResponse(raw);
 
+      // Si fue rechazado, reintentar sin imágenes (solo texto)
+      if (parsed.refused) {
+        log(`⚠️ ${group.name} — rechazado por filtro de contenido, reintentando sin imágenes...`);
+        const textOnly = [{ type: 'text', text: buildGroupPrompt(group) + '\n\n[Nota: los screenshots no están disponibles en esta llamada. Analiza basándote en la descripción funcional del grupo y el contexto del sistema.]' }];
+        raw = await callGemini(textOnly, group.maxTokens);
+        parsed = parseResponse(raw);
+        if (parsed.refused) {
+          log(`❌ ${group.name} — rechazado incluso sin imágenes, saltando grupo.`);
+          groupResults.push({ group: group.name, analysis: null, proposals: [], health: null, refused: true });
+          continue;
+        }
+      }
+
+      const { analysis, proposals, health } = parsed;
       consecutiveErrors = 0;
-      groupResults.push({ group: group.name, analysis, proposals, health });
+      groupResults.push({ group: group.name, analysis, proposals, health, refused: false });
       allProposals.push(...proposals);
 
       log(`✅ ${group.name} — ${proposals.length} propuestas · salud: ${health || '?'}/10`);
@@ -942,7 +965,11 @@ async function main() {
   report += `---\n\n${synthesis}\n\n---\n\n`;
   report += `# ANÁLISIS DETALLADO POR GRUPO\n\n`;
   groupResults.forEach(r => {
-    report += `---\n\n${r.analysis}\n\n`;
+    if (r.refused || !r.analysis) {
+      report += `---\n\n## ${r.group}\n> ⚠️ Grupo omitido — filtro de contenido activo sin imágenes disponibles.\n\n`;
+    } else {
+      report += `---\n\n${r.analysis}\n\n`;
+    }
   });
   report += `---\n\n# TODAS LAS PROPUESTAS\n\n`;
   const criticals = allProposals.filter(p => p.includes('CRÍTICA'));
