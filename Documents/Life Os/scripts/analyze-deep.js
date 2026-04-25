@@ -833,11 +833,18 @@ async function callGemini(content, maxTokens, retries = 3) {
 // PARSEAR RESPUESTA
 // ══════════════════════════════════════════════════════════════
 function isRefusal(text) {
-  const lower = text.trim().toLowerCase();
-  return lower.startsWith("i'm sorry") || lower.startsWith("i am sorry") ||
-         lower.includes("can't assist") || lower.includes("cannot assist") ||
-         lower.includes("unable to assist") || lower.includes("i'm not able to") ||
-         (lower.length < 120 && (lower.includes("sorry") || lower.includes("assist")));
+  const t = text.trim();
+  const lower = t.toLowerCase();
+  // Frases explícitas de rechazo
+  if (lower.startsWith("i'm sorry") || lower.startsWith("i am sorry") ||
+      lower.includes("can't assist") || lower.includes("cannot assist") ||
+      lower.includes("unable to assist") || lower.includes("i'm not able to") ||
+      lower.includes("i cannot help") || lower.includes("i'm unable to") ||
+      lower.includes("not able to help") || lower.includes("can't help with")) return true;
+  // Respuesta muy corta sin el formato esperado = rechazo silencioso
+  if (t.length < 300 && !t.includes('---PROPOSALS---') && !t.includes('---ANALYSIS---') &&
+      !t.includes('💊') && !t.includes('###')) return true;
+  return false;
 }
 
 function parseResponse(raw) {
