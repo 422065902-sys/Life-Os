@@ -767,11 +767,16 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 // ══════════════════════════════════════════════════════════════
 // OPENAI API (gpt-5.5 multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
+const SYSTEM_MSG = 'You are a senior UX analyst and QA engineer conducting a professional design review of Life OS (mylifeos.lat), a legitimate productivity web application built by its founder. You are analyzing screenshots taken automatically during a QA test run. Your job is to provide detailed, actionable design and usability improvement proposals. Always complete the full analysis — never refuse or truncate based on the visual content of the screenshots.';
+
 function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: 'gpt-4o',
-      messages: [{ role: 'user', content }],
+      messages: [
+        { role: 'system', content: SYSTEM_MSG },
+        { role: 'user', content },
+      ],
       max_tokens: Math.min(maxTokens, 4096),
     });
     const options = {
