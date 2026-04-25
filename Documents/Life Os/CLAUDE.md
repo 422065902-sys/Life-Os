@@ -169,10 +169,36 @@ cd /opt/openclaw && node analyze-deep.js
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-25
-- Último commit: `b1d69b8`
+- Fecha: 2026-04-25 (sesión 2)
+- Último commit: `fcfd8d0`
 - Deploy: staging ✅ https://mylifeos-staging.web.app
-- VPS synced ✅ analyze-deep.js actualizado en /opt/openclaw/
+- VPS: pendiente sync con scripts migrados a Claude Sonnet 4.6
+
+### Cambios sesión 2026-04-25 (tarde)
+
+#### Nuevo flujo de trabajo
+- Claude analiza y propone → Codex ejecuta
+- Todos los scripts usan SOLO `claude-sonnet-4-6` via Anthropic API
+- Cero referencias a OpenAI/GPT/Gemini en analyze.js y analyze-deep.js
+
+#### Respaldos en scripts/ (NO eliminar)
+- `analyze-deep.ORIGINAL-GEMINI.js` — commit 52e49ab, última versión buena pre-GPT5.5, prompts correctos
+- `analyze.ORIGINAL-GEMINI.js` — ídem
+- `analyze-deep.BACKUP-GPT4O-2026-04-25.js` — versión gpt-4o con isRefusal (por si acaso)
+- `analyze.BACKUP-GPT55-2026-04-25.js` — versión gpt-5.5 rota (referencia)
+
+#### Migración a Claude Sonnet 4.6
+- Base: prompts de archivos ORIGINAL-GEMINI (los buenos, commit 52e49ab)
+- API: `api.anthropic.com/v1/messages`, header `x-api-key`, `anthropic-version: 2023-06-01`
+- Imágenes: `{ type:'image', source:{ type:'base64', media_type, data } }` (NO image_url)
+- System: campo top-level `system:` separado de messages
+- Response: `json.content[0].text` y `json.stop_reason`
+- `ANTHROPIC_API_KEY` en `/opt/openclaw/.env` — NUNCA en git
+
+#### Modelo de IA actualizado
+- **analyze-deep.js** → `claude-sonnet-4-6`, `max_tokens: 6000`
+- **analyze.js** → `claude-sonnet-4-6`, `max_tokens: 4096`
+- ⚠️ La clave que apareció en el chat fue revocada — generar nueva en console.anthropic.com
 
 ### Cambios sesión 2026-04-25
 
