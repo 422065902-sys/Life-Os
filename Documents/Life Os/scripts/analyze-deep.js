@@ -415,7 +415,7 @@ function callGeminiOnce(content, maxTokens) {
         { role: 'system', content: BASE_CONTEXT },
         { role: 'user', content },
       ],
-      max_completion_tokens: Math.min(maxTokens, 8000),
+      max_completion_tokens: Math.min(maxTokens, 2000),
     });
     const options = {
       hostname: 'api.openai.com',
