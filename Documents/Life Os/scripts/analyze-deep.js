@@ -776,7 +776,7 @@ function callGeminiOnce(content, maxTokens) {
     const body = JSON.stringify({
       model: 'gpt-5.5',
       messages: [{ role: 'user', content }],
-      max_completion_tokens: Math.min(maxTokens, 4096),
+      max_completion_tokens: Math.min(maxTokens, 8000),
     });
     const options = {
       hostname: 'api.openai.com',
@@ -795,9 +795,12 @@ function callGeminiOnce(content, maxTokens) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.choices?.[0]?.message?.content;
+          const choice  = json?.choices?.[0];
+          const text    = choice?.message?.content;
+          const refusal = choice?.message?.refusal;
+          const finish  = choice?.finish_reason;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía (${res.statusCode}): ${data.slice(0, 300)}`));
+          else reject(new Error(`Respuesta vacía (${res.statusCode}) finish=${finish} refusal=${refusal} raw=${data.slice(0, 400)}`));
         } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
       });
     });
@@ -885,8 +888,9 @@ async function main() {
       const prompt = buildGroupPrompt(group);
       const content = [{ type: 'text', text: prompt }];
 
-      // Intercalar screenshots con etiquetas de nombre
-      for (const shot of group.shots) {
+      // Intercalar screenshots con etiquetas de nombre (cap 8 para no saturar contexto)
+      const shotsToSend = group.shots.slice(0, 8);
+      for (const shot of shotsToSend) {
         content.push({ type: 'text', text: `\n📸 ${shot.name}` });
         content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
       }
