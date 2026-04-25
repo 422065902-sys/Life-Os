@@ -1336,8 +1336,10 @@ function renderHabits() {
   if (!el) return;
   const active = (S.habits || []).filter(h => !h.deleted);
   const maxStreak = active.reduce((a, h) => Math.max(a, h.streak), 0);
-  document.getElementById('h-streak') && (document.getElementById('h-streak').textContent = maxStreak + ' días');
-  document.getElementById('h-count')  && (document.getElementById('h-count').textContent  = active.length);
+  const doneToday = active.filter(h => h.completedToday).length;
+  document.getElementById('h-streak')     && (document.getElementById('h-streak').textContent     = maxStreak + ' días');
+  document.getElementById('h-count')      && (document.getElementById('h-count').textContent      = active.length);
+  document.getElementById('h-done-today') && (document.getElementById('h-done-today').textContent = doneToday + '/' + active.length);
   if (!active.length) {
     el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px">
       <div style="font-size:42px;animation:float-empty 3s ease-in-out infinite">🌱</div>

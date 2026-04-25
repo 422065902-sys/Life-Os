@@ -883,25 +883,46 @@
       <div class="page-title">HÁBITOS</div>
       <div class="page-sub">Construye constancia día a día</div>
     </div>
-    <!-- ─── UNIFIED GRID ─── -->
-    <div class="ui-grid" id="habit-stats">
-      <!-- 2 stats ocupan 2 columnas cada uno → llenan las 4 col -->
-      <div class="card stat-card stat-card-sq" style="aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center"><div class="stat-label" data-term="streak-label">🔥 Racha Activa</div><div class="stat-val" style="color:#ff6b35" id="h-streak">0 días</div></div>
-      <div class="card stat-card stat-card-sq" style="aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center"><div class="stat-label">✅ Hábitos</div><div class="stat-val c-green" id="h-count">0</div></div>
-      <!-- Nuevo hábito: ancho completo -->
-      <div class="card card-full">
+    <div class="module-bento-grid" id="habit-stats">
+
+      <!-- Fila 1: 3 stats × 4 cols = 12 -->
+      <div class="card bento-medium stat-card" style="text-align:center">
+        <div class="stat-label" data-term="streak-label">🔥 Racha Activa</div>
+        <div class="stat-val" style="color:#ff6b35" id="h-streak">0 días</div>
+      </div>
+      <div class="card bento-medium stat-card" style="text-align:center">
+        <div class="stat-label">✅ Hábitos</div>
+        <div class="stat-val c-green" id="h-count">0</div>
+        <div class="stat-sub">Activos</div>
+      </div>
+      <div class="card bento-medium stat-card" style="text-align:center">
+        <div class="stat-label">⚡ Hoy</div>
+        <div class="stat-val c-accent" id="h-done-today">0/0</div>
+        <div class="stat-sub">Completados</div>
+      </div>
+
+      <!-- Fila 2: Input 8 cols + Energía tall 4 cols (spans filas 2–3) -->
+      <div class="card bento-large">
         <div class="card-title">NUEVO HÁBITO</div>
         <div class="row" style="gap:10px">
           <input class="inp f1" id="new-habit" placeholder="Ej: Meditar 10 minutos"/>
           <button class="btn btn-a" onclick="addHabit()">+ Agregar</button>
         </div>
       </div>
-      <!-- Lista de hábitos: ancho completo -->
-      <div class="card card-full">
-        <div id="habit-list" style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto"></div>
+      <div class="card bento-medium bento-tall" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+        <div class="card-title" style="color:#00ff88;margin-bottom:0">ENERGÍA DE FLOW</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.7">Cada hábito completado suma <strong style="color:#00ff88">+25 XP</strong> y carga tu batería de constancia.</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6">La <strong style="color:#ff6b35">Racha</strong> mide tu hábito más constante — aliméntala cada día.</div>
+        <div style="margin-top:auto;padding:10px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:12px;font-size:11px;color:#00ff88;text-align:center;font-family:'Orbitron',monospace;letter-spacing:.06em">FLOW ACTIVO</div>
       </div>
-      <!-- Heatmap: ancho completo -->
-      <div class="card card-full">
+
+      <!-- Fila 3: Lista 8 cols (derecha ocupada por tall de arriba) -->
+      <div class="card bento-large">
+        <div id="habit-list" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Fila 4: Heatmap full -->
+      <div class="card bento-full">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
           <div class="card-title" style="margin:0">MAPA DE CALOR — CONSTANCIA</div>
           <div style="display:flex;gap:4px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12);border-radius:10px;padding:3px">
@@ -924,7 +945,8 @@
           </div>
         </div>
       </div>
-    </div><!-- /ui-grid -->
+
+    </div><!-- /module-bento-grid -->
       </div>
       <div class="inner-panel" id="panel-goals">
     <div class="page-header">
@@ -1105,10 +1127,10 @@
       </button>
     </div>
 
-    <!-- ② STATS ROW -->
-    <div class="ui-grid" id="bio-stats-grid">
-      <div class="card stat-card card-small"><div class="stat-label">⚡ Score</div><div class="stat-val c-accent" id="bio-score-val">—</div><div class="stat-sub">Puntuación global</div></div>
-      <div class="card stat-card card-small">
+    <!-- ② STATS ROW — 4 compact × 3 cols = 12 -->
+    <div class="module-bento-grid" id="bio-stats-grid">
+      <div class="card bento-compact stat-card"><div class="stat-label">⚡ Score</div><div class="stat-val c-accent" id="bio-score-val">—</div><div class="stat-sub">Puntuación global</div></div>
+      <div class="card bento-compact stat-card">
         <div class="stat-label">⚖️ Peso</div>
         <div class="row" style="align-items:baseline;gap:6px">
           <span class="stat-val c-green" id="phys-weight">—</span>
@@ -1116,20 +1138,20 @@
           <button class="btn btn-g btn-sm" onclick="editWeightPrompt()">✏️</button>
         </div>
       </div>
-      <div class="card stat-card card-small"><div class="stat-label">📦 Volumen</div><div class="stat-val c-gold" id="bio-vol">—</div><div class="stat-sub">Esta semana</div></div>
-      <div class="card stat-card card-small"><div class="stat-label">📅 Entrenos</div><div class="stat-val c-purple" id="bio-entrenos">—</div><div class="stat-sub">Este mes</div></div>
+      <div class="card bento-compact stat-card"><div class="stat-label">📦 Volumen</div><div class="stat-val c-gold" id="bio-vol">—</div><div class="stat-sub">Esta semana</div></div>
+      <div class="card bento-compact stat-card"><div class="stat-label">📅 Entrenos</div><div class="stat-val c-purple" id="bio-entrenos">—</div><div class="stat-sub">Este mes</div></div>
     </div>
 
     <!-- ③ NPC ANATÓMICO + RUTINAS -->
-    <div class="ui-grid">
+    <div class="module-bento-grid">
 
       <!-- TODO: Muscle map — implement clickable SVG muscle map manually.
            Plan: replace NPC SVG paths with interactive regions that highlight worked muscles
            based on the current routine. Each region should show activation % on tap/hover.
            Data model: S.muscleActivation = { pecho:0-100, espalda:0-100, piernas:0-100, ... } -->
 
-      <!-- NPC MODELO — 2 col × 2 filas -->
-      <div class="card card-large" style="overflow:hidden">
+      <!-- NPC MODELO — 6 cols -->
+      <div class="card bento-wide" style="overflow:hidden;display:flex;flex-direction:column">
         <!-- Header: género + vista -->
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
           <div class="card-title" style="margin:0">MODELO ANATÓMICO</div>
@@ -1368,8 +1390,8 @@
         </div>
       </div>
 
-      <!-- FRECUENCIA MENSUAL — Heatmap de entrenos -->
-      <div class="card card-large">
+      <!-- FRECUENCIA MENSUAL — Heatmap de entrenos — 6 cols -->
+      <div class="card bento-wide" style="display:flex;flex-direction:column">
         <div class="card-title">FRECUENCIA DE ENTRENAMIENTO</div>
         <div style="overflow-x:auto;flex:1">
           <div id="freq-heatmap" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px"></div>
@@ -1382,14 +1404,14 @@
         </div>
       </div>
 
-      <!-- VOLUMEN — ancho completo -->
-      <div class="card card-full">
+      <!-- VOLUMEN — full -->
+      <div class="card bento-full">
         <div class="card-title">PROGRESIÓN DE VOLUMEN SEMANAL</div>
         <canvas id="volumeChart" height="140"></canvas>
       </div>
 
-      <!-- RUTINAS — ancho completo, fusionadas aquí -->
-      <div class="card card-full" style="border-color:rgba(168,85,247,.2)">
+      <!-- RUTINAS — full -->
+      <div class="card bento-full" style="border-color:rgba(168,85,247,.2)">
         <div class="card-title" style="color:#a855f7!important">🏋️ RUTINAS DE ENTRENAMIENTO</div>
         <div id="bio-routines-panel" style="margin-top:14px">
           <!-- Accesos directos -->
@@ -1417,39 +1439,60 @@
         </div>
       </div>
 
-    </div><!-- /ui-grid -->
+    </div><!-- /module-bento-grid -->
       </div>
       <div class="inner-panel" id="panel-salud">
     <div class="page-header">
       <div class="page-title">BIENESTAR 3.0</div>
       <div class="page-sub">Combustible · Regeneración · Longevidad</div>
     </div>
-    <div class="card mb20" style="border-color:rgba(74,222,128,.2)">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <div>
-          <div class="card-title" style="color:#4ade80;margin-bottom:4px">XP DE SALUD HOY</div>
-          <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:#4ade80" id="salud-xp-hoy">0 XP</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Meta: ~90 XP de salud diarios</div>
-        </div>
-        <div class="prog-wrap" style="flex:1;min-width:140px;max-width:260px;height:10px">
+    <div class="module-bento-grid">
+
+      <!-- Fila 1: XP hoy (6) + Resumen (6) -->
+      <div class="card bento-wide" style="border-color:rgba(74,222,128,.25)">
+        <div class="card-title" style="color:#4ade80">XP DE SALUD HOY</div>
+        <div style="font-family:'Orbitron',monospace;font-size:32px;font-weight:900;color:#4ade80;margin:6px 0 4px" id="salud-xp-hoy">0 XP</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Meta: ~90 XP de salud diarios</div>
+        <div class="prog-wrap" style="height:10px">
           <div class="prog-fill" id="salud-xp-bar" style="width:0%;background:linear-gradient(90deg,#4ade80,#00e5ff)"></div>
         </div>
       </div>
-    </div>
-    <div class="card mb14">
-      <div class="card-title">🔥 PILAR 1 — COMBUSTIBLE</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Registra tu nutrición del día. Cada botón = +15 XP (una vez por día)</div>
-      <div class="grid3" style="gap:12px">
-        <div class="pilar-btn" id="btn-proteina" onclick="toggleCombustible('proteina')">
-          <span class="pb-icon">🥩</span><span>Proteína</span><span class="pb-xp">+15 XP</span>
-        </div>
-        <div class="pilar-btn" id="btn-suplementos" onclick="toggleCombustible('suplementos')">
-          <span class="pb-icon">💊</span><span>Suplementos</span><span class="pb-xp">+15 XP</span>
+      <div class="card bento-wide">
+        <div class="card-title">📊 RESUMEN DE SALUD</div>
+        <div class="grid3" style="gap:10px;margin-top:8px">
+          <div style="text-align:center;padding:14px 8px;background:rgba(255,255,255,.03);border-radius:14px">
+            <div style="font-size:22px;margin-bottom:6px">🔥</div>
+            <div class="f-display c-accent" style="font-size:22px;font-weight:900" id="res-combustible">0/3</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">Combustible</div>
+          </div>
+          <div style="text-align:center;padding:14px 8px;background:rgba(255,255,255,.03);border-radius:14px">
+            <div style="font-size:22px;margin-bottom:6px">🌙</div>
+            <div class="f-display" style="font-size:22px;font-weight:900;color:#a855f7" id="res-sueno">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">Horas Sueño</div>
+          </div>
+          <div style="text-align:center;padding:14px 8px;background:rgba(255,255,255,.03);border-radius:14px">
+            <div style="font-size:22px;margin-bottom:6px">♾️</div>
+            <div class="f-display c-green" style="font-size:22px;font-weight:900" id="res-longevidad">0/3</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">Longevidad</div>
+          </div>
         </div>
       </div>
-      <div style="margin-top:12px">
-        <div style="font-size:10px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:.07em;margin-bottom:10px">COMIDAS DEL DÍA</div>
-        <div class="grid3" style="gap:10px">
+
+      <!-- Fila 2: Pilar 1 Combustible (6) + Pilar 2 Sueño (6) -->
+      <div class="card bento-wide">
+        <div class="card-title">🔥 PILAR 1 — COMBUSTIBLE</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Registra tu nutrición. Cada botón = +15 XP (una vez por día)</div>
+        <div style="font-size:10px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:.07em;margin-bottom:8px">MACROS</div>
+        <div class="grid2" style="gap:10px;margin-bottom:12px">
+          <div class="pilar-btn" id="btn-proteina" onclick="toggleCombustible('proteina')">
+            <span class="pb-icon">🥩</span><span>Proteína</span><span class="pb-xp">+15 XP</span>
+          </div>
+          <div class="pilar-btn" id="btn-suplementos" onclick="toggleCombustible('suplementos')">
+            <span class="pb-icon">💊</span><span>Suplementos</span><span class="pb-xp">+15 XP</span>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:.07em;margin-bottom:8px">COMIDAS DEL DÍA</div>
+        <div class="grid3" style="gap:8px">
           <div class="pilar-btn" id="btn-desayuno" onclick="toggleCombustible('desayuno')">
             <span class="pb-icon">🌅</span><span>Desayuno</span><span class="pb-xp">+15 XP</span>
           </div>
@@ -1461,70 +1504,53 @@
           </div>
         </div>
       </div>
-    </div>
-    <div class="card mb14">
-      <div class="card-title">🌙 PILAR 2 — REGENERACIÓN (SUEÑO)</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:16px">7–8 horas = zona óptima. Bono automático de <strong style="color:var(--accent)">+40 XP</strong></div>
-      <div class="sleep-input-wrap" style="flex-wrap:wrap;gap:16px">
-        <div class="sleep-counter">
-          <button onclick="adjustSleep(-0.5)">−</button>
-          <div>
-            <div class="sleep-val" id="sleep-val">7.0</div>
-            <div style="font-size:10px;color:var(--text3);text-align:center;font-family:'Orbitron',monospace">HORAS</div>
+      <div class="card bento-wide">
+        <div class="card-title">🌙 PILAR 2 — REGENERACIÓN (SUEÑO)</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px">7–8 horas = zona óptima. Bono automático de <strong style="color:var(--accent)">+40 XP</strong></div>
+        <div class="sleep-input-wrap" style="flex-wrap:wrap;gap:16px">
+          <div class="sleep-counter">
+            <button onclick="adjustSleep(-0.5)">−</button>
+            <div>
+              <div class="sleep-val" id="sleep-val">7.0</div>
+              <div style="font-size:10px;color:var(--text3);text-align:center;font-family:'Orbitron',monospace">HORAS</div>
+            </div>
+            <button onclick="adjustSleep(0.5)">+</button>
           </div>
-          <button onclick="adjustSleep(0.5)">+</button>
-        </div>
-        <div style="flex:1;min-width:140px">
-          <div id="sleep-bonus-badge" class="sleep-bonus no" style="margin-bottom:10px;display:inline-block">⚡ Fuera de zona óptima</div>
-          <button class="btn btn-a" onclick="registrarSueno()" style="width:100%">✅ Registrar Sueño</button>
-          <div id="sleep-status" style="font-size:11px;color:var(--text3);margin-top:6px;font-family:'JetBrains Mono',monospace"></div>
-        </div>
-      </div>
-    </div>
-    <div class="card mb14">
-      <div class="card-title">♾️ PILAR 3 — LONGEVIDAD</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Hábitos de movimiento diario. Marca los completados</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div class="lon-check" id="lon-pasos" onclick="toggleLongevidad('pasos')">
-          <span class="lon-icon">🚶</span>
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">Pasos del día</div><div style="font-size:11px;color:var(--text3)">Meta: 8,000+ pasos</div></div>
-          <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
-          <div class="lon-cb" id="lcb-pasos"></div>
-        </div>
-        <div class="lon-check" id="lon-movilidad" onclick="toggleLongevidad('movilidad')">
-          <span class="lon-icon">🧘</span>
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">Movilidad / Stretching</div><div style="font-size:11px;color:var(--text3)">10+ minutos de movimiento articular</div></div>
-          <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
-          <div class="lon-cb" id="lcb-movilidad"></div>
-        </div>
-        <div class="lon-check" id="lon-pausas" onclick="toggleLongevidad('pausas')">
-          <span class="lon-icon">⏸️</span>
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">Pausas Activas</div><div style="font-size:11px;color:var(--text3)">Levantarte cada 60–90 min de trabajo</div></div>
-          <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
-          <div class="lon-cb" id="lcb-pausas"></div>
+          <div style="flex:1;min-width:140px">
+            <div id="sleep-bonus-badge" class="sleep-bonus no" style="margin-bottom:10px;display:inline-block">⚡ Fuera de zona óptima</div>
+            <button class="btn btn-a" onclick="registrarSueno()" style="width:100%">✅ Registrar Sueño</button>
+            <div id="sleep-status" style="font-size:11px;color:var(--text3);margin-top:6px;font-family:'JetBrains Mono',monospace"></div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📊 RESUMEN DE SALUD</div>
-      <div class="grid3" style="gap:10px">
-        <div class="card" style="padding:14px;text-align:center">
-          <div style="font-size:22px;margin-bottom:4px">🔥</div>
-          <div class="f-display c-accent" style="font-size:18px;font-weight:900" id="res-combustible">0/3</div>
-          <div style="font-size:10px;color:var(--text3)">Combustible</div>
-        </div>
-        <div class="card" style="padding:14px;text-align:center">
-          <div style="font-size:22px;margin-bottom:4px">🌙</div>
-          <div class="f-display" style="font-size:18px;font-weight:900;color:#a855f7" id="res-sueno">—</div>
-          <div style="font-size:10px;color:var(--text3)">Horas Sueño</div>
-        </div>
-        <div class="card" style="padding:14px;text-align:center">
-          <div style="font-size:22px;margin-bottom:4px">♾️</div>
-          <div class="f-display c-green" style="font-size:18px;font-weight:900" id="res-longevidad">0/3</div>
-          <div style="font-size:10px;color:var(--text3)">Longevidad</div>
+
+      <!-- Fila 3: Pilar 3 Longevidad full -->
+      <div class="card bento-full">
+        <div class="card-title">♾️ PILAR 3 — LONGEVIDAD</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Hábitos de movimiento diario. Marca los completados</div>
+        <div class="grid3" style="gap:10px">
+          <div class="lon-check" id="lon-pasos" onclick="toggleLongevidad('pasos')">
+            <span class="lon-icon">🚶</span>
+            <div style="flex:1"><div style="font-size:13px;font-weight:700">Pasos del día</div><div style="font-size:11px;color:var(--text3)">Meta: 8,000+ pasos</div></div>
+            <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
+            <div class="lon-cb" id="lcb-pasos"></div>
+          </div>
+          <div class="lon-check" id="lon-movilidad" onclick="toggleLongevidad('movilidad')">
+            <span class="lon-icon">🧘</span>
+            <div style="flex:1"><div style="font-size:13px;font-weight:700">Movilidad / Stretching</div><div style="font-size:11px;color:var(--text3)">10+ minutos de movimiento articular</div></div>
+            <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
+            <div class="lon-cb" id="lcb-movilidad"></div>
+          </div>
+          <div class="lon-check" id="lon-pausas" onclick="toggleLongevidad('pausas')">
+            <span class="lon-icon">⏸️</span>
+            <div style="flex:1"><div style="font-size:13px;font-weight:700">Pausas Activas</div><div style="font-size:11px;color:var(--text3)">Levantarte cada 60–90 min de trabajo</div></div>
+            <span class="badge badge-xp" style="font-size:10px">+10 XP</span>
+            <div class="lon-cb" id="lcb-pausas"></div>
+          </div>
         </div>
       </div>
-    </div>
+
+    </div><!-- /module-bento-grid -->
       </div>
   </div>
 
