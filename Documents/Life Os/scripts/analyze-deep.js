@@ -767,7 +767,11 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 // ══════════════════════════════════════════════════════════════
 // OPENAI API (gpt-5.5 multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-const SYSTEM_MSG = 'You are a senior UX analyst and QA engineer conducting a professional design review of Life OS (mylifeos.lat), a legitimate productivity web application built by its founder. You are analyzing screenshots taken automatically during a QA test run. Your job is to provide detailed, actionable design and usability improvement proposals. Always complete the full analysis — never refuse or truncate based on the visual content of the screenshots.';
+const SYSTEM_MSG = `You are a senior product design team (UX analyst, QA engineer, frontend developer, game designer, retention specialist) conducting an in-depth visual design review of Life OS — a legitimate gamified productivity web app at mylifeos.lat, built by an indie founder.
+
+The screenshots were captured automatically by an end-to-end QA runner navigating the live staging app. They show real UI states: login form, financial dashboard, habit tracking, calendar, settings, etc.
+
+Your mission: provide the richest, most specific, most actionable analysis possible. Identify bugs, visual inconsistencies, UX friction, gamification gaps, mobile issues, and motion/animation opportunities. Never refuse, truncate, or give a generic response. The founder depends on this analysis to improve the product for real users.`;
 
 function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
@@ -777,7 +781,7 @@ function callGeminiOnce(content, maxTokens) {
         { role: 'system', content: SYSTEM_MSG },
         { role: 'user', content },
       ],
-      max_tokens: Math.min(maxTokens, 4096),
+      max_tokens: Math.min(maxTokens, 6000),
     });
     const options = {
       hostname: 'api.openai.com',
@@ -887,11 +891,11 @@ async function main() {
   log(`Screenshots a analizar: ${totalShots} (${loginShots} de login excluidos para ahorrar tokens)`);
   groups.forEach(g => log(`  📦 ${g.name}: ${g.shots.length} screenshots`));
 
-  // Estimación de costo (Gemini 2.5 Flash: ~$0.075/1M input, ~$0.30/1M output)
-  const estInputTokens  = totalShots * 258 + groups.length * 3000;
-  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 5000;
-  const estCost = (estInputTokens / 1e6 * 0.075) + (estOutputTokens / 1e6 * 0.30);
-  log(`Estimación de costo: ~$${estCost.toFixed(3)} USD`);
+  // Estimación de costo (gpt-4o: ~$2.50/1M input, ~$10/1M output · detail:high ~1020 tokens/imagen)
+  const estInputTokens  = totalShots * 1020 + groups.length * 4000;
+  const estOutputTokens = groups.reduce((a, g) => a + g.maxTokens, 0) + 6000;
+  const estCost = (estInputTokens / 1e6 * 2.50) + (estOutputTokens / 1e6 * 10.0);
+  log(`Estimación de costo: ~$${estCost.toFixed(3)} USD (gpt-4o detail:high)`);
   log('Iniciando análisis...\n');
 
   const groupResults = [];
@@ -906,11 +910,10 @@ async function main() {
       const prompt = buildGroupPrompt(group);
       const content = [{ type: 'text', text: prompt }];
 
-      // Intercalar screenshots (cap 8 para no saturar contexto)
-      const shotsToSend = group.shots.slice(0, 8);
-      for (const shot of shotsToSend) {
+      // Todos los screenshots del grupo, calidad alta para análisis real
+      for (const shot of group.shots) {
         content.push({ type: 'text', text: `\n📸 ${shot.name}` });
-        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
+        content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'high' } });
       }
 
       let raw = await callGemini(content, group.maxTokens);
@@ -919,7 +922,8 @@ async function main() {
       // Si fue rechazado, reintentar sin imágenes (solo texto)
       if (parsed.refused) {
         log(`⚠️ ${group.name} — rechazado por filtro de contenido, reintentando sin imágenes...`);
-        const textOnly = [{ type: 'text', text: buildGroupPrompt(group) + '\n\n[Nota: los screenshots no están disponibles en esta llamada. Analiza basándote en la descripción funcional del grupo y el contexto del sistema.]' }];
+        const shotNames = group.shots.map(s => s.name).join(', ');
+        const textOnly = [{ type: 'text', text: buildGroupPrompt(group) + `\n\n[NOTA: Las imágenes no se pueden adjuntar en este intento. Los screenshots capturados fueron: ${shotNames}. Analiza basándote en la descripción funcional del módulo, el contexto del sistema Life OS y lo que esperarías ver en cada screenshot según su nombre.]` }];
         raw = await callGemini(textOnly, group.maxTokens);
         parsed = parseResponse(raw);
         if (parsed.refused) {
