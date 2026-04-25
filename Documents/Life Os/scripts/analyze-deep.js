@@ -956,7 +956,17 @@ async function main() {
   let synthesis = '';
   try {
     const synthParts = [{ type: 'text', text: buildSynthesisPrompt(groupResults, totalShots) }];
-    synthesis = await callGemini(synthParts, 4096);
+    let synthRaw = await callGemini(synthParts, 4096);
+    if (isRefusal(synthRaw)) {
+      log('⚠️ Síntesis rechazada, reintentando con prompt reducido...');
+      const validGroups = groupResults.filter(r => !r.refused && r.analysis);
+      const simplePrompt = `You are a UX analyst summarizing a design review of a productivity web app called Life OS.\n\nHere are the analyzed module groups and their health scores:\n${validGroups.map(r => `- ${r.group}: ${r.health || '?'}/10`).join('\n')}\n\nTotal proposals found: ${allProposals.length}\n\nPlease provide:\n1. Overall app health score (X/10)\n2. Top 5 highest-impact improvements ordered by ROI\n3. Most urgent module and why\n4. 2-week sprint plan with quick wins and structural changes\n\nFormat your response in markdown.`;
+      synthRaw = await callGemini([{ type: 'text', text: simplePrompt }], 2000);
+      if (isRefusal(synthRaw)) {
+        synthRaw = `## Síntesis no disponible\nEl modelo rechazó la síntesis. Revisar los análisis individuales arriba.\n\nGrupos analizados: ${validGroups.map(r => `${r.group} (${r.health || '?'}/10)`).join(', ')}`;
+      }
+    }
+    synthesis = synthRaw;
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);
