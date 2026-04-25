@@ -410,12 +410,12 @@ Escribe la síntesis ejecutiva que un fundador lee en 5 min:
 function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: 'gpt-5.5',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: BASE_CONTEXT },
         { role: 'user', content },
       ],
-      max_completion_tokens: Math.min(maxTokens, 2000),
+      max_tokens: Math.min(maxTokens, 4000),
     });
     const options = {
       hostname: 'api.openai.com',
