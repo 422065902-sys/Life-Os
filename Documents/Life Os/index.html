@@ -796,18 +796,18 @@
       <div class="page-title">FINANCIERO</div>
       <div class="page-sub">Control total de tus finanzas</div>
     </div>
-    <!-- ─── UNIFIED GRID ─── -->
-    <div class="ui-grid">
+    <!-- ─── BENTO GRID ─── -->
+    <div class="module-bento-grid">
 
-      <!-- HEADER SALDOS: ancho completo -->
-      <div class="card-full" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:-8px">
+      <!-- HEADER SALDOS: full -->
+      <div class="bento-full" style="display:flex;align-items:center;justify-content:space-between">
         <div class="card-title" style="margin:0">💳 SALDOS</div>
         <button class="btn btn-g btn-sm" onclick="addNuevoSaldo()">+ Añadir nuevo saldo</button>
       </div>
 
-      <!-- Saldo principal: 2 columnas -->
-      <div id="saldos-grid" style="display:contents;width:100%">
-        <div class="card card-wide" id="saldo-personal-card" style="background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(0,229,255,.01))">
+      <!-- Saldos dinámicos: wide 6 cols -->
+      <div id="saldos-grid" class="bento-wide" style="display:flex;flex-direction:column;gap:10px">
+        <div class="card" id="saldo-personal-card" style="background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(0,229,255,.01))">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div class="stat-label" style="margin:0">💳 Saldo Personal</div>
           </div>
@@ -819,8 +819,8 @@
         </div>
       </div>
 
-      <!-- Gastos — Gráfico pie: 2 columnas -->
-      <div class="card card-wide">
+      <!-- Gastos — Gráfico pie: wide 6 cols -->
+      <div class="card bento-wide">
         <div class="card-title">GASTOS PERSONALES</div>
         <div class="row fw" style="gap:10px;align-items:center">
           <div style="position:relative;width:140px;height:140px;flex-shrink:0">
@@ -833,31 +833,31 @@
         </div>
       </div>
 
-      <!-- Botones: ancho completo -->
-      <div class="card-full row fw" style="gap:10px">
+      <!-- Botones acción: full -->
+      <div class="bento-full row fw" style="gap:10px">
         <button class="btn btn-a" onclick="openTxModal()">+ Transacción</button>
         <button class="btn btn-g" onclick="openModal('modal-card')">🏦 Vincular Tarjeta</button>
         <button class="btn btn-g" onclick="openModal('modal-debt')">📋 Registrar Deuda</button>
       </div>
 
-      <!-- Cards container: ancho completo -->
-      <div id="cards-container" class="card-full row fw" style="gap:10px"></div>
+      <!-- Cards vinculadas: full -->
+      <div id="cards-container" class="bento-full row fw" style="gap:10px"></div>
 
-      <!-- Transacciones: ancho completo -->
-      <div class="card card-full">
+      <!-- Transacciones: wide 6 cols -->
+      <div class="card bento-wide">
         <div class="card-title">TRANSACCIONES RECIENTES</div>
         <div id="tx-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto">
           <div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Sin transacciones</div>
         </div>
       </div>
 
-      <!-- Deudas: ancho completo -->
-      <div class="card card-full" id="debts-section">
+      <!-- Deudas: wide 6 cols -->
+      <div class="card bento-wide" id="debts-section">
         <div class="card-title c-red" style="color:var(--red)!important">DEUDAS</div>
         <div id="debt-list"><div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin deudas registradas</div></div>
       </div>
 
-    </div><!-- /ui-grid -->
+    </div><!-- /module-bento-grid -->
   </div>
 
   <!-- Redirect placeholder — content lives in page-mente -->
@@ -973,10 +973,10 @@
     <div id="goals-list" style="display:flex;flex-direction:column;gap:14px"></div>
 
     <!-- Completed Goals History + Motivational Messages -->
-    <div style="display:flex;flex-direction:column;gap:14px;margin-top:24px" id="goals-history-section">
+    <div class="module-bento-grid" style="margin-top:24px" id="goals-history-section">
 
-      <!-- Motivación — arriba, contenido horizontal -->
-      <div class="card" style="background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(0,229,255,.05));border-color:rgba(168,85,247,.2);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <!-- Motivación: wide 6 cols -->
+      <div class="card bento-wide" style="background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(0,229,255,.05));border-color:rgba(168,85,247,.2);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="font-size:28px;flex-shrink:0">💜</div>
         <div style="flex:1;min-width:0">
           <div class="card-title" style="color:#a855f7;margin-bottom:6px">MOTIVACIÓN</div>
@@ -985,8 +985,8 @@
         <button class="btn btn-g btn-sm" onclick="refreshMotivation()" style="border-color:rgba(168,85,247,.3)!important;color:#a855f7;flex-shrink:0">✨ Nueva frase</button>
       </div>
 
-      <!-- Metas Logradas — abajo, contenido horizontal -->
-      <div class="card" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <!-- Metas Logradas: wide 6 cols -->
+      <div class="card bento-wide" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
         <div style="font-size:28px;flex-shrink:0">🏆</div>
         <div style="flex:1;min-width:0">
           <div class="card-title" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -1047,17 +1047,19 @@
           </div>
           <div class="cal-grid" id="cal-grid"></div>
         </div>
-        <div class="card" id="cal-event-panel" style="display:none">
-          <div class="card-title" id="cal-event-title">EVENTOS</div>
-          <div class="row mb12" style="gap:10px">
-            <input class="inp f1" id="cal-event-input" placeholder="Agregar evento o recordatorio..." onkeydown="if(event.key==='Enter')addCalEvent()"/>
-            <button class="btn btn-a" onclick="addCalEvent()">+</button>
+        <div class="module-bento-grid">
+          <div class="card bento-wide" id="cal-event-panel" style="display:none">
+            <div class="card-title" id="cal-event-title">EVENTOS</div>
+            <div class="row mb12" style="gap:10px">
+              <input class="inp f1" id="cal-event-input" placeholder="Agregar evento o recordatorio..." onkeydown="if(event.key==='Enter')addCalEvent()"/>
+              <button class="btn btn-a" onclick="addCalEvent()">+</button>
+            </div>
+            <div id="cal-events-list"></div>
           </div>
-          <div id="cal-events-list"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">📋 PRÓXIMAS ACTIVIDADES</div>
-          <div id="upcoming-list"></div>
+          <div class="card bento-wide">
+            <div class="card-title">📋 PRÓXIMAS ACTIVIDADES</div>
+            <div id="upcoming-list"></div>
+          </div>
         </div>
         <div style="text-align:center;font-size:13px;color:var(--text3);padding:4px 0 2px;font-weight:600">Exporta tu calendario y sincronízalo con tu teléfono 👇</div>
         <div style="display:flex;justify-content:center" id="cal-export-wrap">
@@ -1694,9 +1696,9 @@
       </div>
     </div>
 
-    <!-- Focus dinámico — solo lectura, calculado automáticamente -->
-    <div class="grid3 mb14">
-      <div class="card stat-card">
+    <!-- Focus dinámico — 3 stats bento-medium -->
+    <div class="module-bento-grid" style="margin-bottom:clamp(14px,2vw,20px)">
+      <div class="card bento-medium stat-card">
         <div class="stat-label">🧠 Claridad Mental</div>
         <div class="stat-val c-accent" id="an-claridad" style="margin-bottom:10px">78</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(0,229,255,.1);overflow:hidden">
@@ -1704,7 +1706,7 @@
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace">Calculado automáticamente</div>
       </div>
-      <div class="card stat-card">
+      <div class="card bento-medium stat-card">
         <div class="stat-label">⚡ Gestión Energía</div>
         <div class="stat-val c-purple" id="an-energia" style="margin-bottom:10px">65</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(168,85,247,.1);overflow:hidden">
@@ -1712,7 +1714,7 @@
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace">Calculado automáticamente</div>
       </div>
-      <div class="card stat-card">
+      <div class="card bento-medium stat-card">
         <div class="stat-label">🎯 Productividad</div>
         <div class="stat-val c-gold" id="an-productividad" style="margin-bottom:10px">58</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(255,215,0,.1);overflow:hidden">
@@ -1720,30 +1722,35 @@
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace">Calculado automáticamente</div>
       </div>
-    </div>
-    <div class="card mb14" style="text-align:center;padding:20px">
-      <div style="font-size:11px;color:var(--text3);font-family:'Orbitron',monospace;letter-spacing:.1em;margin-bottom:8px">ÍNDICE DE FOCUS (PROMEDIO EXACTO)</div>
-      <div class="f-display c-accent" style="font-size:52px;font-weight:900" id="an-focus-val">67</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:4px">Claridad + Energía + Productividad ÷ 3</div>
-    </div>
-    <!-- Mapa muscular con degradación -->
-    <div class="card mb14">
-      <div class="card-title">💪 MAPA MUSCULAR — DEGRADACIÓN ACTIVA</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Se reduce 10% cada 24h sin entrenar. Entrena para recuperar desde la vista <strong style="color:var(--accent)">Físico</strong>.</div>
-      <div id="muscle-map-analisis"></div>
-    </div>
-    <!-- Gráfica XP Real — últimos 7 días desde Firestore user_activity -->
-    <div class="card">
-      <div class="card-title">⚡ XP GANADO — ÚLTIMOS 7 DÍAS <span style="font-size:10px;color:var(--text3);font-weight:400">(actividad real registrada)</span></div>
-      <canvas id="xpRealChart" height="180"></canvas>
-      <div id="xp-chart-empty" style="display:none;text-align:center;padding:24px;font-size:12px;color:var(--text3)">
-        Sin actividad registrada aún. Completa hábitos y tareas para ver tu progreso aquí.
+
+      <!-- Focus index: compact+medium = 7 cols — centrado -->
+      <div class="card bento-medium" style="text-align:center;padding:20px;grid-column:5/9">
+        <div style="font-size:11px;color:var(--text3);font-family:'Orbitron',monospace;letter-spacing:.1em;margin-bottom:8px">ÍNDICE DE FOCUS</div>
+        <div class="f-display c-accent" style="font-size:48px;font-weight:900" id="an-focus-val">67</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Claridad + Energía + Productividad ÷ 3</div>
       </div>
-    </div>
-    <!-- Gráfica Físico vs Mental -->
-    <div class="card">
-      <div class="card-title">📈 ESTADO FÍSICO vs ENFOQUE MENTAL <span style="font-size:10px;color:var(--text3);font-weight:400">(datos con 3 días de retraso)</span></div>
-      <canvas id="fisicoMentalChart" height="200"></canvas>
+
+      <!-- Mapa muscular: wide 6 cols -->
+      <div class="card bento-wide">
+        <div class="card-title">💪 MAPA MUSCULAR — DEGRADACIÓN ACTIVA</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Se reduce 10% cada 24h sin entrenar. Entrena para recuperar desde la vista <strong style="color:var(--accent)">Físico</strong>.</div>
+        <div id="muscle-map-analisis"></div>
+      </div>
+
+      <!-- XP chart: wide 6 cols -->
+      <div class="card bento-wide">
+        <div class="card-title">⚡ XP GANADO — ÚLTIMOS 7 DÍAS <span style="font-size:10px;color:var(--text3);font-weight:400">(actividad real)</span></div>
+        <canvas id="xpRealChart" height="180"></canvas>
+        <div id="xp-chart-empty" style="display:none;text-align:center;padding:24px;font-size:12px;color:var(--text3)">
+          Sin actividad registrada aún. Completa hábitos y tareas para ver tu progreso aquí.
+        </div>
+      </div>
+
+      <!-- Físico vs Mental: full -->
+      <div class="card bento-full">
+        <div class="card-title">📈 ESTADO FÍSICO vs ENFOQUE MENTAL <span style="font-size:10px;color:var(--text3);font-weight:400">(datos con 3 días de retraso)</span></div>
+        <canvas id="fisicoMentalChart" height="200"></canvas>
+      </div>
     </div>
       </div>
       <div class="inner-panel" id="panel-saas">
@@ -2014,9 +2021,9 @@
       <div class="page-title">AJUSTES</div>
       <div class="page-sub">Personaliza tu experiencia en Life OS</div>
     </div>
-    <div class="grid2" style="gap:14px">
-      <!-- Account -->
-      <div class="card" style="grid-column:1/-1">
+    <div class="module-bento-grid">
+      <!-- Account: full -->
+      <div class="card bento-full">
         <div class="card-title">CUENTA</div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0050cc);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#000;font-family:'Orbitron',monospace;flex-shrink:0" id="settings-avatar">W</div>
@@ -2032,8 +2039,8 @@
           <button onclick="doLogout()" class="btn" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:9px 18px">🚪 Cerrar Sesión</button>
         </div>
       </div>
-      <!-- Theme & Color -->
-      <div class="card">
+      <!-- Theme & Color: wide 6 cols -->
+      <div class="card bento-wide">
         <div class="card-title">ESTILO VISUAL</div>
         <div class="vm-selector">
           <div class="vm-pill vm-pill-xp vm-active" id="vm-pill-xp" onclick="setVisualMode('xp')">
@@ -2060,8 +2067,8 @@
           <button class="btn btn-a btn-sm" onclick="applyCustomAccent()" style="flex-shrink:0">Aplicar</button>
         </div>
       </div>
-      <!-- Gamification -->
-      <div class="card">
+      <!-- Gamification: wide 6 cols -->
+      <div class="card bento-wide">
         <div class="card-title">GAMIFICACIÓN</div>
         <div class="col" style="gap:10px">
           <div class="row" style="justify-content:space-between;padding:12px;background:rgba(0,229,255,.06);border-radius:10px">
@@ -2082,8 +2089,8 @@
           </div>
         </div>
       </div>
-      <!-- Life OS Pro banner — compact version for Settings -->
-      <div class="card" style="grid-column:1/-1;border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.04),transparent)" id="settings-pro-section">
+      <!-- Life OS Pro banner: full -->
+      <div class="card bento-full" style="border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.04),transparent)" id="settings-pro-section">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div style="font-size:36px">🚀</div>
           <div style="flex:1">
@@ -2099,8 +2106,8 @@
           </div>
         </div>
       </div>
-      <!-- Dashboard Inteligente -->
-      <div class="card" style="grid-column:1/-1">
+      <!-- Dashboard Inteligente: full -->
+      <div class="card bento-full">
         <div class="card-title">🧠 DASHBOARD INTELIGENTE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
@@ -2122,8 +2129,8 @@
         </div>
       </div>
 
-      <!-- Notificaciones Push -->
-      <div class="card" id="notifications-setting-row" style="grid-column:1/-1">
+      <!-- Notificaciones Push: full -->
+      <div class="card bento-full" id="notifications-setting-row">
         <div class="card-title">🔔 NOTIFICACIONES PUSH</div>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px">
           <div style="flex:1;min-width:0">
@@ -2149,8 +2156,8 @@
         </div>
       </div>
 
-      <!-- Data Reset -->
-      <div class="card" style="grid-column:1/-1">
+      <!-- Data Reset: full -->
+      <div class="card bento-full">
         <div class="card-title c-red" style="color:var(--red)!important">REINICIO DE DATOS</div>
         <div class="row fw" style="gap:14px;align-items:flex-end">
           <div style="flex:1">
@@ -2173,8 +2180,8 @@
           El reinicio periódico limpia métricas para mejor seguimiento a corto plazo. Rutinas, metas y hábitos no se eliminan.
         </div>
       </div>
-      <!-- ═══ PRIVACIDAD Y SOPORTE (ARCO) ═══ -->
-      <div class="card arco-section">
+      <!-- Privacidad ARCO: wide 6 cols -->
+      <div class="card bento-wide arco-section">
         <div class="card-title">🔒 PRIVACIDAD Y SOPORTE</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7">
           Tienes derecho a acceder, rectificar, cancelar u oponerte al tratamiento de tus datos (Derechos ARCO) según la LFPDPPP mexicana. Tus datos se sincronizan en la nube (Firebase) para disponibilidad en todos tus dispositivos. <strong style="color:var(--text)">Los datos financieros y tu bitácora personal nunca se comparten ni analizan.</strong>
@@ -2210,8 +2217,8 @@
         </div>
       </div>
 
-      <!-- ENFOQUE TOTAL — movido a Mente & Poder -->
-      <div class="card" style="grid-column:1/-1;border-color:rgba(0,229,255,.15)">
+      <!-- Enfoque Total: wide 6 cols -->
+      <div class="card bento-wide" style="border-color:rgba(0,229,255,.15)">
         <div class="card-title">⚡ MODO ENFOQUE TOTAL</div>
         <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px">
           El Modo Enfoque Total está integrado directamente en <strong style="color:var(--accent)">🧠 Mente & Poder → Pomodoro</strong>.<br>
@@ -2221,7 +2228,7 @@
           → Ir a Mente & Poder
         </button>
       </div>
-    </div>
+    </div><!-- /module-bento-grid settings -->
   </div>
 
   <!-- Redirect placeholder — content lives in page-cuerpo -->
