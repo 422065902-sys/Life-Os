@@ -843,16 +843,17 @@ async function callAnthropic(content, maxTokens, retries = 3) {
 // PARSEAR RESPUESTA
 // ══════════════════════════════════════════════════════════════
 function parseResponse(raw) {
+  const healthRegex = /(?:💊\s*)?[Ss]alud[^0-9\n]{0,30}(\d+)\/10/;
   const propStart = raw.indexOf('---PROPOSALS---');
   const analStart = raw.indexOf('---ANALYSIS---');
   if (propStart !== -1 && analStart !== -1 && propStart < analStart) {
     const proposals = raw.slice(propStart + 15, analStart).trim()
       .split('\n').filter(l => l.trim().match(/^-\s*\[/)).map(l => l.trim());
     const analysis = raw.slice(analStart + 14).trim();
-    const healthMatch = analysis.match(/💊 Salud.*?(\d+)\/10/);
+    const healthMatch = analysis.match(healthRegex);
     return { analysis, proposals, health: healthMatch ? healthMatch[1] : null };
   }
-  const healthMatch = raw.match(/💊 Salud.*?(\d+)\/10/);
+  const healthMatch = raw.match(healthRegex);
   return { analysis: raw.trim(), proposals: [], health: healthMatch ? healthMatch[1] : null };
 }
 
