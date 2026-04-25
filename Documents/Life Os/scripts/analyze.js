@@ -187,6 +187,10 @@ Analiza desde TODOS estos roles simultáneamente. No los menciones como teatro; 
 
 ⚫ RETENTION ANALYST — ¿qué haría que un usuario abandone en los primeros 30 segundos? Fricción inicial, pantallas que no explican valor, copy frío, ausencia de CTA, primera impresión, motivación para volver mañana.
 
+🌌 LIVING DATA & MOTION UX STRATEGIST — detectas dónde datos, estados y acciones pueden volverse experiencias visuales vivas. Propones motion SOLO cuando mejora comprensión, recompensa, identidad o retención. Nunca decorativo. Tipos: LIVING-DATA, MICROINTERACTION, AMBIENT-MOTION, DATA-VIZ-MOTION, CANVAS-VISUAL, CSS-MOTION, SVG-MOTION. Costo: BAJO (CSS transition/fade/pulse), MEDIO (SVG, Chart.js animation, particle burst), ALTO (Canvas particle system, físicas, generativo persistente). Canvas solo para Aura Chart, Dashboard core, World, Mente orbe, Flow streak.
+
+🧱 ADAPTIVE BENTO LAYOUT STRATEGIST — evalúas si cada módulo usa Adaptive Bento Command System 2026. Detectas: cards gigantes injustificadas (span 8-12 con 1-2 datos), charts inflados que dominan sin insight real, secciones full-width con poco contenido, submódulos/tabs tipo lista CRUD, espacio muerto en web, jerarquía perdida en iOS. Regla crítica: card grande solo se justifica con visualización importante, lista larga, mapa, timeline, formulario principal o chart denso. Si tiene 1 número, 1 botón o mucho aire → CARD-DENSITY bug.
+
 ========================
 LA APP: LIFE OS
 ========================
@@ -235,6 +239,22 @@ Verificaciones obligatorias en Modo Aura:
 - Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug.
 - Charts con paleta Aura, no cyan.
 - Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → probable bug en _setAuraAccentVars().
+
+========================
+BENTO GRID 2026 — ADAPTIVE COMMAND SYSTEM
+========================
+
+Cada módulo debe sentirse como un command center propio, no como formulario CRUD.
+Clasificación de cards: bento-micro(2col) / bento-compact(3col) / bento-medium(4col) / bento-wide(6col) / bento-large(8col) / bento-full(12col solo si hero/mapa/chart denso).
+En web: detecta cards full-width con 1-2 datos, radar charts que dominan sin insight, espacio muerto, tabs sin composición.
+En iOS: detecta jerarquía perdida al colapsar, scroll excesivo, acciones principales fuera del primer viewport.
+En Modo Aura: radar chart rígido = CHART-SIZING ALTA. Usar Aura Chart de partículas (Canvas 2D, 6 nodos, física de atractores, desktop 120-220 partículas, mobile 60-110, prefers-reduced-motion fallback estático).
+
+========================
+LIVING DATA VISUALS
+========================
+
+La app no debe mostrar datos como números muertos. Detecta oportunidades donde datos/acciones/progreso pueden volverse experiencias vivas: barras que respiran, orbes que pulsan, partículas que celebran logros, counters animados, empty states con personalidad. Solo propón motion si mejora comprensión, recompensa, identidad o retención. Nunca decorativo.
 
 ========================
 BUGS CONOCIDOS A VIGILAR
@@ -366,11 +386,11 @@ FORMATO DE RESPUESTA OBLIGATORIO
 
 CATEGORÍA A — MICRO-MEJORAS
 
-- [TIPO] MÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] MÓDULO/SUBMÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PLATAFORMA: WEB/iOS/AMBAS/TODAS | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: fallback si aplica | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
 
 CATEGORÍA B — ARQUITECTURA
 
-- [TIPO] MÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad | SOLUCIÓN: decisión concreta para el owner | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] MÓDULO/SUBMÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad/premium feel | SOLUCIÓN: decisión concreta para el owner | PLATAFORMA: WEB/iOS/AMBAS/TODAS | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
 
 ---ANALYSIS---
 
@@ -392,6 +412,18 @@ Máximo 70 palabras. Android vs iOS y riesgo principal.
 🎨 VEREDICTO DE IDENTIDAD VISUAL
 Máximo 70 palabras. Qué módulos se sienten únicos y cuáles parecen clones.
 
+🧱 VEREDICTO BENTO 2026
+Máximo 80 palabras. ¿Los módulos usan composición Bento modular moderna o hay secciones gigantes, espacio muerto, cards mal jerarquizadas, charts inflados, layouts tipo CRUD? Indica qué módulo tiene el layout más débil y cuál el más fuerte.
+
+🖥️ VEREDICTO WEB / DESKTOP
+Máximo 70 palabras. ¿Las cards aprovechan bien el espacio web o hay tarjetas gigantes, charts inflados, secciones full-width innecesarias, espacios muertos?
+
+📱 VEREDICTO iOS / MOBILE
+Máximo 70 palabras. ¿El Bento colapsa bien en iOS/mobile? ¿Jerarquía clara, scroll razonable, acciones accesibles, charts legibles?
+
+🌌 VEREDICTO MOTION & LIVING DATA
+Máximo 80 palabras. ¿La app se siente viva o estática? Las 2 oportunidades de mayor impacto para Canvas, CSS o SVG.
+
 🎯 OPORTUNIDAD MAYOR
 Un solo cambio con mayor impacto en retención/conversión. Específico.
 
@@ -402,7 +434,7 @@ Una frase honesta, directa y útil.
 TIPOS VÁLIDOS
 ========================
 
-BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA`;
+BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, BENTO-LAYOUT, ADAPTIVE-BENTO, WEB-LAYOUT, IOS-LAYOUT, CARD-DENSITY, CHART-SIZING, SUBMODULE-LAYOUT, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, CANVAS-VISUAL, CSS-MOTION, SVG-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, DATA-VIZ-MOTION`;
 
 
   // Content array format: text + image_url items
@@ -557,7 +589,7 @@ function appendToReport(reportPath, analysis, screenshotCount) {
   const shotNote = screenshotCount > 0
     ? `> 📸 ${screenshotCount} screenshots analizados con Gemini/Anthropic Vision\n\n`
     : '';
-  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini/Anthropic Sonnet 4.6\n\n';
+  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Claude Sonnet 4.6\n\n';
   fs.writeFileSync(reportPath, existing + divider + shotNote + analysis + '\n', 'utf8');
 }
 
@@ -575,7 +607,7 @@ async function main() {
 
   const screenshots = loadScreenshots(SHOTS_DIR);
   log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
-  log('Analizando con Gemini/Anthropic Sonnet 4.6...');
+  log('Analizando con Claude Sonnet 4.6...');
 
   const content  = buildParts(reports, screenshots);
   const rawResp  = await callAnthropic(content);
