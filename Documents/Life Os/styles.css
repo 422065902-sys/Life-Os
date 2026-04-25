@@ -3809,11 +3809,6 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
 @media(max-width:767px){
   #fab-btn{bottom:calc(74px + env(safe-area-inset-bottom,8px))!important}
 }
-@media(max-width:767px){
-  @supports (padding-bottom: env(safe-area-inset-bottom)){
-    #fab-btn{bottom:calc(74px + env(safe-area-inset-bottom))!important}
-  }
-}
 
 
 /* ── Dashboard skeleton loader ─────────────────────────────── */

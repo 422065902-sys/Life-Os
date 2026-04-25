@@ -21,7 +21,50 @@ firebase.initializeApp(_IS_STAGING ? {
 
 const messaging = firebase.messaging();
 
-// Manejar notificaciones cuando la app está en segundo plano o cerrada
+// ── OFFLINE CACHE ─────────────────────────────────────────────
+const CACHE_NAME = 'lifeos-shell-v2';
+const APP_SHELL  = ['/', '/index.html', '/main.js', '/styles.css',
+                    '/icons/icon-192.png', '/icons/icon-512.png'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(APP_SHELL)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
+  // Navegación: network-first, fallback a index.html cacheado
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Assets estáticos: cache-first, actualiza cache en background
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      const network = fetch(event.request).then(res => {
+        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()));
+        return res;
+      });
+      return cached || network;
+    })
+  );
+});
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────
 messaging.onBackgroundMessage(payload => {
   const { title, body, icon } = payload.notification || {};
   self.registration.showNotification(title || 'Life OS', {
@@ -33,7 +76,6 @@ messaging.onBackgroundMessage(payload => {
   });
 });
 
-// Al hacer clic en la notificación, abrir/enfocar la app
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
