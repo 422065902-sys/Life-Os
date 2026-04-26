@@ -214,6 +214,21 @@
     </section>
 
     <!-- ══ MÓDULOS VISUALES ══ -->
+    <section class="lp-social-proof">
+      <div class="lp-proof-counter"><strong>1,200+</strong><span>usuarios organizando su sistema personal</span></div>
+      <div class="lp-proof-grid">
+        <div class="lp-proof-card">"Me ayudó a ordenar hábitos y dinero en una sola vista."<span>Ana K.</span></div>
+        <div class="lp-proof-card">"El mapa y el XP hacen que volver cada día se sienta natural."<span>Rodolfo</span></div>
+        <div class="lp-proof-card">"Por fin una app que no se siente como hoja de cálculo."<span>Isam_99</span></div>
+      </div>
+    </section>
+
+    <section class="lp-demo-strip">
+      <div class="lp-demo-card"><strong>Gemelo Potenciado</strong><span>Anillo de 30 días que aprende tus patrones y anticipa bloqueos.</span></div>
+      <div class="lp-demo-card"><strong>World Map</strong><span>Tu avance convertido en mapa, apartamento y tienda de recompensas.</span></div>
+      <div class="lp-demo-card"><strong>Plan Aliados</strong><span>Objetivos compartidos, ruletas de XP y presión social sana.</span></div>
+    </section>
+
     <section class="lp-section">
       <div class="lp-section-label lp-reveal">9 MÓDULOS</div>
       <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Todo tu mundo.<br>Un solo sistema.</h2>
@@ -624,6 +639,13 @@
     <div class="prog-wrap xs"><div class="prog-fill" id="sb-xpbar" style="width:0%"></div></div>
     <div id="sb-xpnum" style="font-size:10px;color:var(--text3);margin-top:3px;text-align:right">0/1000</div>
   </div>
+  <div class="nucleo-micro-widget" id="nucleo-micro-widget">
+    <div class="nucleo-micro-top">
+      <span>⚛️ Núcleo</span>
+      <strong id="nucleo-micro-pct">0%</strong>
+    </div>
+    <div class="nucleo-micro-bar"><div id="nucleo-micro-fill" style="width:0%"></div></div>
+  </div>
   <nav id="desktop-nav"></nav>
 </aside>
 
@@ -797,7 +819,7 @@
       <div class="page-sub">Control total de tus finanzas</div>
     </div>
     <!-- ─── BENTO GRID ─── -->
-    <div class="module-bento-grid">
+      <div class="module-bento-grid" id="financiero-grid">
 
       <!-- HEADER SALDOS: full -->
       <div class="bento-full" style="display:flex;align-items:center;justify-content:space-between">
@@ -806,12 +828,13 @@
       </div>
 
       <!-- Saldos dinámicos: wide 6 cols -->
-      <div id="saldos-grid" class="bento-wide" style="display:flex;flex-direction:column;gap:10px">
+      <div id="saldos-grid" class="bento-wide saldo-card" style="display:flex;flex-direction:column;gap:10px">
         <div class="card" id="saldo-personal-card" style="background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(0,229,255,.01))">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div class="stat-label" style="margin:0">💳 Saldo Personal</div>
           </div>
-          <div class="stat-val c-green" id="fin-personal-bal">$0</div>
+          <div class="stat-val c-green saldo-value" id="fin-personal-bal">$0</div>
+          <svg class="saldo-sparkline" viewBox="0 0 120 28" aria-hidden="true"><polyline id="saldo-sparkline-line" points="0,20 18,18 36,22 54,14 72,16 90,10 108,12 120,8"/></svg>
           <div class="row" style="gap:12px;margin-top:8px">
             <span class="c-green" style="font-size:11px">▲ <span id="fin-p-in">$0</span></span>
             <span class="c-red" style="font-size:11px">▼ <span id="fin-p-out">$0</span></span>
@@ -820,7 +843,7 @@
       </div>
 
       <!-- Gastos — Gráfico pie: wide 6 cols -->
-      <div class="card bento-wide">
+      <div class="card bento-wide gastos-chart-card">
         <div class="card-title">GASTOS PERSONALES</div>
         <div class="row fw" style="gap:10px;align-items:center">
           <div style="position:relative;width:140px;height:140px;flex-shrink:0">
@@ -844,7 +867,7 @@
       <div id="cards-container" class="bento-full row fw" style="gap:10px"></div>
 
       <!-- Transacciones: wide 6 cols -->
-      <div class="card bento-wide">
+      <div class="card bento-wide historial-card">
         <div class="card-title">TRANSACCIONES RECIENTES</div>
         <div id="tx-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto">
           <div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">Sin transacciones</div>
@@ -911,8 +934,8 @@
       </div>
       <div class="card bento-medium bento-tall" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
         <div class="card-title" style="color:#00ff88;margin-bottom:0">ENERGÍA DE FLOW</div>
-        <div style="font-size:12px;color:var(--text3);line-height:1.7">Cada hábito completado suma <strong style="color:#00ff88">+25 XP</strong> y carga tu batería de constancia.</div>
-        <div style="font-size:12px;color:var(--text3);line-height:1.6">La <strong style="color:#ff6b35">Racha</strong> mide tu hábito más constante — aliméntala cada día.</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.7">Cada hábito completado suma <strong style="color:#00ff88" id="flow-energy-reward">+25 XP</strong> y carga tu batería de constancia.</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6">La <strong style="color:#ff6b35" id="flow-energy-focus">Racha</strong> mide tu hábito más constante — aliméntala cada día.</div>
         <div style="margin-top:auto;padding:10px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:12px;font-size:11px;color:#00ff88;text-align:center;font-family:'Orbitron',monospace;letter-spacing:.06em">FLOW ACTIVO</div>
       </div>
 
@@ -2676,7 +2699,7 @@
       <div style="font-size:42px;margin-bottom:10px">⚡</div>
       <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--accent);letter-spacing:.04em;margin-bottom:6px">SISTEMA INICIADO</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:360px;margin:0 auto">
-        Tu camino empieza aquí. Elige <strong style="color:var(--text)">al menos 3 misiones</strong> para tu primer día — son simples, cualquiera puede hacerlas.
+        Tu camino empieza aquí. Elige <strong style="color:var(--text)">una misión inicial</strong> para tu primer día — son simples, cualquiera puede hacerlas.
       </div>
       <div style="margin-top:12px;font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">
         💡 Tú crearás tus propias tareas después — estas son solo para que sientas lo que es ganar XP
@@ -2700,14 +2723,14 @@
         </div>
       </div>
 
-      <div style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent);letter-spacing:.1em;margin-bottom:14px">ELIGE TUS PRIMERAS MISIONES (mín. 3)</div>
+      <div style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent);letter-spacing:.1em;margin-bottom:14px">ELIGE TU PRIMERA MISIÓN</div>
       <div id="seed-missions-list" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
 
     <!-- Footer fijo -->
     <div class="seed-modal-footer">
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
-        Seleccionadas: <span id="seed-count" style="color:var(--accent);font-weight:700;font-family:'Orbitron',monospace">0</span> / <span style="color:var(--text3)">mín. 3</span>
+        Seleccionadas: <span id="seed-count" style="color:var(--accent);font-weight:700;font-family:'Orbitron',monospace">0</span> / <span style="color:var(--text3)">mín. 1</span>
       </div>
       <!-- Barra de progreso de selección -->
       <div style="width:100%;background:rgba(255,255,255,.07);border-radius:20px;height:6px;margin-bottom:14px;overflow:hidden">
@@ -3371,8 +3394,8 @@
     <select class="inp" id="tx-saldo-select" style="display:none"></select>
     <select class="inp" id="tx-cat">
       <option>Alimentación</option><option>Transporte</option><option>Entretenimiento</option>
-      <option>Salud</option><option>Educación</option><option>Tecnología</option>
-      <option>Ropa</option><option>Servicios</option><option>Viaje</option><option>Otro</option>
+      <option>Salud</option><option>Hogar</option><option>Educación</option>
+      <option>Ahorro</option><option>Otro</option>
     </select>
     <input class="inp" id="tx-amount" type="number" placeholder="Monto *"/>
     <input class="inp" id="tx-desc" placeholder="Descripción"/>

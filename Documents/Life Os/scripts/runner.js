@@ -2290,7 +2290,7 @@ async function main() {
   const DEEP = process.argv.includes('--deep');
   if (DEEP) {
     try {
-      log('\n▶ Iniciando análisis DEEP con Gemini Vision (analyze-deep.js)...');
+      log('\n▶ Iniciando análisis DEEP con Claude Sonnet 4.6 (analyze-deep.js)...');
       const deepEnv = { ...process.env, QA_SHOTS_DIR: SHOTS_DIR };
       execSync(`node "${path.join(__dirname, 'analyze-deep.js')}"`, { stdio: 'inherit', env: deepEnv });
     } catch (e) {

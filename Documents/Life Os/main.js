@@ -599,6 +599,41 @@ function updateBottomNav(pageId) {
   _bnLastLocal = localIdx;
 }
 
+function syncBodyScrollLock() {
+  const locked =
+    document.querySelector('.modal.open') ||
+    document.querySelector('#mob-drawer.open') ||
+    document.querySelector('#room-shop-overlay.open') ||
+    document.getElementById('paywall-lockdown');
+  const shouldLock = !!locked;
+  if (document.body.classList.contains('scroll-locked') !== shouldLock) {
+    document.body.classList.toggle('scroll-locked', shouldLock);
+  }
+  const nextOverflow = shouldLock ? 'hidden' : '';
+  if (document.body.style.overflow !== nextOverflow) {
+    document.body.style.overflow = nextOverflow;
+  }
+}
+
+function installScrollLockObserver() {
+  if (window.__scrollLockObserver) return;
+  const mo = new MutationObserver(() => syncBodyScrollLock());
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+  window.__scrollLockObserver = mo;
+  syncBodyScrollLock();
+}
+
+function applyQAUrlFlags() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('reset_onboarding') === 'true') {
+    ['onboardingComplete','onboarding_dismissed','lifeos_onboarding_done'].forEach(k => localStorage.removeItem(k));
+    S.onboardingDone = false;
+    S.onboardingGemeloCompletado = false;
+    S.primeraSesion = true;
+    guardarDatos();
+  }
+}
+
 function toggleDrawer() {
   const drawer = document.getElementById('mob-drawer');
   const backdrop = document.getElementById('mob-backdrop');
@@ -606,14 +641,14 @@ function toggleDrawer() {
   if (isOpen) { closeDrawer(); } else {
     drawer.classList.add('open');
     backdrop.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    syncBodyScrollLock();
   }
 }
 
 function closeDrawer() {
   document.getElementById('mob-drawer').classList.remove('open');
   document.getElementById('mob-backdrop').classList.remove('open');
-  document.body.style.overflow = '';
+  syncBodyScrollLock();
 }
 
 function navigate(id) {
@@ -679,7 +714,63 @@ function navigate(id) {
     }).catch(() => {}); // silencioso — no interrumpe navegación
   }
   // ── Onboarding tips (primera semana) ──
+  initContextCardDismiss(id);
   if (typeof _hookNavigateTips === 'function') _hookNavigateTips(id);
+}
+
+function renderContextBanner(moduleId, emoji, title, body) {
+  if (localStorage.getItem(`ctx_dismissed_${moduleId}`)) return '';
+  return `<div class="context-banner" data-context-card="${moduleId}">
+    <span class="context-banner-emoji">${emoji}</span>
+    <div class="context-banner-text"><strong>${title}</strong><p>${body}</p></div>
+    <button class="btn-entendido" data-dismiss title="Entendido">✓</button>
+  </div>`;
+}
+
+function _contextBannerMeta(moduleId) {
+  return {
+    dashboard: ['⚡', 'Tu tablero esta vivo', 'Prioriza el dia con tus habitos, tareas, finanzas y Gemelo en un solo pulso.'],
+    financial: ['💰', 'Finanzas con XP', 'Registra ingresos y gastos para desbloquear salud financiera, rachas e insights reales.'],
+    financiero: ['💰', 'Finanzas con XP', 'Registra ingresos y gastos para desbloquear salud financiera, rachas e insights reales.'],
+    cuerpo: ['💪', 'Cuerpo conectado', 'Tus entrenamientos y metricas alimentan el sistema de progreso diario.'],
+    settings: ['⚙️', 'Ajusta tu identidad', 'Cambia modo XP/Aura, tema y preferencias sin romper tu continuidad.'],
+    stats: ['📊', 'Analisis accionable', 'Revisa patrones y convierte actividad diaria en decisiones concretas.'],
+    analisis: ['📊', 'Analisis accionable', 'Revisa patrones y convierte actividad diaria en decisiones concretas.'],
+    productividad: ['✅', 'Flow diario', 'Habitos, metas, ideas y agenda comparten el mismo sistema de ejecucion.'],
+    flow: ['✅', 'Flow diario', 'Habitos, metas, ideas y agenda comparten el mismo sistema de ejecucion.'],
+  }[moduleId];
+}
+
+function _moduleHasContextData(moduleId) {
+  if ((moduleId === 'financiero' || moduleId === 'financial') && S.transactions?.length > 0) return true;
+  if (moduleId === 'dashboard' && (S.xp || 0) > 0) return true;
+  if (moduleId === 'cuerpo' && S.workouts?.length > 0) return true;
+  if ((moduleId === 'flow' || moduleId === 'productividad') && ((S.habits || []).length || (S.tasks || []).length)) return true;
+  return false;
+}
+
+function initContextCardDismiss(moduleId) {
+  const meta = _contextBannerMeta(moduleId);
+  if (!meta) return;
+  const key = `ctx_dismissed_${moduleId}`;
+  const pageId = moduleId === 'flow' ? 'productividad' : moduleId === 'analisis' ? 'stats' : moduleId;
+  const page = document.getElementById(`page-${pageId}`);
+  if (!page) return;
+  let card = page.querySelector(`[data-context-card="${moduleId}"]`);
+  if (!card && !localStorage.getItem(key) && !_moduleHasContextData(moduleId)) {
+    const header = page.querySelector('.page-header');
+    if (header) header.insertAdjacentHTML('afterend', renderContextBanner(moduleId, meta[0], meta[1], meta[2]));
+    card = page.querySelector(`[data-context-card="${moduleId}"]`);
+  }
+  if (!card) return;
+  if (localStorage.getItem(key) || _moduleHasContextData(moduleId)) { card.remove(); return; }
+  card.querySelector('[data-dismiss], .btn-entendido')?.addEventListener('click', () => {
+    localStorage.setItem(key, 'true');
+    card.animate(
+      [{ opacity:1, maxHeight:'200px' }, { opacity:0, maxHeight:'0', paddingTop:'0', paddingBottom:'0' }],
+      { duration:300, easing:'ease-out' }
+    ).onfinish = () => card.remove();
+  }, { once:true });
 }
 
 /* ═══════════════════════════════════════════
@@ -935,6 +1026,7 @@ IDENTITY.aura.spawnReward = spawnAuraOrbs;
 ═══════════════════════════════════════════ */
 function openModal(id) {
   document.getElementById(id).classList.add('open');
+  syncBodyScrollLock();
   // Pre-fill calibration sliders with current S values
   if (id === 'modal-calibration') {
     const setSlider = (sid, val) => {
@@ -969,9 +1061,12 @@ function openModal(id) {
     } catch(e) {}
   }
 }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); syncBodyScrollLock(); }
 document.addEventListener('click', e=>{
-  if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.remove('open');
+    syncBodyScrollLock();
+  }
 });
 
 /* ═══════════════════════════════════════════
@@ -1000,7 +1095,7 @@ function updateXP() {
 
   const $set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
   $set('set-level',  id.levelPrefixFull + lvl);
-  $set('set-xp',     id.totalLabel(S.xp));
+  $set('set-xp',     `${S.xp} ${document.body.dataset.mode === 'aura' ? '✦' : 'XP'}`);
   $set('set-coins',  id.coinIcon + ' ' + S.coins);
   $set('mob-lvl',    id.levelPrefix + lvl);
   $set('mob-xp',     id.totalLabel(S.xp));
@@ -1012,6 +1107,7 @@ function updateXP() {
   $set('sb-xp-label',    id.barLabel);
   $set('set-xp-label',   id.settingsXPLabel);
   $set('set-level-label', id.settingsLvlLabel);
+  updateFlowEnergyCopy();
 
   // ── Level-up reward ────────────────────────────────────
   if (justLeveledUp) {
@@ -1321,6 +1417,14 @@ function habitEmoji(name) {
   return '⭐'; // fallback genérico
 }
 
+function displayHabitName(name) {
+  const raw = String(name || '').trim();
+  const plain = raw
+    .replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '')
+    .trim();
+  return /^H[áa]bito QA \d+$/i.test(plain) ? 'Hábito sin nombre' : raw;
+}
+
 function addHabit() {
   const raw = document.getElementById('new-habit').value.trim(); if (!raw) return;
   const emoji = habitEmoji(raw);
@@ -1356,7 +1460,7 @@ function renderHabits() {
     return `
     <div class="habit-item ${h.completedToday ? 'done-h' : ''}" data-battery="${bState}">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;text-decoration:${h.completedToday ? 'line-through' : 'none'};opacity:${h.completedToday ? .6 : 1};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(h.name)}</div>
+        <div style="font-size:13px;font-weight:600;text-decoration:${h.completedToday ? 'line-through' : 'none'};opacity:${h.completedToday ? .6 : 1};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(displayHabitName(h.name))}</div>
         <div style="font-size:11px;color:#ff6b35;margin-top:2px;font-family:'JetBrains Mono',monospace">🔥 Racha: ${h.streak} días</div>
       </div>
       <div class="habit-battery" title="Batería del hábito">
@@ -1395,7 +1499,7 @@ function toggleHabit(id) {
     if (!h.history) h.history = [];
     if (!h.history.includes(todayKey)) h.history.push(todayKey);
     gainXP(25);
-    _logActivity('habit', 25, h.name || 'Hábito completado');
+    _logActivity('habit', 25, displayHabitName(h.name) || 'Hábito completado');
     S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
   } else {
     // Desmarcando: revertir racha solo si se completó hoy mismo
@@ -2054,7 +2158,10 @@ async function addTransaction() {
   closeModal('modal-tx');
   updateFinancialDisplay();
 
-  _logActivity('finance', 5, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
+  gainXP(15);
+  showToast('+15 XP · Registro financiero');
+  S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
+  _logActivity('finance', 15, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
   guardarDatos(); // localStorage + monolith doc (fallback)
 
   // ── Cloud-First: escritura directa a sub-colección (sin debounce) ──
@@ -2074,18 +2181,122 @@ async function addTransaction() {
 function updateFinancialDisplay() {
   // Mostrar skeleton mientras el listener de Firestore no ha entregado su primer snapshot
   const balText  = _finListenerReady ? fmt(personalBalance) : '…';
-  const balColor = _finListenerReady ? (personalBalance < 0 ? 'var(--red)' : 'var(--accent)') : '';
-  const _setbal = id => { const el = document.getElementById(id); if (el) { el.textContent = balText; el.style.color = balColor; } };
+  const balColor = _finListenerReady ? (personalBalance < 0 ? '#f59e0b' : 'var(--financial-accent, var(--accent))') : '';
+  const _setbal = id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id === 'fin-personal-bal' && _finListenerReady) animateCurrencyValue(el, personalBalance);
+    else el.textContent = balText;
+    el.style.color = balColor;
+  };
   _setbal('fin-personal-bal');
   _setbal('db-personal-bal');
+  setBalanceWarning(_finListenerReady && personalBalance < 0);
   const pIn  = S.transactions.filter(t=>t.scope==='personal'&&t.type==='entrada'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
   const pOut = S.transactions.filter(t=>t.scope==='personal'&&t.type==='salida'&&!t.deleted).reduce((a,t)=>a+t.amount,0);
   document.getElementById('fin-p-in').textContent = fmt(pIn);
   document.getElementById('fin-p-out').textContent = fmt(pOut);
+  setMonthlyTrendBadge(pIn, pOut);
   updatePieCharts();
   renderTransactions();
   renderDebts();
   renderCards();
+  renderFinancialHealth();
+}
+
+function animateCurrencyValue(el, target) {
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const start = Number(el.dataset.value || 0);
+  const end = Number(target || 0);
+  el.dataset.value = end;
+  if (reduce || Math.abs(end - start) < 1) { el.textContent = fmt(end); return; }
+  const startTs = performance.now();
+  const duration = 800;
+  function frame(now) {
+    const t = Math.min(1, (now - startTs) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmt(start + (end - start) * eased);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function setMonthlyTrendBadge(income, expense) {
+  const card = document.getElementById('saldo-personal-card');
+  if (!card) return;
+  let badge = document.getElementById('fin-monthly-trend');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'fin-monthly-trend';
+    badge.className = 'finance-trend-badge';
+    card.appendChild(badge);
+  }
+  const net = Number(income || 0) - Number(expense || 0);
+  badge.textContent = net >= 0 ? `Tendencia mensual +${fmt(net)}` : `Tendencia mensual ${fmt(net)}`;
+  badge.classList.toggle('negative', net < 0);
+}
+
+function setBalanceWarning(active) {
+  const balEl = document.getElementById('fin-personal-bal');
+  if (!balEl || !balEl.parentElement) return;
+  const card = document.getElementById('saldo-personal-card');
+  if (card) card.classList.toggle('saldo-negative', !!active);
+  let badge = document.getElementById('fin-balance-warning');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'fin-balance-warning';
+    badge.className = 'balance-warning';
+    balEl.insertAdjacentElement('afterend', badge);
+  }
+  badge.textContent = 'Gastos > Ingresos este período';
+  badge.style.display = active ? '' : 'none';
+}
+
+function getFinanceStreak() {
+  const days = new Set((S.transactions || []).filter(t => !t.deleted).map(t => t.date).filter(Boolean));
+  let streak = 0;
+  for (let i = 0; i < 60; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    if (days.has(key)) streak++;
+    else if (i > 0) break;
+  }
+  return streak;
+}
+
+function renderFinancialHealth() {
+  const grid = document.querySelector('#page-financial .module-bento-grid');
+  if (!grid) return;
+  let card = document.getElementById('financial-health-card');
+  if (!card) {
+    card = document.createElement('div');
+    card.id = 'financial-health-card';
+    card.className = 'card salud-fin-card';
+    const debts = document.getElementById('debts-section');
+    grid.insertBefore(card, debts || null);
+  }
+  const income = (S.transactions || []).filter(t => !t.deleted && t.type === 'entrada').reduce((a,t)=>a + Number(t.amount || 0), 0);
+  const expense = (S.transactions || []).filter(t => !t.deleted && t.type === 'salida').reduce((a,t)=>a + Number(t.amount || 0), 0);
+  const ratio = income > 0 ? Math.max(0, Math.min(100, Math.round(((income - expense) / income) * 100))) : (expense > 0 ? 20 : 55);
+  const label = ratio >= 70 ? 'Guardián de Riqueza' : ratio >= 40 ? 'Maestro del Ahorro' : 'Explorador Frugal';
+  card.innerHTML = `
+    <div class="card-title">SALUD FINANCIERA</div>
+    <div class="finance-health-label">${label}</div>
+    <div class="finance-health-bar"><div style="width:${ratio}%"></div></div>
+    <div class="finance-health-meta">
+      <span>${ratio}% salud</span>
+      <span>🔥 Racha: ${getFinanceStreak()} días con registro</span>
+    </div>
+  `;
+}
+
+function updateFlowEnergyCopy() {
+  const isAura = document.body.dataset.mode === 'aura';
+  const reward = document.getElementById('flow-energy-reward');
+  const focus = document.getElementById('flow-energy-focus');
+  if (reward) reward.textContent = isAura ? '+25 Esencia' : '+25 XP';
+  if (focus) focus.textContent = isAura ? 'Flujo Continuo' : 'Racha';
 }
 
 function updatePieCharts() {
@@ -2097,40 +2308,53 @@ function buildPie(canvasId, emptyId, legendId, txs) {
   const canvas = document.getElementById(canvasId); if (!canvas) return;
   const emptyEl = document.getElementById(emptyId);
   const legendEl = document.getElementById(legendId);
+  let overlay = canvas.parentElement?.querySelector('.pie-other-overlay');
   if (!txs.length) {
     if (emptyEl) emptyEl.style.display='flex';
     canvas.style.display='none';
+    if (overlay) overlay.style.display='none';
     if (legendEl) legendEl.innerHTML='<div style="font-size:11px;color:var(--text3);padding:8px">Agrega transacciones para ver el gráfico</div>';
     return;
   }
   if (emptyEl) emptyEl.style.display='none';
   canvas.style.display='block';
-  const map={};
-  txs.forEach(t=>{
-    const cat = t.category || 'Sin categoría';
+  const baseCats = ['Alimentación','Transporte','Entretenimiento','Salud','Hogar','Educación','Ahorro','Otro'];
+  const map = Object.fromEntries(baseCats.map(c => [c, 0]));
+  txs.forEach(t => {
+    const cat = t.category || 'Otro';
     const amt = isNaN(t.amount) ? 0 : Number(t.amount);
-    map[cat] = (map[cat]||0) + amt;
+    const mapKey = baseCats.includes(cat) ? cat : 'Otro';
+    map[mapKey] = (map[mapKey] || 0) + amt;
   });
-  const labels=Object.keys(map), data=Object.values(map);
-  const key = canvasId==='piePersonal'?'pieP':'pieA';
-  if (S.charts[key]) S.charts[key].destroy();
-  // Usar colores de categoría cuando existen, PIE_COLORS como fallback
-  const colors = labels.map((l,i) => CAT_COLORS[l] || PIE_COLORS[i % PIE_COLORS.length]);
-  S.charts[key] = new Chart(canvas, {
+  const labels = Object.keys(map), data = Object.values(map);
+  const total = data.reduce((a,b)=>a+b,0);
+  const chartKey = canvasId==='piePersonal'?'pieP':'pieA';
+  if (S.charts[chartKey]) S.charts[chartKey].destroy();
+  const colors = ['#fbbf24', '#f59e0b', '#d97706', '#92400e', '#78350f'];
+  S.charts[chartKey] = new Chart(canvas, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:0, hoverOffset:4 }] },
-    options:{ plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed)}`}}}, cutout:'60%' }
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderColor:colors, borderWidth:0, hoverOffset:4 }] },
+    options:{ animation:{ duration:600 }, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed)}`}}}, cutout:'60%' }
   });
   if (legendEl) {
-    legendEl.innerHTML = labels.slice(0,5).map((l,i)=>`
+    legendEl.innerHTML = labels.slice(0,8).map((l,i)=>`
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <div style="width:8px;height:8px;border-radius:2px;background:${colors[i]};flex-shrink:0"></div>
+        <div style="width:8px;height:8px;border-radius:2px;background:${colors[i % colors.length]};flex-shrink:0"></div>
         <span style="font-size:10px;flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span>
-        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${colors[i]}">${fmt(data[i])}</span>
+        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${colors[i % colors.length]}">${fmt(data[i])}</span>
       </div>`).join('');
   }
+  const otherPct = total > 0 ? (map.Otro || 0) / total * 100 : 0;
+  if (!overlay && otherPct > 20 && canvas.parentElement) {
+    overlay = document.createElement('div');
+    overlay.className = 'pie-other-overlay';
+    canvas.parentElement.appendChild(overlay);
+  }
+  if (overlay) {
+    overlay.textContent = 'Categoriza tus gastos para ver insights reales';
+    overlay.style.display = otherPct > 20 ? 'flex' : 'none';
+  }
 }
-
 function renderTransactions() {
   const el = document.getElementById('tx-list'); if (!el) return;
   const visible = (S.transactions||[]).filter(t => !t.deleted);
@@ -2741,7 +2965,8 @@ function updateSettingsDisplay() {
     }
   }
   document.getElementById('set-level') && (document.getElementById('set-level').textContent='Nv. '+S.level);
-  document.getElementById('set-xp') && (document.getElementById('set-xp').textContent=S.xp+' XP');
+  const settingsSuffix = document.body.dataset.mode === 'aura' ? '✦' : 'XP';
+  document.getElementById('set-xp') && (document.getElementById('set-xp').textContent=S.xp+' '+settingsSuffix);
   document.getElementById('set-coins') && (document.getElementById('set-coins').textContent='🪙 '+S.coins);
   // — Dashboard Inteligente
   const ddToggle = document.getElementById('dynamic-dashboard-toggle');
@@ -4109,10 +4334,11 @@ function startExecClock() {
 // Track usage counts for each poder sub-section
 if (!S.poderUsage) S.poderUsage = { biblioteca: 0, bitacora: 0, aliados: 0 };
 
-function renderPoderSections() {
+function renderPoderSections(activeSection = 'bitacora') {
   const container = document.getElementById('poder-sections-container');
   if (!container) return;
   startExecClock();
+  if (!['bitacora','aliados','biblioteca'].includes(activeSection)) activeSection = 'bitacora';
 
   // Sections defined as functions that return HTML strings + IDs
   const sections = [
@@ -4209,9 +4435,7 @@ function renderPoderSections() {
     }
   ];
 
-  // Sort by usage count descending (most-used first)
-  // Reloj always stays last — remove it from sort pool
-  sections.sort((a, b) => (S.poderUsage[b.key] || 0) - (S.poderUsage[a.key] || 0));
+  const visibleSections = sections.filter(s => s.key === activeSection);
 
   // Reloj Deep Work — always rendered last, full width
   const relojHtml = `<div class="card" style="text-align:center">
@@ -4253,7 +4477,7 @@ function renderPoderSections() {
     </div>
   </div>`;
 
-  container.innerHTML = sections.map(s => s.html).join('') + relojHtml;
+  container.innerHTML = visibleSections.map(s => s.html).join('') + (activeSection === 'bitacora' ? relojHtml : '');
 
   // Re-render data into newly created DOM elements
   renderBiblioteca();
@@ -5900,12 +6124,17 @@ function renderExtraSaldos() {
     const card = document.createElement('div');
     card.className = 'card card-wide extra-saldo-card';
     card.style.cssText = 'background:linear-gradient(135deg,rgba(168,85,247,.06),rgba(168,85,247,.01))';
+    const amount = Number(s.monto || 0);
+    const isDebt = s.tipo === 'deuda';
+    const saldoColor = isDebt && amount < 0 ? 'var(--red)' : (amount < 0 ? '#f59e0b' : '#a855f7');
+    const warning = !isDebt && amount < 0 ? '<div class="balance-warning">Gastos > Ingresos este período</div>' : '';
     card.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div class="stat-label" style="margin:0">💼 ${escHtml(s.nombre)}</div>
         <button class="btn btn-d" onclick="removeExtraSaldo('${s.id}')" style="padding:2px 8px!important;font-size:11px!important">✕</button>
       </div>
-      <div class="stat-val" style="color:#a855f7" id="saldo-val-${s.id}">$${(s.monto||0).toLocaleString()}</div>
+      <div class="stat-val" style="color:${saldoColor}" id="saldo-val-${s.id}">$${amount.toLocaleString()}</div>
+      ${warning}
       <button class="btn btn-g btn-sm" onclick="editarExtraSaldo('${s.id}')" style="margin-top:8px">✏️ Editar saldo</button>
     `;
     saldosGrid.appendChild(card);
@@ -6328,13 +6557,13 @@ function updateSeedCount() {
   const n       = _seedSelected.size;
   if (countEl) countEl.textContent = n;
   if (bar) {
-    const pct = Math.min(100, Math.round((n / 3) * 100));
+    const pct = Math.min(100, Math.round((n / 1) * 100));
     bar.style.width = pct + '%';
     // Verde cuando alcanza el mínimo, acento mientras no
-    bar.style.background = n >= 3 ? '#4ade80' : 'var(--accent)';
+    bar.style.background = n >= 1 ? '#4ade80' : 'var(--accent)';
   }
   if (btn) {
-    const enough = n >= 3;
+    const enough = n >= 1;
     btn.disabled            = !enough;
     btn.style.opacity       = enough ? '1' : '.4';
     btn.style.pointerEvents = enough ? 'auto' : 'none';
@@ -6367,12 +6596,14 @@ function confirmSeedMissions() {
 
   S.onboardingDone = true;
   S.primeraSesion  = false;   // A partir de aquí el Blackout opera normalmente
+  gainXP(100, true);
   guardarDatos();
   renderTasks();
   updateDashboardTaskCount();
   closeModal('modal-onboarding');
   document.getElementById('modal-onboarding')?.removeAttribute('data-mandatory');
-  showToast(`🚀 ¡${_seedSelected.size} misiones cargadas! Gana hasta +${totalXP} XP hoy`);
+  spawnAuraOrbs && spawnAuraOrbs();
+  showToast('+100 Aura — ¡Tu aventura comienza!');
 
   // Levantar supresión — Blackout ya puede operar (primeraSesion = false)
   window._suppressNucleoToast = false;
@@ -6511,7 +6742,8 @@ function _gpbSet(wrap, fill, label, pctEl, pct, paused) {
     [100, 'Gemelo Potenciado activo — Conoce tu patrón mejor que nadie 🔥'],
   ];
   const msg = msgs.slice().reverse().find(([t]) => pct >= t);
-  if (label) label.textContent = msg ? msg[1] : msgs[0][1];
+  const day = Math.max(1, Math.min(30, Math.ceil((pct / 100) * 30)));
+  if (label) label.textContent = pct >= 100 ? msgs[4][1] : `Día ${day} de 30 · ${msg ? msg[1] : msgs[0][1]}`;
 
   // Clases de estado
   wrap.classList.toggle('gpb-complete',     pct >= 100);
@@ -6529,686 +6761,43 @@ function _gpbSet(wrap, fill, label, pctEl, pct, paused) {
   });
 }
 
+function briefingStat(label, value, pct) {
+  const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+  return `<span class="b-stat"><span class="b-bar" style="--p:${safePct}%"></span>${label} <strong>${value}</strong></span>`;
+}
+
+function renderNucleoMicroWidget(pct = 0) {
+  const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+  const microPct = document.getElementById('nucleo-micro-pct');
+  const microFill = document.getElementById('nucleo-micro-fill');
+  if (microPct) microPct.textContent = safePct + '%';
+  if (microFill) microFill.style.width = safePct + '%';
+}
+
 function renderMorningBriefing() {
   const el = document.getElementById('briefing-content');
   if (!el) return;
-  // Línea 1 — Finanzas
+
   const bal = document.getElementById('db-personal-bal')?.textContent || '$0';
   const txCount = (S.transactions || []).filter(t => t.date === today()).length;
   const finLine = txCount > 0
-    ? `<strong>${txCount} transacción${txCount > 1 ? 'es' : ''} hoy.</strong> Saldo: <strong>${bal}</strong>`
-    : `Flujo financiero estable. Saldo: <strong>${bal}</strong>`;
-  // Línea 2 — Mental (batería de hábitos)
-  const totalH  = (S.habits || []).length;
-  const doneH   = (S.habits || []).filter(h => h.completedToday).length;
+    ? `${briefingStat('Finanzas', txCount + ' hoy', Math.min(100, txCount * 25))} Saldo: <strong>${bal}</strong>`
+    : `${briefingStat('Finanzas', 'estable', 40)} Saldo: <strong>${bal}</strong>`;
+
+  const totalH = (S.habits || []).filter(h => !h.deleted).length;
+  const doneH = (S.habits || []).filter(h => !h.deleted && h.completedToday).length;
   const battPct = totalH > 0 ? Math.round((doneH / totalH) * 100) : 100;
-  const battLine = `Batería de hábitos al <strong>${battPct}%</strong>. ${doneH}/${totalH} completados hoy.`;
-  // Línea 3 — Tareas críticas
+  const battLine = `${briefingStat('Hábitos', doneH + '/' + totalH, battPct)} Batería al <strong>${battPct}%</strong>.`;
+
   const todayStr = today();
-  const pendTasks = (S.tasks || []).filter(t => !t.done && (!t.date || t.date === todayStr));
-  const taskLine = pendTasks.length > 0
-    ? `<strong>${pendTasks.length}</strong> tarea${pendTasks.length > 1 ? 's' : ''} pendiente${pendTasks.length > 1 ? 's' : ''} hoy.`
-    : 'Sin tareas pendientes. ¡Enfocado y libre!';
+  const pendingTasks = (S.tasks || []).filter(t => !t.done && !t.deleted && (!t.date || t.date === todayStr));
+  const taskLine = pendingTasks.length > 0
+    ? `${briefingStat('Tareas', pendingTasks.length + ' pendientes', Math.max(12, 100 - pendingTasks.length * 20))} Atiende lo crítico primero.`
+    : `${briefingStat('Tareas', 'libre', 100)} Sin tareas pendientes. ¡Enfocado y libre!`;
 
   el.innerHTML = [finLine, battLine, taskLine].map(l =>
     `<div class="briefing-line">${l}</div>`).join('');
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   FUNCIONALIDAD 2 — FAB CONSOLA UNIVERSAL + IA SEMÁNTICA
-═══════════════════════════════════════════════════════════════ */
-
-// ── Internal state ────────────────────────────────────
-let _fabChipTimer = null;
-let _fabLastResult = null;
-
-const MODULE_LABELS = {
-  calendar:  { icon:'📅', label:'Calendario'   },
-  financial: { icon:'💰', label:'Finanzas'      },
-  task:      { icon:'✅', label:'Tareas'        },
-  idea:      { icon:'💡', label:'Ideas Rápidas' },
-  habit:     { icon:'🔥', label:'Hábitos'       },
-  income:    { icon:'💚', label:'Ingreso'        },
-  mood:      { icon:'📓', label:'Bitácora'      },
-  goal:      { icon:'🎯', label:'Metas'         },
-};
-
-// ── Claude NLP (async, optional) ─────────────────────
-async function callClaudeNLP(text) {
-  const key = S.claudeApiKey || '';
-  if (!key || !key.startsWith('sk-ant-')) return null;
-  try {
-    const todayStr = today();
-    const habitNames = (S.habits||[]).filter(h=>!h.deleted).map(h=>h.name).join(', ');
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 450,
-        messages: [{ role: 'user', content:
-`Eres el motor NLP de Life OS, una app de productividad gamificada en español. Analiza el texto y extrae la intención. Responde SOLO con JSON válido.
-
-Texto: "${text.replace(/"/g,"'")}"
-Fecha de hoy: ${todayStr}
-Hábitos del usuario: ${habitNames || 'ninguno registrado'}
-Próximo sábado: ${getNextWeekday(6)} | Próximo domingo: ${getNextWeekday(0)}
-Próximo lunes: ${getNextWeekday(1)} | Próximos días: lun=${getNextWeekday(1)}, mar=${getNextWeekday(2)}, mié=${getNextWeekday(3)}, jue=${getNextWeekday(4)}, vie=${getNextWeekday(5)}
-
-Módulos disponibles: calendar, financial, income, task, habit, idea, mood, goal
-
-JSON a devolver:
-{
-  "modules": ["lista de módulos detectados"],
-  "correctedText": "texto con ortografía corregida (conserva el sentido, no parafrasees)",
-  "calendar": {"text": "nombre evento", "date": "YYYY-MM-DD", "time": "HH:MM o vacío"},
-  "financial": {"amount": número, "desc": "descripción limpia", "type": "salida"},
-  "income": {"amount": número, "desc": "fuente del ingreso"},
-  "task": {"name": "nombre de la tarea"},
-  "habit": {"name": "nombre del hábito a marcar como completado hoy"},
-  "idea": {"text": "texto de la idea o nota"},
-  "mood": {"text": "nota de ánimo o victoria del día"},
-  "goal": {"name": "nombre de la meta", "desc": "descripción opcional"}
-}
-
-Reglas de routing:
-- financial: gastos (gasté, pagué, compré, costó, $N, uber, gasolina, comida, renta, café, etc.). type siempre "salida".
-- income: ingresos (cobré, me pagaron, recibí, ingresé, entró, depósito, sueldo, freelance, venta, me transfirieron)
-- calendar: eventos con hora o fecha (agendar, reunión, cita, evento, llamada, comer, cenar, dentista, doctor, viaje, clase, junta, práctica, partido, concierto, ir a, vernos)
-- task: cosas por hacer (recordar, hacer, comprar, pendiente, debo, necesito, agendar sin fecha, traer, llevar)
-- habit: el usuario dice que YA HIZO algo que suena a hábito (hice, fui al gym, corrí, entrené, completé, cumplí, medité, leí, bebí agua, me ejercité). Busca coincidencia con hábitos del usuario.
-- idea: idea:, nota:, apunta:, sugerencia:, o reflexiones sobre la app/vida
-- mood: victoria:, logro:, me siento, ánimo, hoy me di cuenta, hoy fue un día
-- goal: meta:, objetivo:, quiero lograr, propósito, reto de N días
-- Un texto puede tener MÚLTIPLES módulos (ej: "gasté 200 en comida y mañana tengo junta" → financial + calendar)
-- Corrige typos obvios: cosinar→cocinar, jym→gym, aser→hacer, mañna→mañana, etc.
-- Para fechas relativas usa las fechas proporcionadas arriba.` }]
-      })
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const raw = data.content?.[0]?.text || '';
-    const match = raw.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : null;
-  } catch(e) { return null; }
-}
-
-// ── Date helpers ──────────────────────────────────────
-function getNextWeekday(target) {
-  const d = new Date();
-  let diff = target - d.getDay();
-  if (diff <= 0) diff += 7;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
-}
-
-function parseRelativeDate(text) {
-  const t = text.toLowerCase();
-  const d = new Date();
-  if (/mañana/.test(t))               { d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
-  if (/\bhoy\b/.test(t))              return today();
-  if (/sábado|sabado/.test(t))        return getNextWeekday(6);
-  if (/domingo/.test(t))              return getNextWeekday(0);
-  if (/\blunes\b/.test(t))            return getNextWeekday(1);
-  if (/martes/.test(t))               return getNextWeekday(2);
-  if (/miércoles|miercoles/.test(t))  return getNextWeekday(3);
-  if (/jueves/.test(t))               return getNextWeekday(4);
-  if (/viernes/.test(t))              return getNextWeekday(5);
-  const dayM = t.match(/el\s+(\d{1,2})(?:ro|er|avo|°)?/);
-  if (dayM) {
-    const day = parseInt(dayM[1]);
-    const nd = new Date(d.getFullYear(), d.getMonth(), day);
-    if (nd <= d) nd.setMonth(nd.getMonth()+1);
-    return nd.toISOString().split('T')[0];
-  }
-  return today();
-}
-
-function formatChipDate(dateStr) {
-  if (!dateStr || dateStr === today()) return 'Hoy';
-  const d = new Date(dateStr + 'T12:00:00');
-  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  return `${days[d.getDay()]} ${d.getDate()}`;
-}
-
-// ── Local NLP fallback ────────────────────────────────
-
-// Diccionario de corrección de typos — expandido
-const _TYPOS = {
-  // Cocina / comida
-  cosina:'cocina', cosinando:'cocinando', cosinar:'cocinar', cosino:'cocinó',
-  desayune:'desayuné', almorse:'almorcé', sene:'cené', comio:'comió',
-  // Ejercicio / gym
-  jym:'gym', gimnacio:'gimnasio', gimnasio:'gimnasio', entreno:'entrené',
-  entrene:'entrené', enrene:'entrené', ejersicio:'ejercicio', ejersisio:'ejercicio', ejersicios:'ejercicios',
-  cori:'corrí', salí:'salí', rrutina:'rutina', cardio:'cardio',
-  pesa:'pesas', pesass:'pesas', levante:'levanté', lenvante:'levanté',
-  // Verbos comunes con tilde perdida (hábitos)
-  bebi:'bebí', tomi:'tomé', tome:'tomé', dormi:'dormí', dorme:'dormí',
-  medite:'medité', lei:'leí',
-  // Verbos comunes con tilde perdida
-  aser:'hacer', acer:'hacer', haer:'hacer', haser:'hacer',
-  fui:'fui', fue:'fue', hise:'hice', hize:'hice',
-  pague:'pagué', gaste:'gasté', compre:'compré', cobre:'cobré',
-  recibi:'recibí', recivi:'recibí', agendi:'agendé', agende:'agendé',
-  llame:'llamé', avise:'avisé', anote:'anoté', apunte:'apunté',
-  complete:'completé', cumplí:'cumplí', cumpli:'cumplí',
-  // Días con typo
-  mañna:'mañana', manana:'mañana', maña:'mañana', manañana:'mañana',
-  sabado:'sábado', miercoles:'miércoles', proximo:'próximo', proxima:'próxima',
-  // Otros frecuentes
-  ojala:'ojalá', despues:'después', tambien:'también', rapido:'rápido',
-  reunon:'reunión', reuion:'reunión', reune:'reúne',
-  dentista:'dentista', medicoo:'médico', medico:'médico',
-  pendinte:'pendiente', recuerda:'recuerda', recueda:'recuerda',
-  uber:'Uber', rappi:'Rappi', didi:'DiDi', spotify:'Spotify',
-  // Inglés mezclado (spanglish)
-  gasoline:'gasolina', meeting:'reunión', lunch:'comida', breakfast:'desayuno',
-};
-
-// Levenshtein para fuzzy correction de palabras desconocidas
-function _levenshtein(a, b) {
-  if (a===b) return 0;
-  const m=a.length, n=b.length;
-  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i?j?0:i:j));
-  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
-    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-  return dp[m][n];
-}
-
-const _KNOWN_WORDS = ['hacer','cocinar','gimnasio','mañana','sábado','domingo','lunes','martes','miércoles','jueves','viernes','reunión','cita','evento','gasté','pagué','compré','cobré','recibí','entrené','corrí','cumplí','completé','hábito','tarea','idea','nota','meta','objetivo','ánimo','victoria','logro','ingreso','sueldo','bebí','dormí','tomé','medité','gasolina'];
-
-function fixTypos(text) {
-  return text.split(/\s+/).map(w => {
-    const lw = w.toLowerCase();
-    // Exact match en diccionario
-    if (_TYPOS[lw]) return _TYPOS[lw];
-    // Si la palabra tiene ≥5 chars, buscar palabra conocida con distancia 1
-    if (lw.length >= 5) {
-      for (const kw of _KNOWN_WORDS) {
-        if (Math.abs(lw.length - kw.length) <= 2 && _levenshtein(lw, kw) === 1) return kw;
-      }
-    }
-    return w;
-  }).join(' ');
-}
-
-// Utilidad: extraer monto numérico (dígitos o palabras)
-function _extractAmount(lower) {
-  // 1. Dígitos primero
-  const re = /\$?\s*([\d,]+\.?\d*)\s*(?:pesos|mxn|mx|varos|varones|pesitos)?/i;
-  const m = lower.match(re);
-  if (m) return parseFloat(m[1].replace(/,/g,''));
-  // 2. Números escritos (sin dígitos en el texto)
-  const numMap = [
-    [/\bdos mil\b/,'2000'],[/\btres mil\b/,'3000'],[/\bcinco mil\b/,'5000'],
-    [/\bdiez mil\b/,'10000'],[/\b(un mil|mil)\b/,'1000'],
-    [/\bnovecientos\b/,'900'],[/\bochocientos\b/,'800'],[/\bsetecientos\b/,'700'],
-    [/\bseiscientos\b/,'600'],[/\bquinientos\b/,'500'],[/\bcuatrocientos\b/,'400'],
-    [/\btrescientos\b/,'300'],[/\bdoscientos\b/,'200'],
-    [/\bciento\b/,'100'],[/\bcien\b/,'100'],
-  ];
-  for (const [re2, val] of numMap) {
-    if (re2.test(lower)) return parseFloat(val);
-  }
-  return 0;
-}
-
-// Utilidad: limpiar texto de keywords financieros
-function _cleanFinDesc(text, kwRE) {
-  return text.replace(/\$?\s*[\d,]+\.?\d*\s*(?:pesos|mxn|mx|varos)?/gi,'')
-             .replace(kwRE,'').replace(/\s+/g,' ').trim() || 'gasto';
-}
-
-// Fuzzy match de hábito del usuario
-function _findHabit(name) {
-  const q = name.toLowerCase().replace(/^(el|la|mi|un|una)\s+/,'');
-  return (S.habits||[]).find(h => {
-    if (h.deleted) return false;
-    const hn = h.name.toLowerCase().replace(/^[^\w]+/,'');
-    return hn.includes(q) || q.includes(hn) || _levenshtein(q, hn) <= 2;
-  });
-}
-
-function parseLocalNLP(raw) {
-  const text = raw.trim();
-  const fixed = fixTypos(text);
-  const lower = fixed.toLowerCase();
-  const result = { modules:[], correctedText:fixed };
-
-  // ── 1. IDEAS ───────────────────────────────────────────────
-  if (/^(idea|nota|apunta|sugerencia|ocurrencia)[:\s]/i.test(lower)) {
-    result.modules.push('idea');
-    result.idea = { text: fixed.replace(/^(idea|nota|apunta|sugerencia|ocurrencia)[:\s]+/i,'').trim() };
-    return result;
-  }
-
-  // ── 1b. TAREA por realización ("me cayó el veinte") ───────
-  if (/me\s+cay[oó]\s+(el\s+veinte|que\s+debo|que\s+tengo\s+que)/i.test(lower)) {
-    result.modules.push('task');
-    result.task = { name: fixed };
-    return result;
-  }
-
-  // ── 2. MOOD / BITÁCORA ────────────────────────────────────
-  if (/^(victoria|logro|hoy logré|hoy fué|hoy fue|me siento|ánimo|animo|bitacora|bitácora)[:\s]/i.test(lower) ||
-      /\b(me siento|me sentí|hoy me di cuenta|hoy fue un día|estado de ánimo)\b/i.test(lower)) {
-    result.modules.push('mood');
-    result.mood = { text: fixed.replace(/^(victoria|logro|bitacora|bitácora)[:\s]+/i,'').trim() };
-    return result;
-  }
-
-  // ── 3. META / GOAL ────────────────────────────────────────
-  if (/^(meta|objetivo|propósito|proposito|reto|quiero lograr)[:\s]/i.test(lower)) {
-    result.modules.push('goal');
-    result.goal = { name: fixed.replace(/^(meta|objetivo|propósito|proposito|reto|quiero lograr)[:\s]+/i,'').trim() };
-    return result;
-  }
-
-  // ── 4. INGRESO (income) ──────────────────────────────────
-  // Palabras con tilde al final (é,í,ó) fallan con \b en JS — usar Set de palabras
-  const _words = new Set(lower.split(/[\s,!?;:.()]+/));
-  const hasIncomeAccentKw = _words.has('cobré') || _words.has('recibí') || _words.has('ingresé') ||
-    _words.has('entró') || _words.has('depósito') || _words.has('vendí') || _words.has('gané') ||
-    _words.has('comisión');
-  const hasIncomeKw = hasIncomeAccentKw ||
-    /\b(cobre|me pagaron|pagaron|recibi|ingrese|entro|deposito|sueldo|salario|freelance|venta|vendi|me transfirieron|transferencia|me cayo|me prestaron|abonaron|me depositaron|gane|ganancia|beca|comision|renta cobrada|pago recibido)\b/i.test(lower);
-  const hasAmount   = /\$?\s*[\d,]+/.test(lower) ||
-    /\b(cien|ciento|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|mil|dos mil|tres mil|cinco mil|diez mil)\b/i.test(lower);
-
-  if (hasIncomeKw && hasAmount) {
-    const amount = _extractAmount(lower);
-    const desc   = _cleanFinDesc(fixed, /cobré|cobre|me pagaron|recibí|recibi|ingresé|ingrese|entró|entro|depósito|deposito|sueldo|salario|freelance|venta|me transfirieron|transferencia/gi);
-    result.modules.push('income');
-    result.income = { amount, desc };
-    return result;
-  }
-
-  // ── 5. GASTO FINANCIERO ───────────────────────────────────
-  // "gym" fuera de hasFinKw: gym solo → hábito; gasto gym → usar "gimnasio" o "pague"
-  const hasFinAccentKw = _words.has('gasté') || _words.has('pagué') || _words.has('costó') ||
-    _words.has('compré') || _words.has('invertí') || _words.has('café');
-  const hasFinKw = hasFinAccentKw ||
-    /\b(gaste|pague|costo|gasto|compre|invierte|cafe|uber|rappi|didi|taxi|gasolina|gasoline|bencina|comida|renta|gimnasio|suscripción|suscripcion|netflix|spotify|amazon|cine|pelicula|película|farmacia|medicamento|medicina|dentista|deuda|abono|cuota|varos|varones|lana|feria)\b|\$\d/i.test(lower);
-
-  // ── 6. CALENDARIO ────────────────────────────────────────
-  // médico/doctor/dentista se retiraron — son personas, no tipos de evento (evita falsos positivos en tareas tipo "llamar al médico")
-  const hasCalKw = /\b(agendar|agendo|agenda|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|desayunar|vuelo|viaje|partido|concierto|ir al|ir a la|ir a|junta|práctica|practica|clase|taller|webinar|conferencia|entrevista|vernos|nos vemos|cumpleaños)\b/i.test(lower);
-  const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo|esta semana|este fin)\b/i.test(lower);
-  const timeRE   = /(?:a las?|at|@)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
-  const timeM    = lower.match(timeRE);
-
-  // ── 7. HÁBITO ─────────────────────────────────────────────
-  // El usuario dice que YA hizo algo: "hice mi hábito de lectura", "fui al gym", "corrí 5km", "completé meditación"
-  const hasHabitAccentKw = _words.has('hice') || _words.has('entrené') || _words.has('corrí') ||
-    _words.has('medité') || _words.has('leí') || _words.has('bebí') || _words.has('tomé') ||
-    _words.has('dormí') || _words.has('cumplí') || _words.has('completé');
-  const hasHabitAction = hasHabitAccentKw ||
-    /\b(fui al|fui a|entrenué|corri|medite|lei|bebi|bebe|tome|dormi|cumpli|complete|hábito|habito|gym|ejercicio|yoga|nadar|natación|natacion|ciclismo|meditación|meditacion)\b/i.test(lower) ||
-    /🏋|🏃|🚴|🧘|🏊|💪/.test(lower);
-  if (hasHabitAction && !(hasFinKw && hasAmount)) {
-    // Extraer qué hábito es
-    const habitQ = fixed
-      .replace(/\b(hice|mi hábito de|mi habito de|cumplí|cumpli|completé|complete|hoy|ya|por fin)\b/gi,'')
-      .replace(/\b(fui al|fui a la|fui a)\b/gi,'')
-      .trim();
-    const found = _findHabit(habitQ);
-    result.modules.push('habit');
-    result.habit = { name: found ? found.name : habitQ, id: found ? found.id : null };
-    // Si además tiene fecha/hora = también calendario
-    if (hasCalKw || (hasDate && timeM)) {
-      const date = parseRelativeDate(fixed);
-      result.modules.push('calendar');
-      result.calendar = { text: result.habit.name, date, time:'' };
-    }
-    return result;
-  }
-
-  // ── 8. MULTI: gasto + fecha ───────────────────────────────
-  if (hasFinKw && hasAmount && hasDate) {
-    const amount = _extractAmount(lower);
-    const desc   = _cleanFinDesc(fixed, /gasté|gaste|pagué|pague|en|de|por|pagar|el \d+\S*|hoy|mañana|pesos|mxn/gi);
-    const date   = parseRelativeDate(fixed);
-    result.modules.push('calendar','financial');
-    result.calendar  = { text: desc, date, time:'' };
-    result.financial = { amount, desc, type:'salida' };
-    return result;
-  }
-
-  // ── 9. GASTO puro ─────────────────────────────────────────
-  if (hasFinKw && hasAmount) {
-    const amount = _extractAmount(lower);
-    const desc   = _cleanFinDesc(fixed, /gasté|gaste|pagué|pague|costó|costo|compré|compre|en|de|por|pesos|mxn|invertí|invierte/gi);
-    result.modules.push('financial');
-    result.financial = { amount, desc, type:'salida' };
-    return result;
-  }
-
-  // ── 10. GASTO sin monto (con keyword fuerte) ──────────────
-  if (hasFinAccentKw || /\b(gaste|pague|costo|compre)\b/i.test(lower)) {
-    result.modules.push('financial');
-    result.financial = { amount:0, desc: fixed.replace(/gasté|gaste|pagué|pague|costó|costo|compré|compre/gi,'').trim()||'gasto', type:'salida' };
-    return result;
-  }
-
-  // ── 11. CALENDARIO puro ───────────────────────────────────
-  if (hasCalKw || (hasDate && timeM)) {
-    let eventText = fixed;
-    let timeStr = '';
-    if (timeM) {
-      let h = parseInt(timeM[1]);
-      const min = timeM[2]||'00';
-      const mer = (timeM[3]||'').toLowerCase();
-      if (mer==='pm'&&h<12) h+=12;
-      if (mer==='am'&&h===12) h=0;
-      timeStr = `${String(h).padStart(2,'0')}:${min}`;
-      eventText = fixed.replace(timeM[0],'').trim();
-    }
-    const date = parseRelativeDate(fixed);
-    result.modules.push('calendar');
-    result.calendar = { text:eventText, date, time:timeStr };
-    return result;
-  }
-
-  // ── 12. Default: TAREA ────────────────────────────────────
-  result.modules.push('task');
-  result.task = { name:fixed };
-  return result;
-}
-
-// ── FAB visibility: oculto hasta completar check-in + onboarding ──
-function updateFABVisibility() {
-  const btn = document.getElementById('fab-btn');
-  if (!btn) return;
-  const checkedIn   = !!S.dailyCheckIn?.[today()];
-  const onboarded   = !!(S.onboardingDone || S.tasks?.length > 0);
-  const shouldShow  = checkedIn && onboarded;
-  btn.classList.toggle('fab-hidden', !shouldShow);
-}
-
-// ── Open / Preview ────────────────────────────────────
-function openFABConsole() {
-  openModal('modal-fab-console');
-  setTimeout(()=>{
-    const inp = document.getElementById('fab-input');
-    if (inp) { inp.value=''; inp.focus(); }
-    const prev = document.getElementById('fab-preview');
-    if (prev) { prev.style.display='none'; prev.className='fab-preview'; prev.style.borderColor=''; prev.style.color=''; }
-  }, 80);
-}
-
-function parseFABPreview(raw) {
-  const prev = document.getElementById('fab-preview');
-  if (!raw.trim()) { prev.style.display='none'; return; }
-  const p = parseLocalNLP(raw);
-  prev.style.display='block';
-  prev.style.borderColor=''; prev.style.color='';
-
-  const mods = p.modules || [];
-  if (mods.includes('income')) {
-    prev.className='fab-preview financial'; prev.style.borderColor='rgba(74,222,128,.35)'; prev.style.color='#4ade80';
-    prev.textContent=`💚 Ingreso: +$${(p.income?.amount||0).toLocaleString()} — "${p.income?.desc||''}"`;
-  } else if (mods.includes('financial') && mods.includes('calendar')) {
-    prev.className='fab-preview financial';
-    prev.textContent=`📅💰 Calendario + Finanzas — $${(p.financial?.amount||0).toLocaleString()} · "${p.calendar?.text||''}"`;
-  } else if (mods.includes('financial')) {
-    prev.className='fab-preview financial';
-    prev.textContent=`💰 Gasto: $${(p.financial?.amount||0).toLocaleString()} — "${p.financial?.desc||''}"`;
-  } else if (mods.includes('habit')) {
-    prev.className='fab-preview task'; prev.style.borderColor='rgba(251,146,60,.35)'; prev.style.color='#fb923c';
-    prev.textContent=`🔥 Hábito completado: "${p.habit?.name||''}"`;
-  } else if (mods.includes('mood')) {
-    prev.className='fab-preview idea'; prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
-    prev.textContent=`📓 Bitácora: "${p.mood?.text||''}"`;
-  } else if (mods.includes('goal')) {
-    prev.className='fab-preview task'; prev.style.borderColor='rgba(0,229,255,.3)'; prev.style.color='var(--accent)';
-    prev.textContent=`🎯 Meta: "${p.goal?.name||''}"`;
-  } else if (mods.includes('calendar')) {
-    prev.className='fab-preview task'; prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
-    const d = p.calendar?.date ? ` · ${formatChipDate(p.calendar.date)}` : '';
-    const t = p.calendar?.time ? ` ${p.calendar.time}` : '';
-    prev.textContent=`📅 "${p.calendar?.text||''}"${d}${t} → Calendario`;
-  } else if (mods.includes('idea')) {
-    prev.className='fab-preview idea';
-    prev.textContent=`💡 "${p.idea?.text||''}" → Ideas Rápidas`;
-  } else {
-    const name = p.task?.name || '';
-    if (name.length < 3) {
-      prev.className='fab-preview';
-      prev.style.borderColor='rgba(255,255,255,.12)';
-      prev.style.color='var(--text3)';
-      prev.textContent='💬 Escribe más detalle · ej: "gasté 200 en tacos" o "reunión el viernes"';
-    } else {
-      prev.className='fab-preview task';
-      prev.textContent=`✅ Tarea: "${name}" → Tareas`;
-    }
-  }
-}
-
-// ── Execute (async) ───────────────────────────────────
-async function executeFAB() {
-  const raw = document.getElementById('fab-input').value.trim();
-  if (!raw) return;
-
-  const btn = document.getElementById('fab-exec-btn');
-  if (btn) { btn.textContent='⏳ Analizando...'; btn.disabled=true; }
-
-  let p = null;
-  try { p = await callClaudeNLP(raw); } catch(e) {}
-  if (!p || !p.modules?.length) p = parseLocalNLP(raw);
-
-  _fabLastResult = p;
-  closeModal('modal-fab-console');
-  if (btn) { btn.textContent='⚡ Ejecutar'; btn.disabled=false; }
-
-  _applyFABResult(p);
-  guardarDatos();
-  updateGlobalCore();
-  if (typeof renderMorningBriefing === 'function') renderMorningBriefing();
-}
-
-function _applyFABResult(p) {
-  const routed = [];
-  for (const mod of (p.modules||[])) {
-
-    if (mod==='financial' && p.financial) {
-      const fabTx = { id:uid(), type:'salida', scope:'personal',
-        category:'Otro', amount:p.financial.amount||0,
-        desc:p.financial.desc||'gasto', date:today(), cuotas:false,
-        deleted:false, createdAt:Date.now() };
-      S.transactions.unshift(fabTx);
-      if (CLOUD_ENABLED && _db && _auth?.currentUser)
-        _txCollRef(_auth.currentUser.uid).doc(fabTx.id).set(fabTx)
-          .catch(e => console.warn('[FAB] financial save:', e.message));
-      if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
-      routed.push({ mod:'financial', detail:`-$${(p.financial.amount||0).toLocaleString()}` });
-    }
-
-    if (mod==='income' && p.income) {
-      const fabTx = { id:uid(), type:'entrada', scope:'personal',
-        category:'Ingreso', amount:p.income.amount||0,
-        desc:p.income.desc||'ingreso', date:today(), cuotas:false,
-        deleted:false, createdAt:Date.now() };
-      S.transactions.unshift(fabTx);
-      if (CLOUD_ENABLED && _db && _auth?.currentUser)
-        _txCollRef(_auth.currentUser.uid).doc(fabTx.id).set(fabTx)
-          .catch(e => console.warn('[FAB] income save:', e.message));
-      if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
-      routed.push({ mod:'income', detail:`+$${(p.income.amount||0).toLocaleString()}` });
-    }
-
-    if (mod==='calendar' && p.calendar) {
-      const d = p.calendar.date || today();
-      if (!S.calEvents[d]) S.calEvents[d]=[];
-      const txt = p.calendar.time ? `${p.calendar.text} — ${p.calendar.time}` : p.calendar.text;
-      S.calEvents[d].push({ id:uid(), text:txt });
-      if (typeof renderCalendar==='function') renderCalendar();
-      routed.push({ mod:'calendar', detail:formatChipDate(p.calendar.date) });
-    }
-
-    if (mod==='task' && p.task) {
-      S.tasks.unshift({ id:uid(), name:p.task.name||'tarea', desc:'', date:today(), time:'', done:false });
-      if (typeof renderTasks==='function') renderTasks();
-      if (typeof updateDashboardTaskCount==='function') updateDashboardTaskCount();
-      routed.push({ mod:'task', detail:(p.task.name||'tarea').substring(0,22) });
-    }
-
-    if (mod==='idea') {
-      if (!S.ideas) S.ideas=[];
-      const ideaText = p.idea?.text || p.correctedText || '';
-      S.ideas.unshift({ id:uid(), text:ideaText, date:today() });
-      routed.push({ mod:'idea', detail:ideaText.substring(0,24) });
-    }
-
-    if (mod==='habit' && p.habit) {
-      // Buscar hábito existente por id o fuzzy name
-      let h = p.habit.id ? S.habits.find(x=>x.id===p.habit.id) : _findHabit(p.habit.name||'');
-      if (h && !h.deleted) {
-        if (!h.completedToday) toggleHabit(h.id);
-        routed.push({ mod:'habit', detail:(h.name||'').substring(0,22) });
-      } else {
-        // Crear hábito nuevo y marcarlo completado hoy
-        const newH = { id:uid(), name:p.habit.name||'hábito', streak:1,
-          completedToday:true, lastCompletedDate:today(),
-          history:[today()], battery:25, deleted:false };
-        if (!S.habits) S.habits=[];
-        S.habits.push(newH);
-        gainXP(25);
-        _logActivity('habit', 25, newH.name);
-        showToast(iid().gainMsg(25, `"${(newH.name||'hábito').substring(0,20)}" creado`));
-        if (typeof renderHabits==='function') renderHabits();
-        routed.push({ mod:'habit', detail:(newH.name||'').substring(0,22) });
-      }
-    }
-
-    if (mod==='mood' && p.mood) {
-      // Agregar a bitácora de victorias
-      const moodText = p.mood.text || p.correctedText || '';
-      if (!S.victorias) S.victorias=[];
-      S.victorias.unshift({ id:uid(), text:moodText, date:today() });
-      gainXP(10);
-      showToast(iid().gainMsg(10, 'entrada de energía registrada'));
-      routed.push({ mod:'mood', detail:moodText.substring(0,24) });
-    }
-
-    if (mod==='goal' && p.goal) {
-      if (!S.goals) S.goals=[];
-      S.goals.unshift({ id:uid(), name:p.goal.name||'meta', desc:p.goal.desc||'',
-        progress:0, target:100, unit:'%', date:today(), done:false });
-      if (typeof renderGoals==='function') renderGoals();
-      routed.push({ mod:'goal', detail:(p.goal.name||'meta').substring(0,22) });
-    }
-  }
-  showFABChip(routed, p.modules||[]);
-}
-
-// ── Confirmation Chip ─────────────────────────────────
-function showFABChip(routed, modules) {
-  const chip = document.getElementById('fab-confirm-chip');
-  const labelEl = document.getElementById('chip-label');
-  const menu = document.getElementById('chip-menu');
-  if (!chip || !routed.length) return;
-
-  clearTimeout(_fabChipTimer);
-  menu.classList.remove('open');
-
-  // Label
-  const parts = routed.map(r => {
-    const m = MODULE_LABELS[r.mod];
-    return `${m.icon} ${m.label}${r.detail ? ' — ' + r.detail : ''}`;
-  });
-  labelEl.innerHTML = `${parts.join(' · ')} <span class="chip-check">✓</span>`;
-
-  // Correction options
-  const allMods = ['task','calendar','financial','idea'];
-  const opts = allMods.filter(m => !modules.includes(m));
-  menu.innerHTML = opts.map(m => {
-    const info = MODULE_LABELS[m];
-    return `<button class="chip-correct-opt" onclick="correctFABRouting('${m}')">${info.icon} Mover a ${info.label}</button>`;
-  }).join('');
-
-  chip.classList.add('show');
-  _fabChipTimer = setTimeout(dismissFABChip, 5500);
-}
-
-function dismissFABChip() {
-  document.getElementById('fab-confirm-chip')?.classList.remove('show');
-  document.getElementById('chip-menu')?.classList.remove('open');
-}
-
-function toggleChipMenu() {
-  const menu = document.getElementById('chip-menu');
-  menu.classList.toggle('open');
-  if (menu.classList.contains('open')) clearTimeout(_fabChipTimer);
-  else _fabChipTimer = setTimeout(dismissFABChip, 3000);
-}
-
-function correctFABRouting(newMod) {
-  if (!_fabLastResult) return;
-  dismissFABChip();
-  const prev = _fabLastResult;
-
-  // Undo previous insertions
-  for (const m of (prev.modules||[])) {
-    if (m==='task'     && S.tasks.length)        S.tasks.shift();
-    if (m==='financial'&& S.transactions.length) S.transactions.shift();
-    if (m==='idea'     && S.ideas?.length)       S.ideas.shift();
-    if (m==='calendar') {
-      const d = prev.calendar?.date || today();
-      if (S.calEvents[d]?.length) S.calEvents[d].pop();
-    }
-  }
-
-  // Build corrected result
-  const raw = prev.correctedText || '';
-  const newP = { ...prev, modules:[newMod] };
-  if (newMod==='task'     && !newP.task)      newP.task      = { name:raw };
-  if (newMod==='idea'     && !newP.idea)      newP.idea      = { text:raw };
-  if (newMod==='financial'&& !newP.financial) newP.financial = { amount:0, desc:raw, type:'salida' };
-  if (newMod==='calendar' && !newP.calendar)  newP.calendar  = { text:raw, date:today(), time:'' };
-
-  _fabLastResult = newP;
-  _applyFABResult(newP);
-  guardarDatos();
-  updateGlobalCore();
-}
-
-// ── Save Claude API key ───────────────────────────────
-function saveClaudeKey() {
-  const inp = document.getElementById('claude-api-key-input');
-  if (!inp) return;
-  S.claudeApiKey = inp.value.trim();
-  guardarDatos();
-  const status = document.getElementById('claude-key-status');
-  if (status) {
-    if (S.claudeApiKey.startsWith('sk-ant-')) {
-      status.textContent = '✓ Clave guardada — IA semántica activa';
-      status.style.color = 'var(--green)';
-    } else if (S.claudeApiKey) {
-      status.textContent = '⚠ Formato incorrecto (debe comenzar con sk-ant-)';
-      status.style.color = 'var(--red)';
-    } else {
-      status.textContent = 'Clave eliminada — usando analizador local';
-      status.style.color = 'var(--text3)';
-    }
-  }
-  showToast(S.claudeApiKey ? '✨ IA semántica activada' : '🔧 Usando NLP local');
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   FUNCIONALIDAD 3 — HABIT BATTERY + NÚCLEO GLOBAL + BLACKOUT
-═══════════════════════════════════════════════════════════════ */
-
-// Añadir batería a cada hábito si no existe
-function ensureHabitBattery(h) {
-  if (typeof h.battery === 'undefined') h.battery = 100;
-}
-
 /**
  * applyHabitDecay — corre al cargar la app, una vez por día por hábito.
  *
@@ -7287,6 +6876,29 @@ function getBatteryState(pct) {
 /* ═══════════════════════════════════════════════════════════════
    HÁBITOS — funciones auxiliares de batería
 ═══════════════════════════════════════════════════════════════ */
+function setBlackoutOverlay(active) {
+  let overlay = document.getElementById('blackout-overlay');
+  if (active) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'blackout-overlay';
+      overlay.innerHTML = `
+        <div class="blackout-content">
+          <div class="blackout-icon">⚠</div>
+          <h2>SYSTEM BLACKOUT</h2>
+          <p>Tu Núcleo está en 0%. Completa un hábito o tarea para reactivar el sistema.</p>
+          <button class="btn btn-a" onclick="navigate('productividad');setBlackoutOverlay(false)">Reactivar ahora</button>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('show');
+  } else if (overlay) {
+    overlay.classList.remove('show');
+    setTimeout(() => { if (!overlay.classList.contains('show')) overlay.remove(); }, 220);
+  }
+  syncBodyScrollLock();
+}
+
 function updateGlobalCore() {
   const activeHabits = (S.habits || []).filter(h => !h.deleted);
   const totalH   = activeHabits.length;
@@ -7347,6 +6959,7 @@ function updateGlobalCore() {
     } else {
       ringFull.style.filter = 'drop-shadow(0 0 8px rgba(0,229,255,.7))';
     }
+    ringFull.classList.toggle('nucleus-pulse', combined < 50 && combined > 0);
   }
 
   const glowEl = document.getElementById('nucleo-inner-glow');
@@ -7365,6 +6978,39 @@ function updateGlobalCore() {
 
   const pctMain = document.getElementById('nucleo-pct-main');
   if (pctMain) pctMain.textContent = combined + '%';
+  const cardMain = document.getElementById('nucleo-card-main');
+
+  if (pctMain) {
+    let progressHint = document.getElementById('nucleo-progress-hint');
+    if (!progressHint) {
+      progressHint = document.createElement('div');
+      progressHint.id = 'nucleo-progress-hint';
+      progressHint.style.cssText = 'font-size:11px;color:var(--text2);text-align:center;line-height:1.35;margin-top:6px;max-width:190px';
+      pctMain.parentElement && pctMain.parentElement.appendChild(progressHint);
+    }
+    const totalActions = totalH + totalT;
+    const stepPct = totalActions > 0 ? 100 / totalActions : 100;
+    const remaining = combined >= 100 ? 0 : Math.max(1, Math.ceil((100 - combined) / stepPct));
+    progressHint.textContent = combined >= 100
+      ? 'Multiplicador x2 activo'
+      : `Completa ${remaining} habito${remaining === 1 ? '' : 's'} mas para activar x2 XP`;
+  }
+
+  if (cardMain) {
+    let cta = document.getElementById('nucleo-cta');
+    const showCta = doneH + doneT === 0;
+    if (showCta && !cta) {
+      cta = document.createElement('button');
+      cta.id = 'nucleo-cta';
+      cta.className = 'nucleo-cta';
+      cta.type = 'button';
+      cta.onclick = () => { navigate('productividad'); switchInnerTab('productividad', 'habits'); };
+      cta.textContent = 'Completa tu primera tarea → +XP';
+      cardMain.appendChild(cta);
+    } else if (cta && !showCta) {
+      cta.remove();
+    }
+  }
 
   const lblMain = document.getElementById('nucleo-label-main');
   if (lblMain) lblMain.textContent = labelText;
@@ -7372,7 +7018,6 @@ function updateGlobalCore() {
   const badgeMain = document.getElementById('nucleo-badge-main');
   if (badgeMain) { badgeMain.className = 'nucleo-badge ' + badgeClass; badgeMain.textContent = badgeText; }
 
-  const cardMain = document.getElementById('nucleo-card-main');
   if (cardMain) {
     cardMain.classList.toggle('complete', state === 'complete');
     cardMain.style.borderColor = state === 'complete' ? 'rgba(74,222,128,.4)'
@@ -7405,10 +7050,14 @@ function updateGlobalCore() {
   // ── Update COMPACT widget (Análisis) ──────────────
   const circumSm = 263.9;
   const ringSm = document.getElementById('nucleo-progress-ring-sm');
-  if (ringSm) ringSm.style.strokeDashoffset = circumSm * (1 - combined / 100);
+  if (ringSm) {
+    ringSm.style.strokeDashoffset = circumSm * (1 - combined / 100);
+    ringSm.classList.toggle('nucleus-pulse', combined < 50 && combined > 0);
+  }
 
   const pctSm = document.getElementById('nucleo-pct-sm');
   if (pctSm) pctSm.textContent = combined + '%';
+  renderNucleoMicroWidget(combined);
   const lblSm = document.getElementById('nucleo-label-sm');
   if (lblSm) lblSm.textContent = state === 'complete' ? '¡COMPLETO!' : 'NÚCLEO';
   const badgeSm = document.getElementById('nucleo-badge-sm');
@@ -7436,13 +7085,17 @@ function updateGlobalCore() {
   // ── SYSTEM BLACKOUT ──────────────────────────────
   const enRecuperacionCheck = S.modoRecuperacion && S.modoRecuperacionFecha === today();
   const shouldBlackout = state === 'blackout' && !enRecuperacionCheck;
-  if (shouldBlackout && !document.body.classList.contains('blackout')) {
-    document.body.classList.add('blackout');
-    S.xp = Math.max(0, S.xp - 50);
-    updateXP();
-    showToast('⚠️ SYSTEM BLACKOUT — −50 XP · Núcleo al 0%');
+  if (shouldBlackout) {
+    setBlackoutOverlay(true);
+    if (!document.body.classList.contains('blackout')) {
+      document.body.classList.add('blackout');
+      S.xp = Math.max(0, S.xp - 50);
+      updateXP();
+      showToast('⚠️ SYSTEM BLACKOUT — −50 XP · Núcleo al 0%');
+    }
   } else if (!shouldBlackout) {
     document.body.classList.remove('blackout');
+    setBlackoutOverlay(false);
   }
 
   // ── WEEKLY BONUS ─────────────────────────────────
@@ -8524,6 +8177,7 @@ const W = {
 const ANON_NAMES = ['Cyber_Nomad_42','Isom_Arch_99','PixelDrifter_7','NeonWalker_03','Byte_Ronin_88','Flux_Agent_21'];
 
 function initWorldMap() {
+  renderWorldTabs(S.worldTab || 'mapa');
   if (W._init) return;
   W._init = true;
   // Spawn demo friend bubbles after brief delay
@@ -8537,6 +8191,60 @@ function initWorldMap() {
   // Position bubble at start (left side of map)
   const b = document.getElementById('user-bubble');
   if (b) { b.style.left = '3%'; b.style.top = '42%'; }
+}
+
+function _ensureWorldTabsContainer() {
+  let container = document.getElementById('world-tabs-container');
+  if (container) return container;
+  const wrapper = document.getElementById('world-wrapper');
+  if (!wrapper || !wrapper.parentElement) return null;
+  container = document.createElement('div');
+  container.id = 'world-tabs-container';
+  wrapper.parentElement.insertBefore(container, wrapper);
+  return container;
+}
+
+function _ensureWorldCompatibilityContainers() {
+  const city = document.getElementById('city-scene');
+  const apt = document.getElementById('apt-scene');
+  if (city && !document.getElementById('world-map-container')) {
+    city.dataset.legacyContainer = 'world-map-container';
+  }
+  if (apt && !document.getElementById('world-apartment-container')) {
+    apt.dataset.legacyContainer = 'world-apartment-container';
+  }
+}
+
+function renderWorldTabs(activeTab = 'mapa') {
+  const container = _ensureWorldTabsContainer();
+  if (!container) return;
+  _ensureWorldCompatibilityContainers();
+  S.worldTab = activeTab;
+  const tabs = [
+    { id:'mapa', label:'Mapa' },
+    { id:'apartamento', label:'Apartamento' },
+    { id:'tienda', label:'Tienda' },
+  ];
+  container.innerHTML = `<div class="world-tabs" role="tablist">` +
+    tabs.map(t => `<button class="world-tab ${t.id === activeTab ? 'active' : ''}" data-world-tab="${t.id}" role="tab">${t.label}</button>`).join('') +
+    `</div>`;
+  container.querySelectorAll('.world-tab').forEach(btn => {
+    btn.addEventListener('click', () => renderWorldSection(btn.dataset.worldTab));
+  });
+}
+
+function renderWorldSection(tab = 'mapa') {
+  S.worldTab = tab;
+  renderWorldTabs(tab);
+  if (tab === 'apartamento') {
+    _transitionToScene('apt');
+    return;
+  }
+  if (tab === 'tienda') {
+    openRoomShop();
+    return;
+  }
+  _transitionToScene('city');
 }
 
 function _applyBubble() {
@@ -8691,12 +8399,42 @@ function _showWorldTooltip(id, zone) {
   tt._timer = setTimeout(()=>tt.classList.add('hidden'), 4000);
 }
 
+function _navigateWorldTarget(page, context = {}) {
+  if (page === 'calendar') {
+    navigate('productividad');
+    switchInnerTab('productividad', 'agenda');
+    return;
+  }
+  if (page === 'mente') {
+    navigate('mente');
+    if (context.aptZone === 'biblioteca') switchInnerTab('mente', 'biblioteca');
+    else switchInnerTab('mente', 'bitacora');
+    return;
+  }
+  if (page === 'stats') {
+    navigate('stats');
+    switchInnerTab('stats', 'analisis');
+    return;
+  }
+  if (page === 'cuerpo') {
+    navigate('cuerpo');
+    switchInnerTab('cuerpo', 'physical');
+    return;
+  }
+  if (page === 'productividad') {
+    navigate('productividad');
+    switchInnerTab('productividad', context.zoneId === 'estadio' ? 'goals' : 'habits');
+    return;
+  }
+  navigate(page);
+}
+
 function worldNavToActive() {
   if (!W.currentZone) return;
   const zone = WORLD_ZONES[W.currentZone];
   if (!zone) return;
   document.getElementById('world-tooltip')?.classList.add('hidden');
-  navigate(zone.page);
+  _navigateWorldTarget(zone.page, { zoneId: W.currentZone });
 }
 
 function worldTeleport(id) {
@@ -9193,12 +8931,17 @@ function revertIdea(id) {
 }
 
 function switchInnerTab(pageId, tabId) {
+  if (pageId === 'productividad' && tabId === 'metas') tabId = 'goals';
+  if (pageId === 'mente' && tabId === 'poder') tabId = 'bitacora';
+  if (pageId === 'mente') _ensureMenteTabs();
   _innerTabState[pageId] = tabId;
+  const panelTabId = (pageId === 'mente' && ['bitacora','aliados','biblioteca'].includes(tabId)) ? 'poder' : tabId;
   // Update tab buttons
   const tabsEl = document.getElementById('inner-tabs-' + pageId);
   if (tabsEl) {
     tabsEl.querySelectorAll('.inner-tab').forEach(btn => {
-      const isActive = btn.getAttribute('onclick').includes("'" + tabId + "'");
+      const onClick = btn.getAttribute('onclick') || '';
+      const isActive = onClick.includes("'" + tabId + "'") || btn.dataset.tab === tabId;
       btn.classList.toggle('active', isActive);
     });
   }
@@ -9206,11 +8949,24 @@ function switchInnerTab(pageId, tabId) {
   const pageEl = document.getElementById('page-' + pageId);
   if (pageEl) {
     pageEl.querySelectorAll('.inner-panel').forEach(p => {
-      p.classList.toggle('active', p.id === 'panel-' + tabId);
+      const active = p.id === 'panel-' + panelTabId;
+      p.classList.toggle('active', active);
+      p.style.display = active ? '' : 'none';
     });
   }
   // Fire init for the revealed tab
   _fireTabInit(pageId, tabId);
+}
+
+function _ensureMenteTabs() {
+  const tabsEl = document.getElementById('inner-tabs-mente');
+  if (!tabsEl || tabsEl.dataset.qaTabs === '1') return;
+  tabsEl.dataset.qaTabs = '1';
+  tabsEl.innerHTML =
+    `<button class="inner-tab" data-tab="bitacora" onclick="switchInnerTab('mente','bitacora')">Bitacora</button>` +
+    `<button class="inner-tab" data-tab="aliados" onclick="switchInnerTab('mente','aliados')">Aliados</button>` +
+    `<button class="inner-tab" data-tab="biblioteca" onclick="switchInnerTab('mente','biblioteca')">Biblioteca</button>` +
+    `<button class="inner-tab" data-tab="brain" onclick="switchInnerTab('mente','brain')">Gemelo</button>`;
 }
 
 function _fireTabInit(pageId, tabId) {
@@ -9221,7 +8977,7 @@ function _fireTabInit(pageId, tabId) {
   if (tabId === 'physical') { initVolumeChart(); updateBioVol(); buildMuscleMap(); buildFreqHeatmap(); _applyNPCVisibility(); applyMuscleHighlights(); updateBioMainBtn(); renderRutinasFrecuentes(); renderRoutines(); }
   if (tabId === 'salud')    { resetSaludIfNewDay(); updateSaludUI(); }
   if (tabId === 'brain')    { initGemelo(); }
-  if (tabId === 'poder')    { renderPoderSections(); loadAliadosPresence(); }
+  if (['poder','bitacora','aliados','biblioteca'].includes(tabId)) { renderPoderSections(tabId === 'poder' ? 'bitacora' : tabId); if (tabId === 'aliados') loadAliadosPresence(); }
   if (tabId === 'analisis') {
     initAnalisisCharts();
     updateGlobalCore();
@@ -9235,6 +8991,10 @@ function _fireTabInit(pageId, tabId) {
 }
 
 function _initInnerTab(pageId) {
+  if (pageId === 'mente' && !_innerTabState[pageId]) {
+    switchInnerTab('mente', 'bitacora');
+    return;
+  }
   const activeTab = _innerTabState[pageId];
   if (activeTab) {
     // Restore last active tab
@@ -9517,12 +9277,16 @@ function openRoomShop() {
   initRoomShopState();
   renderShop();
   const el = document.getElementById('room-shop-overlay');
-  if (el) el.classList.add('open');
-  document.getElementById('shop-exp-display').textContent = S.xp || 0;
+  if (!el) { showToast('Tienda no disponible en este momento'); return; }
+  el.classList.add('open');
+  const xpEl = document.getElementById('shop-exp-display');
+  if (xpEl) xpEl.textContent = S.xp || 0;
+  syncBodyScrollLock();
 }
 
 function closeRoomShop() {
   document.getElementById('room-shop-overlay')?.classList.remove('open');
+  syncBodyScrollLock();
 }
 
 function shopOverlayClick(e) {
@@ -9794,8 +9558,9 @@ function aptNavToZone() {
   if (!_aptCurrentZone) return;
   const zone = APT_ZONES[_aptCurrentZone];
   if (!zone) return;
+  const aptZone = _aptCurrentZone;
   closeApartment();
-  navigate(zone.page);
+  setTimeout(() => _navigateWorldTarget(zone.page, { aptZone }), 180);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -10772,6 +10537,7 @@ function _gemeloDay() {
 }
 
 function _gemeloWeekMsg(day) {
+  if (day <= 1) return 'Tu Gemelo está conociendo tus patrones — día 1 de 30';
   if (day < 8)  return 'Tu Gemelo está conociendo tus patrones...';
   if (day < 16) return 'Detectando tendencias en tus decisiones...';
   if (day < 23) return 'Analizando áreas de crecimiento...';
@@ -10862,10 +10628,10 @@ function _renderStateB() {
       <div class="gemelo-sigil" style="font-size:32px">✦</div>
       <div class="gemelo-title" style="font-size:15px">OBSERVANDO EN SILENCIO</div>
     </div>
-    <div class="gemelo-ring-wrap">
+    <div class="gemelo-ring-wrap" style="padding-bottom:72px">
       <svg class="gemelo-ring" viewBox="0 0 100 100">
         <circle class="gemelo-ring-track" cx="50" cy="50" r="44"/>
-        <circle class="gemelo-ring-fill" cx="50" cy="50" r="44"
+        <circle class="gemelo-ring-fill twin-ring-arc" cx="50" cy="50" r="44"
           stroke-dasharray="${circ}" stroke-dashoffset="${offset.toFixed(1)}"
           style="transform:rotate(-90deg);transform-origin:50% 50%"/>
         <text class="gemelo-ring-text" x="50" y="46" text-anchor="middle" dominant-baseline="middle" style="font-size:18px">${day}</text>
@@ -12006,6 +11772,14 @@ function showPaywallLockdown() {
         font-size: 11.5px; color: rgba(255,255,255,0.35);
         margin-bottom: 20px; font-family: 'JetBrains Mono', monospace;
       }
+      .pwl-features {
+        display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px;text-align:left;
+      }
+      .pwl-feature {
+        border:1px solid rgba(212,175,55,.14);background:rgba(212,175,55,.045);
+        border-radius:10px;padding:9px 10px;color:rgba(255,255,255,.72);font-size:11.5px;
+      }
+      @media(max-width:520px){.pwl-features{grid-template-columns:1fr}}
       .pwl-footer {
         display: flex; align-items: center; justify-content: center; gap: 18px;
       }
@@ -12039,6 +11813,12 @@ function showPaywallLockdown() {
       <button class="pwl-cta" onclick="paywallTriggerPayment()">
         ¿Quieres revelar lo que tu Gemelo detectó de ti?
       </button>
+      <div class="pwl-features">
+        <div class="pwl-feature">Gemelo Potenciado</div>
+        <div class="pwl-feature">Life OS World</div>
+        <div class="pwl-feature">Plan Aliados</div>
+        <div class="pwl-feature">Analisis avanzado</div>
+      </div>
       <div class="pwl-price-note">$99 MXN/mes &nbsp;·&nbsp; Cancela cuando quieras &nbsp;·&nbsp; Acceso inmediato</div>
       <div class="pwl-footer">
         <span class="pwl-footer-item">🔒 Pago seguro</span>
@@ -12048,6 +11828,8 @@ function showPaywallLockdown() {
     </div>
   `;
   document.body.appendChild(overlay);
+  document.body.classList.add('paywall-open');
+  syncBodyScrollLock();
 }
 
 /** Dispara el flujo de pago de $99 MXN desde el paywall lockdown. */
@@ -12248,14 +12030,82 @@ function dismissPaywallLockdown() {
     el.style.animation = 'none';
     el.style.opacity = '0';
     el.style.transition = 'opacity 0.4s';
-    setTimeout(() => el.remove(), 400);
+    setTimeout(() => {
+      el.remove();
+      document.body.classList.remove('paywall-open');
+      syncBodyScrollLock();
+    }, 400);
+  } else {
+    document.body.classList.remove('paywall-open');
+    syncBodyScrollLock();
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════
    INIT — Ejecutar checks tras boot
 ═══════════════════════════════════════════════════════════════ */
+window.__QA = Object.assign(window.__QA || {}, {
+  state: S,
+  getState: () => S,
+  resetOnboarding() {
+    ['onboardingComplete','onboarding_dismissed','lifeos_onboarding_done'].forEach(k => localStorage.removeItem(k));
+    S.onboardingDone = false;
+    S.onboardingGemeloCompletado = false;
+    S.primeraSesion = true;
+    guardarDatos();
+    location.reload();
+  },
+  simulateBlackout(reason = 'QA') {
+    S.primeraSesion = false;
+    S.blackoutOverrideToday = '';
+    setBlackoutOverlay(true);
+    document.body.classList.add('blackout');
+    return reason;
+  },
+  simulatePaywall() {
+    S.trialExpired = true;
+    S.plan = 'free';
+    showPaywallLockdown();
+  },
+  setState(patch = {}) {
+    Object.assign(S, patch);
+    guardarDatos();
+    updateXP();
+    updateGlobalCore();
+    return S;
+  },
+  navigate,
+  switchInnerTab,
+  syncBodyScrollLock,
+  world: {
+    init: initWorldMap,
+    tabs: renderWorldTabs,
+    section: renderWorldSection,
+    zone: worldZoneClick,
+    openApartment,
+    closeApartment,
+    aptZone: aptZoneClick,
+    aptNav: aptNavToZone,
+    shop: openRoomShop,
+    closeShop: closeRoomShop,
+  },
+  overlays: {
+    blackout: setBlackoutOverlay,
+    paywall: showPaywallLockdown,
+    dismissPaywall: dismissPaywallLockdown,
+    consulta: activateConsultaMode,
+    dismissConsulta: deactivateConsultaMode,
+  },
+  tabs: {
+    flowMetas: () => { navigate('productividad'); switchInnerTab('productividad', 'metas'); },
+    mente: tab => { navigate('mente'); switchInnerTab('mente', tab || 'bitacora'); },
+  },
+});
+
 document.addEventListener('DOMContentLoaded', function() {
+  applyQAUrlFlags();
+  installScrollLockObserver();
+  ['dashboard','financial','cuerpo','settings','stats','productividad'].forEach(initContextCardDismiss);
   setTimeout(function() {
     checkTrialAndRetention();
     checkGemeloObservationDay();          // Día 29 badge / Día 30 gancho

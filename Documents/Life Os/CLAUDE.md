@@ -99,8 +99,8 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 ├── .firebaserc          → default=staging
 ├── scripts/
 │   ├── runner.js        → Runner E2E
-│   ├── analyze-deep.js  → GPT-5.5 Vision profundo (9 grupos)
-│   ├── analyze.js       → GPT-5.5 Vision ligero
+│   ├── analyze-deep.js  → Claude Sonnet 4.6 Vision profundo (11 grupos)
+│   ├── analyze.js       → Claude Sonnet 4.6 Vision ligero
 │   ├── set-qa-pro.js    → Da is_pro:true al usuario QA via Firebase Auth REST + Firestore PATCH
 │   ├── seedDemoUser.js  → Semilla usuario demo
 │   ├── setup-qa-user.js → Crea usuario QA en staging
@@ -147,6 +147,13 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 - ✅ Modo Aura .btn-a override CSS con !important
 - ✅ set-qa-pro.js — da is_pro:true al QA
 - ✅ Git: VPS hace commits directos a GitHub — siempre `git pull --rebase` antes de push desde local
+- ✅ runner.js: log corregido — "Claude Sonnet 4.6" en vez de "Gemini Vision"
+- ✅ analyze.js: log corregido — "Claude Sonnet 4.6 Vision" en vez de "Gemini/Anthropic Vision"
+- ✅ CODEX_NEXT_SESSION.md: 3 batches de correcciones QA documentados (101 propuestas totales)
+- ✅ Codex Batch 1 completado — tabs Mente/Flow/World, scroll overflow, FAB, blackout overlay, window.__QA
+- ✅ Codex Batch 2 completado — colores módulos, Aura consistency, terminología XP/Aura
+- ⚠️ Codex Batch 3 en progreso — banners dismissables, Bento layouts, gamificación Financiero, mobile, landing
+- ⚠️ BUG CONOCIDO: selector de color en Modo Aura no actualiza `--aura-accent` — solo actualiza `--accent` (XP). Fix: en `setAccentColor()` detectar modo y setear la variable correcta
 - ⚠️ Pendiente: AuraChart canvas partículas (alta prioridad)
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
 
@@ -159,7 +166,7 @@ cd /opt/openclaw && node runner.js --deep
 cd /opt/openclaw && node analyze-deep.js
 ```
 
-## DIAGNÓSTICO — ALUCINACIONES CONOCIDAS (GPT-4o y GPT-5.5)
+## DIAGNÓSTICO — ALUCINACIONES CONOCIDAS (Claude Sonnet 4.6)
 - `[GAMIFICACIÓN] Hábitos: falta feedback visual` → confetti ya implementado en toggleHabit()
 - `[BUG] Modo Aura: xp-bar-fill cyan` → ya tiene gradient en body[data-mode="aura"]
 - `[BUG] Botones .btn-a cyan en Aura` → ya tiene override CSS con !important
@@ -172,10 +179,24 @@ cd /opt/openclaw && node analyze-deep.js
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-25 (sesión 3)
-- Último commit: `a13a8a8`
+- Fecha: 2026-04-25 (sesión 4)
 - Deploy: staging ✅ https://mylifeos-staging.web.app
-- VPS: sincronizado ✅ — runner --deep corriendo con PID 312556 al cerrar sesión
+- VPS: Codex ejecutando Batch 3 al cerrar sesión
+
+### Cambios sesión 2026-04-25 (sesión 4)
+
+#### Pipeline QA ejecutado
+- analyze.js: 13 propuestas generadas
+- analyze-deep.js: 88 propuestas (6 críticas, 75 altas) — 87 screenshots, 11 grupos, ~$1.15 USD
+- CODEX_NEXT_SESSION.md creado con los 3 batches ordenados por prioridad
+- Codex Batch 1 ✅ y Batch 2 ✅ completados, Batch 3 en progreso
+
+#### Fixes en esta sesión
+- runner.js: texto log "Gemini Vision" → "Claude Sonnet 4.6"
+- analyze.js: texto log "Gemini/Anthropic Vision" → "Claude Sonnet 4.6 Vision"
+
+#### Bug identificado (pendiente de fix en Codex)
+- Selector de color en Modo Aura no hace nada visible — `setAccentColor()` solo actualiza `--accent` (XP), no `--aura-accent`. Fix: detectar `body.dataset.mode` y setear la variable correcta.
 
 ### Cambios sesión 2026-04-25 (sesión 3 — noche)
 

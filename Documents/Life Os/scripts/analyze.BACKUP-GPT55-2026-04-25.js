@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Analyst — Life OS
- * Versión: 3.0 (Anthropic Vision — Modo XP/Aura + Dashboard Inteligente)
+ * Versión: 3.0 (GPT-4o Vision — Modo XP/Aura + Dashboard Inteligente)
  * Fecha: 2026-04-24
  *
- * Lee reportes QA + screenshots y genera diagnóstico visual con Anthropic.
+ * Lee reportes QA + screenshots y genera diagnóstico visual con GPT-4o.
  * Produce análisis en el reporte + archivo PROPOSALS separado para revisión humana.
  *
  * Uso manual:
@@ -21,13 +21,13 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
 const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
-if (!ANTHROPIC_API_KEY) {
-  console.error('[analyze] ERROR: ANTHROPIC_API_KEY no configurada en .env');
+if (!OPENAI_API_KEY) {
+  console.error('[analyze] ERROR: OPENAI_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -99,7 +99,7 @@ function loadScreenshots(shotsDir) {
     !f.startsWith('responsive-android-17') && !f.startsWith('responsive-ios-17')
   ).slice(0, 12); // máx 12 responsive
   const ordered = [...foldFiltered, ...responsiveFiltered];
-  const files = ordered.slice(0, 20); // cap absoluto: max 20 imágenes
+  const files = ordered.slice(0, 20); // cap absoluto: max 20 imágenes (TPM limit gpt-4o tier 1)
 
   return files.map(f => ({
     name: f.replace(/\.(jpg|png)$/, ''),
@@ -187,9 +187,9 @@ Analiza desde TODOS estos roles simultáneamente. No los menciones como teatro; 
 
 ⚫ RETENTION ANALYST — ¿qué haría que un usuario abandone en los primeros 30 segundos? Fricción inicial, pantallas que no explican valor, copy frío, ausencia de CTA, primera impresión, motivación para volver mañana.
 
-🌌 LIVING DATA & MOTION UX STRATEGIST — detectas dónde datos, estados y acciones pueden volverse experiencias visuales vivas. Propones motion SOLO cuando mejora comprensión, recompensa, identidad o retención. Nunca decorativo. Tipos: LIVING-DATA, MICROINTERACTION, AMBIENT-MOTION, DATA-VIZ-MOTION, CANVAS-VISUAL, CSS-MOTION, SVG-MOTION. Costo: BAJO (CSS transition/fade/pulse), MEDIO (SVG, Chart.js animation, particle burst), ALTO (Canvas particle system, físicas, generativo persistente). Canvas solo para Aura Chart, Dashboard core, World, Mente orbe, Flow streak.
+🌌 LIVING DATA & MOTION UX STRATEGIST — detecta partes de la app que se sienten estáticas, frías o planas y propone cómo convertirlas en momentos visuales vivos. Busca: (1) datos importantes sin feedback visual (números, progreso, barras), (2) acciones sin recompensa visual (completar hábito, ganar XP, registrar ingreso, subir racha), (3) pantallas muertas o estados vacíos sin personalidad, (4) transiciones bruscas entre módulos/tabs/modales, (5) charts que no comunican el concepto del módulo. Para cada oportunidad propone: qué tecnología usar (CSS/SVG/Canvas/Chart.js), costo de performance (BAJO/MEDIO/ALTO), cómo reducir con prefers-reduced-motion, y cómo diferencia Modo XP (energía, sparks, glow neon, HUD) de Modo Aura (orbes pastel, respiración, ingravidez, glassmorphism). NO propone animaciones decorativas sin propósito — solo si mejoran comprensión del dato, recompensan acción, refuerzan identidad o retención. Usa tipos: LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, CANVAS, SVG-MOTION, CSS-MOTION.
 
-🧱 ADAPTIVE BENTO LAYOUT STRATEGIST — evalúas si cada módulo usa Adaptive Bento Command System 2026. Detectas: cards gigantes injustificadas (span 8-12 con 1-2 datos), charts inflados que dominan sin insight real, secciones full-width con poco contenido, submódulos/tabs tipo lista CRUD, espacio muerto en web, jerarquía perdida en iOS. Regla crítica: card grande solo se justifica con visualización importante, lista larga, mapa, timeline, formulario principal o chart denso. Si tiene 1 número, 1 botón o mucho aire → CARD-DENSITY bug.
+🎨 MOTION/CANVAS ENGINEER — especialista en Canvas 2D, animación generativa y microinteracciones. En Modo Aura: ¿el radar chart sigue visible (debe estar oculto/reemplazado por canvas de partículas)? ¿Las cards tienen backdrop-filter blur real o fondo sólido? ¿Las animaciones son orgánicas o mecánicas? ¿El FAB tiene glow suave con ✦? ¿Los fondos son cálidos perla/crema (#FDFBF7, #F7F8FC) o blanco/negro puro? ¿Las transiciones de módulo son fluidas con stagger? Detecta cualquier rastro de estética cyberpunk en Aura como bug de identidad visual.
 
 ========================
 LA APP: LIFE OS
@@ -234,27 +234,19 @@ Visual: color derivado del accent del usuario (--aura-accent, --aura-accent2, --
 Terminología correcta: Aura, Esencia, Flujo Continuo, Aura Total. FAB muestra "✦".
 
 Verificaciones obligatorias en Modo Aura:
-- Cards con backdrop-filter blur, no fondos sólidos agresivos.
-- Botones NO deben ser cyan genérico.
-- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug.
-- Charts con paleta Aura, no cyan.
-- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → probable bug en _setAuraAccentVars().
+- Cards con backdrop-filter blur real, NO fondos sólidos. Si se ve plano → bug de glassmorphism.
+- Fondo global cálido perla (#FDFBF7 / #F7F8FC), NO negro ni blanco puro → bug de tokens.
+- Botones NO deben ser cyan genérico → bug de override .btn-a.
+- Textos: "Esencia Actual", "Aura Total", "Flujo Continuo". Si ves "Nivel/XP/Racha" en Aura → bug data-term.
+- Charts con paleta Aura, no cyan. Si hay radar chart visible en Aura → bug crítico (debe ser canvas de partículas).
+- FAB con ✦ y glow pastel, NO "+" con cyan → bug de identidad.
+- Animaciones suaves y orgánicas. Si hay transiciones bruscas o mecánicas → bug de motion.
+- Tipografía Inter/Manrope, NO Orbitron en Aura → bug de tipografía.
+- Si accent del usuario es rosa/naranja/oro y Aura sigue lavanda → bug en _setAuraAccentVars().
+- border-radius generoso (20-28px). Si hay bordes filosos en cards → bug de tokens.
 
-========================
-BENTO GRID 2026 — ADAPTIVE COMMAND SYSTEM
-========================
-
-Cada módulo debe sentirse como un command center propio, no como formulario CRUD.
-Clasificación de cards: bento-micro(2col) / bento-compact(3col) / bento-medium(4col) / bento-wide(6col) / bento-large(8col) / bento-full(12col solo si hero/mapa/chart denso).
-En web: detecta cards full-width con 1-2 datos, radar charts que dominan sin insight, espacio muerto, tabs sin composición.
-En iOS: detecta jerarquía perdida al colapsar, scroll excesivo, acciones principales fuera del primer viewport.
-En Modo Aura: radar chart rígido = CHART-SIZING ALTA. Usar Aura Chart de partículas (Canvas 2D, 6 nodos, física de atractores, desktop 120-220 partículas, mobile 60-110, prefers-reduced-motion fallback estático).
-
-========================
-LIVING DATA VISUALS
-========================
-
-La app no debe mostrar datos como números muertos. Detecta oportunidades donde datos/acciones/progreso pueden volverse experiencias vivas: barras que respiran, orbes que pulsan, partículas que celebran logros, counters animados, empty states con personalidad. Solo propón motion si mejora comprensión, recompensa, identidad o retención. Nunca decorativo.
+CALIDAD AURA ESPERADA — la interfaz debe sentirse: premium wellness-tech, vidrio esmerilado, paz + avance + recompensa emocional.
+NO debe sentirse: cyberpunk con colores pastel, dashboard corporativo, radar militar con tonos suaves.
 
 ========================
 BUGS CONOCIDOS A VIGILAR
@@ -319,7 +311,9 @@ Solo propón cuando haya evidencia que lo justifique.
 
 4. MODO AURA PULIDO — buscar elementos cyan persistentes, inline styles sin override, charts con paleta XP.
 
-5. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
+5. AURA CHART (CANVAS PARTÍCULAS) — prioridad alta. El radar chart de Chart.js debe desaparecer en Modo Aura y ser reemplazado por un canvas de partículas orgánicas. Arquitectura: class AuraParticleSystem con 6 nodos (Mente/Cuerpo/Flow/Finanzas/Aprende/Mundo), partículas atraídas por scores ponderados, movimiento con fricción + ruido + sin/cos, render con radialGradient pastel, alpha animado. Desktop: 120-220 partículas. Mobile: 60-110. Reduced motion: 20-40 estáticas. API pública: window.LifeOSAuraChart.updateScores(scores) y emitBurst(). Si en screenshots ves radar chart en Modo Aura → propuesta CRÍTICA de reemplazo. Si ya hay canvas pero sin física de nodos → propuesta de mejora.
+
+6. PUSH NOTIFICATIONS — solo si toca notificaciones, hábitos, rachas o PWA. Triggers: 8pm hábitos, 9pm racha, 7am briefing.
 
 ========================
 REPORTE DE HOY
@@ -386,11 +380,13 @@ FORMATO DE RESPUESTA OBLIGATORIO
 
 CATEGORÍA A — MICRO-MEJORAS
 
-- [TIPO] MÓDULO/SUBMÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PLATAFORMA: WEB/iOS/AMBAS/TODAS | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: fallback si aplica | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] MÓDULO: descripción precisa del problema | EVIDENCIA: screenshot o reporte que lo muestra | CAUSA PROBABLE: explicación breve | SOLUCIÓN: cambio exacto en CSS/JS/HTML o función probable | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: MICRO | CONFIANZA: ALTA/MEDIA/BAJA
+
+Para propuestas de tipo LIVING-DATA / MICROINTERACTION / MOTION / CANVAS / SVG-MOTION / CSS-MOTION / AMBIENT-MOTION / GAMIFICATION-FEEDBACK / EMPTY-STATE-MOTION añadir además: | MOMENTO DE USO: cuándo se activa | PERFORMANCE: BAJO/MEDIO/ALTO | REDUCED MOTION: cómo se reduce
 
 CATEGORÍA B — ARQUITECTURA
 
-- [TIPO] MÓDULO/SUBMÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad/premium feel | SOLUCIÓN: decisión concreta para el owner | PLATAFORMA: WEB/iOS/AMBAS/TODAS | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
+- [TIPO] MÓDULO: decisión o problema estructural | EVIDENCIA: patrón que lo justifica | IMPACTO: retención/conversión/claridad | SOLUCIÓN: decisión concreta para el owner | PRIORIDAD: ALTA/MEDIA/BAJA | CATEGORÍA: ARQUITECTURA | CONFIANZA: ALTA/MEDIA/BAJA
 
 ---ANALYSIS---
 
@@ -412,17 +408,8 @@ Máximo 70 palabras. Android vs iOS y riesgo principal.
 🎨 VEREDICTO DE IDENTIDAD VISUAL
 Máximo 70 palabras. Qué módulos se sienten únicos y cuáles parecen clones.
 
-🧱 VEREDICTO BENTO 2026
-Máximo 80 palabras. ¿Los módulos usan composición Bento modular moderna o hay secciones gigantes, espacio muerto, cards mal jerarquizadas, charts inflados, layouts tipo CRUD? Indica qué módulo tiene el layout más débil y cuál el más fuerte.
-
-🖥️ VEREDICTO WEB / DESKTOP
-Máximo 70 palabras. ¿Las cards aprovechan bien el espacio web o hay tarjetas gigantes, charts inflados, secciones full-width innecesarias, espacios muertos?
-
-📱 VEREDICTO iOS / MOBILE
-Máximo 70 palabras. ¿El Bento colapsa bien en iOS/mobile? ¿Jerarquía clara, scroll razonable, acciones accesibles, charts legibles?
-
-🌌 VEREDICTO MOTION & LIVING DATA
-Máximo 80 palabras. ¿La app se siente viva o estática? Las 2 oportunidades de mayor impacto para Canvas, CSS o SVG.
+🌌 VEREDICTO DE MOTION & LIVING DATA
+Máximo 80 palabras. ¿La app se siente viva o estática? Menciona el módulo con mayor oportunidad de visualización generativa o microinteracción. Di si conviene Canvas/CSS/SVG/Chart.js para el caso más importante. Si hay partes sin recompensa visual a acciones clave, nómbralas.
 
 🎯 OPORTUNIDAD MAYOR
 Un solo cambio con mayor impacto en retención/conversión. Específico.
@@ -434,10 +421,10 @@ Una frase honesta, directa y útil.
 TIPOS VÁLIDOS
 ========================
 
-BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, BENTO-LAYOUT, ADAPTIVE-BENTO, WEB-LAYOUT, IOS-LAYOUT, CARD-DENSITY, CHART-SIZING, SUBMODULE-LAYOUT, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, CANVAS-VISUAL, CSS-MOTION, SVG-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, DATA-VIZ-MOTION`;
+BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RETENCIÓN, ACCESIBILIDAD, ARQUITECTURA, IDENTIDAD-VISUAL, FUSIÓN, DATA-VIZ, COPY, ONBOARDING, PWA, CANVAS, MOTION, LIVING-DATA, MICROINTERACTION, MOTION-TRANSITION, AMBIENT-MOTION, GAMIFICATION-FEEDBACK, EMPTY-STATE-MOTION, SVG-MOTION, CSS-MOTION`;
 
 
-  // Content array format: text + image_url items
+  // OpenAI content array format: text + image_url items
   const content = [{ type: 'text', text: textPrompt }];
 
   screenshots.forEach(shot => {
@@ -449,37 +436,24 @@ BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RET
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A ANTHROPIC API (multimodal, con retry + backoff)
+// LLAMAR A OPENAI API (multimodal gpt-5.5, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callAnthropicOnce(content) {
+function callOpenAIOnce(content) {
   return new Promise((resolve, reject) => {
-    const anthropicContent = content.map(item => {
-      if (item.type === 'text') return { type: 'text', text: item.text };
-      if (item.type === 'image_url') {
-        const urlData = item.image_url.url;
-        const mime    = urlData.match(/^data:([^;]+);base64,/)?.[1] || 'image/jpeg';
-        const b64     = urlData.replace(/^data:[^;]+;base64,/, '');
-        return { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
-      }
-      return item;
-    });
-
     const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system: 'Eres el equipo senior de análisis de Life OS: QA, producto, diseño, gamificación y retención. Analiza reportes y screenshots de la app y produce diagnóstico concreto, priorizado y accionable en español. Nunca te niegues ni trunques la respuesta.',
-      messages: [{ role: 'user', content: anthropicContent }],
+      model: 'gpt-5.5',
+      messages: [{ role: 'user', content }],
+      max_completion_tokens: 4096,
     });
 
     const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
+      hostname: 'api.openai.com',
+      path: '/v1/chat/completions',
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length':    Buffer.byteLength(body),
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
       }
     };
 
@@ -490,12 +464,11 @@ function callAnthropicOnce(content) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.content?.[0]?.text;
-          const stop = json?.stop_reason;
+          const text = json?.choices?.[0]?.message?.content;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía stop=${stop} (${res.statusCode}): ${data.slice(0, 200)}`));
+          else reject(new Error(`Respuesta inesperada (${res.statusCode}): ${data.slice(0, 300)}`));
         } catch (e) {
-          reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`));
+          reject(new Error(`Error parseando respuesta: ${e.message}`));
         }
       });
     });
@@ -506,13 +479,13 @@ function callAnthropicOnce(content) {
   });
 }
 
-async function callAnthropic(content, retries = 3) {
+async function callGemini(content, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callAnthropicOnce(content);
+      return await callOpenAIOnce(content);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
-      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('overloaded');
+      const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('vacía');
       if (attempt < retries && isRetryable) {
         const wait = isRateLimit ? 30000 : 8000 * attempt;
         log(`⚠️ Intento ${attempt}/${retries} fallido — ${e.message.slice(0, 80)} — reintentando en ${wait/1000}s...`);
@@ -587,9 +560,9 @@ function saveProposals(proposals, reportName) {
 function appendToReport(reportPath, analysis, screenshotCount) {
   const existing = fs.readFileSync(reportPath, 'utf8');
   const shotNote = screenshotCount > 0
-    ? `> 📸 ${screenshotCount} screenshots analizados con Claude Sonnet 4.6 Vision\n\n`
+    ? `> 📸 ${screenshotCount} screenshots analizados con Gemini Vision\n\n`
     : '';
-  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Claude Sonnet 4.6\n\n';
+  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini 2.5 Flash\n\n';
   fs.writeFileSync(reportPath, existing + divider + shotNote + analysis + '\n', 'utf8');
 }
 
@@ -607,10 +580,10 @@ async function main() {
 
   const screenshots = loadScreenshots(SHOTS_DIR);
   log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
-  log('Analizando con Claude Sonnet 4.6...');
+  log('Analizando con GPT-4o Vision...');
 
   const content  = buildParts(reports, screenshots);
-  const rawResp  = await callAnthropic(content);
+  const rawResp  = await callGemini(content);
   const { analysis, proposals } = parseResponse(rawResp);
 
   log(`Análisis recibido ✓ | ${proposals.length} propuestas generadas`);
