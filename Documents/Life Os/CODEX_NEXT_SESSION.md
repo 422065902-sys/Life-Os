@@ -10,6 +10,11 @@
 - [x] Batch 1 — Bugs críticos (lo que está ROTO)
 - [x] Batch 2 — Colores e identidad visual
 - [x] Batch 3 — UX y mejoras
+- [x] Batch 4 — Selector color Aura (`--aura-accent`)
+- [x] Batch 5 — AuraChart canvas partículas
+- [ ] Batch 6 — Push notifications + Blackout emocional + Racha danger + Hero banner
+- [ ] Batch 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
+- [ ] Batch 8 — Grupos truncados (Cuerpo · Mente · World · Settings · Mobile)
 
 ---
 
@@ -659,3 +664,391 @@ Llamar `window.LifeOSAuraChart.init('aura-chart-container')` cuando se activa el
 ```bash
 cd /opt/openclaw/repo/lifeos && git pull origin main
 ```
+
+---
+
+## BATCH 6 — Push Notifications + Blackout Emocional + Racha Danger + Hero Banner
+
+> Verificado en código: estos ítems NO existen. No son alucinaciones.
+> Push notifications: usuario confirma 1 mes con PWA sin recibir ninguna notificación.
+
+---
+
+### [B6-1] Push notification trigger en setBlackoutOverlay()
+
+`setBlackoutOverlay(active)` actualmente no dispara ninguna notificación push. El SW ya tiene `notificationclick` → solo falta el trigger en main.js.
+
+En `main.js`, buscar `function setBlackoutOverlay` con grep. Dentro del bloque `if (active)`, **después** de `overlay.classList.add('show')`, agregar:
+
+```js
+// Trigger push si tiene permiso
+if (Notification.permission === 'granted') {
+  navigator.serviceWorker.ready.then(reg => {
+    reg.showNotification(
+      S.userData?.mode === 'aura' ? '⚠️ Tu Flujo se ha interrumpido' : '⚠️ RACHA EN PELIGRO',
+      {
+        body: 'Completa 1 hábito ahora para recuperar tu progreso',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        data: { url: '/?module=flow&action=checkin' },
+        vibrate: [200, 100, 200],
+        tag: 'blackout-alert',
+        renotify: false
+      }
+    );
+  });
+}
+```
+
+---
+
+### [B6-2] Push notification scheduling — recordatorios diarios
+
+No existe ningún código de scheduling en main.js. Agregar función que programe los 3 recordatorios diarios cuando el usuario activa las notificaciones.
+
+En `main.js`, buscar `registerPushNotifications` con grep. Al final de esa función (después de obtener el token exitosamente), agregar llamada a `scheduleDailyReminders()`.
+
+Agregar nueva función:
+
+```js
+function scheduleDailyReminders() {
+  if (Notification.permission !== 'granted') return;
+  if (!('serviceWorker' in navigator)) return;
+
+  // Cancelar cualquier scheduling previo
+  if (window._reminderTimers) window._reminderTimers.forEach(clearTimeout);
+  window._reminderTimers = [];
+
+  function msUntilHour(h, m = 0) {
+    const now = new Date();
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    return target - now;
+  }
+
+  async function sendReminder(title, body, tag, url) {
+    if (Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    reg.showNotification(title, {
+      body, icon: '/icon-192.png', badge: '/icon-192.png',
+      data: { url }, tag, renotify: true, vibrate: [150, 75, 150]
+    });
+  }
+
+  // 8:00 AM — briefing matutino
+  window._reminderTimers.push(setTimeout(() => {
+    const h = (S.habits||[]).filter(x=>!x.deleted&&!x.completedToday).length;
+    if (h > 0)
+      sendReminder('☀️ Buenos días · Life OS', `Tienes ${h} hábito${h>1?'s':''} pendiente${h>1?'s':''} hoy`, 'morning', '/?module=flow');
+    scheduleDailyReminders(); // re-schedule para mañana
+  }, msUntilHour(8)));
+
+  // 8:00 PM — recordatorio hábitos
+  window._reminderTimers.push(setTimeout(() => {
+    const pending = (S.habits||[]).filter(x=>!x.deleted&&!x.completedToday).length;
+    if (pending > 0)
+      sendReminder(
+        S.userData?.mode === 'aura' ? '🌙 Tu Aura necesita energía' : '🌙 Hábitos pendientes',
+        `${pending} hábito${pending>1?'s':''} sin completar hoy — quedan pocas horas`,
+        'evening-habits', '/?module=flow'
+      );
+  }, msUntilHour(20)));
+
+  // 9:00 PM — racha en peligro
+  window._reminderTimers.push(setTimeout(() => {
+    const streak = S.checkInStreak || 0;
+    const lastDate = S.xpHistory ? Object.keys(S.xpHistory).sort().pop() : null;
+    const todayStr = new Date().toISOString().slice(0,10);
+    if (streak > 0 && lastDate !== todayStr)
+      sendReminder(
+        `🔥 Racha de ${streak} días en peligro`,
+        'Haz check-in antes de medianoche para mantenerla',
+        'streak-danger', '/?module=flow&action=checkin'
+      );
+  }, msUntilHour(21)));
+}
+```
+
+Llamar `scheduleDailyReminders()` también en el arranque si ya tiene permiso:
+```js
+// Buscar el bloque donde se inicializa notificaciones tras login (initNotificationsToggle)
+// Agregar al final:
+if (Notification.permission === 'granted') scheduleDailyReminders();
+```
+
+---
+
+### [B6-3] Blackout overlay — animación emocional
+
+El overlay actual es solo `⚠ SYSTEM BLACKOUT + botón`. Mejorar sin reescribir:
+
+En `main.js`, buscar `function setBlackoutOverlay` con grep. Cambiar el `innerHTML` del overlay:
+
+```js
+// Reemplazar el innerHTML actual por:
+overlay.innerHTML = `
+  <div class="blackout-content">
+    <div class="blackout-icon">⚠️</div>
+    <h2 class="blackout-title">${
+      (document.body.dataset.mode === 'aura')
+        ? 'TU FLUJO SE HA INTERRUMPIDO'
+        : 'SYSTEM BLACKOUT'
+    }</h2>
+    <p class="blackout-sub">Tu Núcleo está en 0%. Completa un hábito o tarea para reactivar.</p>
+    <div class="blackout-ember-container" id="blackout-embers"></div>
+    <button class="btn btn-a blackout-cta" onclick="navigate('productividad');setBlackoutOverlay(false)">
+      Recuperar ahora →
+    </button>
+  </div>`;
+// Generar partículas CSS
+const embers = overlay.querySelector('#blackout-embers');
+if (embers) {
+  for (let i = 0; i < 18; i++) {
+    const e = document.createElement('span');
+    e.className = 'blackout-ember';
+    e.style.cssText = `left:${Math.random()*100}%;animation-delay:${Math.random()*2}s;animation-duration:${1.5+Math.random()*2}s`;
+    embers.appendChild(e);
+  }
+}
+```
+
+En `styles.css`, buscar `#blackout-overlay` y agregar debajo:
+
+```css
+#blackout-overlay { animation: blackout-in .4s ease-out; background: rgba(0,0,0,0.92); }
+@keyframes blackout-in { from{opacity:0} to{opacity:1} }
+.blackout-title { color:#ef4444; font-family:'Orbitron',sans-serif; font-size:1.4rem; font-weight:900; margin:12px 0 8px; }
+.blackout-sub { color:rgba(255,255,255,0.6); font-size:0.9rem; margin-bottom:24px; }
+.blackout-cta { margin-top:8px; background:#ef4444; border:none; padding:12px 32px; border-radius:12px; font-size:1rem; cursor:pointer; color:#fff; }
+.blackout-ember-container { position:absolute; inset:0; pointer-events:none; overflow:hidden; border-radius:inherit; }
+.blackout-ember {
+  position:absolute; bottom:-10px; width:4px; height:4px; border-radius:50%;
+  background:radial-gradient(circle,#f87171,#dc2626);
+  animation: ember-rise linear infinite;
+  opacity:0;
+}
+@keyframes ember-rise {
+  0%   { transform:translateY(0) scale(1); opacity:0; }
+  15%  { opacity:0.9; }
+  80%  { opacity:0.3; }
+  100% { transform:translateY(-100vh) scale(0.3) rotate(720deg); opacity:0; }
+}
+.blackout-icon { font-size:3rem; animation:pulse-warn 1s infinite; }
+@keyframes pulse-warn { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+@media (prefers-reduced-motion:reduce) {
+  #blackout-overlay { animation:none; }
+  .blackout-icon,.blackout-ember { animation:none; }
+  .blackout-ember { display:none; }
+}
+```
+
+---
+
+### [B6-4] Racha "en peligro" — badge en topbar
+
+El topbar solo muestra XP/level/coins. No existe ningún badge de racha ni warning. Agregar:
+
+En `index.html`, buscar `id="tb-coins"` con grep. Después de ese `<span>`, agregar:
+```html
+<span id="tb-streak" class="badge badge-streak" style="display:none"></span>
+```
+
+En `main.js`, buscar la función que actualiza el topbar (buscar `tb-xp` con grep, leer ±20 líneas). En esa misma función agregar:
+
+```js
+const streakEl = document.getElementById('tb-streak');
+if (streakEl) {
+  const streak = S.checkInStreak || 0;
+  if (streak > 0) {
+    const todayStr = new Date().toISOString().slice(0,10);
+    const checkedToday = S.xpHistory && S.xpHistory[todayStr];
+    const hour = new Date().getHours();
+    const inDanger = !checkedToday && hour >= 18; // peligro después de 6pm sin check-in
+    streakEl.textContent = `🔥 +${streak}`;
+    streakEl.style.display = '';
+    streakEl.style.background = inDanger ? 'rgba(239,68,68,.25)' : 'rgba(255,107,53,.15)';
+    streakEl.style.color      = inDanger ? '#f87171' : '#ff6b35';
+    if (inDanger) streakEl.style.animation = 'streak-pulse 1.5s ease-in-out infinite';
+    else          streakEl.style.animation = '';
+  } else {
+    streakEl.style.display = 'none';
+  }
+}
+```
+
+En `styles.css`, agregar:
+```css
+.badge-streak { font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 8px; border-radius:20px; font-weight:700; transition:background .3s,color .3s; }
+@keyframes streak-pulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,.4); }
+  50%      { box-shadow:0 0 0 6px rgba(239,68,68,0); }
+}
+@media (prefers-reduced-motion:reduce) { .badge-streak { animation:none !important; } }
+```
+
+---
+
+### [B6-5] Dashboard hero banner — datos vivos (reducir a 80px o inyectar contenido)
+
+El banner es dismissable (Batch 3 ✅) pero cuando se muestra en primera visita son 200px de emojis decorativos. Reducirlo a 80px e inyectarle datos reales.
+
+En `main.js`, buscar la función que renderiza el context banner del dashboard (buscar `ctx_dismissed_dashboard` o `renderContextBanner('dashboard'` con grep). Cambiar para que el banner muestre datos vivos en lugar de emojis:
+
+```js
+// Reemplazar el call a renderContextBanner para dashboard con:
+function renderDashboardContextBanner() {
+  if (localStorage.getItem('ctx_dismissed_dashboard')) return '';
+  const streak  = S.checkInStreak || 0;
+  const habDone = (S.habits||[]).filter(h=>!h.deleted&&h.completedToday).length;
+  const habTotal= (S.habits||[]).filter(h=>!h.deleted).length;
+  const label   = streak > 0 ? `🔥 Día ${streak} de racha` : '⚡ Comienza tu racha hoy';
+  return `<div class="context-banner" data-context-card="dashboard" style="min-height:unset;padding:10px 16px;gap:12px;align-items:center">
+    <span style="font-size:1.1rem">${label}</span>
+    <span style="opacity:.6;font-size:12px">${habDone}/${habTotal} hábitos hoy</span>
+    <button class="btn-entendido" data-dismiss style="margin-left:auto">✕</button>
+  </div>`;
+}
+```
+
+En `styles.css`, asegurar que `.context-banner { min-height: unset; }` para que no fuerce 200px.
+
+---
+
+## BATCH 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
+
+---
+
+### [B7-1] Gemelo — CTA de activación cuando está en "OBSERVANDO EN SILENCIO"
+
+La síntesis dice: *"Muestra 'OBSERVANDO EN SILENCIO / 1 DE 30 DÍAS' sin ningún CTA que explique qué datos necesita para activarse"*.
+
+En `main.js`, buscar `OBSERVANDO EN SILENCIO` o `gemelo.*observando` con grep. En esa sección, agregar debajo del estado:
+
+```js
+// Después del texto "OBSERVANDO EN SILENCIO", agregar CTA contextual:
+const checkIns = S.checkInStreak || 0;
+const daysLeft = Math.max(0, 3 - checkIns); // necesita 3 días para activar
+if (daysLeft > 0) {
+  html += `<div class="gemelo-activation-hint">
+    <span>Para activar tu Gemelo: ${daysLeft} día${daysLeft>1?'s':''} más de datos</span>
+    <button onclick="navigate('flow')" class="btn-gemelo-cta">→ Ir a Hábitos</button>
+  </div>`;
+}
+```
+
+En `styles.css`:
+```css
+.gemelo-activation-hint { margin-top:16px; padding:12px 16px; background:rgba(168,85,247,.1); border:1px solid rgba(168,85,247,.25); border-radius:12px; font-size:13px; color:rgba(255,255,255,.7); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.btn-gemelo-cta { padding:6px 16px; background:rgba(168,85,247,.3); border:1px solid rgba(168,85,247,.5); border-radius:8px; color:#c084fc; font-size:12px; cursor:pointer; white-space:nowrap; }
+```
+
+---
+
+### [B7-2] Onboarding — reducir fricción a 3 pasos, +100 Aura en paso 3
+
+En `main.js`, buscar `showOnboarding` con grep. Verificar que:
+1. **Paso 1**: solo nombre + selección de accent color (`data-color`) — sin más campos
+2. **Paso 2**: preview inmediato de la app con el color elegido — llamar `setAccentColor(color)` al seleccionar, no al confirmar
+3. **Paso 3**: al completar el onboarding, agregar:
+
+```js
+// Al completar onboarding (función completeOnboarding o el botón de "Comenzar"):
+function completeOnboarding() {
+  localStorage.setItem('onboardingComplete', 'true');
+  awardXP(100, 'onboarding');
+  showToast(
+    document.body.dataset.mode === 'aura'
+      ? '✦ +100 Aura — ¡Tu aventura comienza!'
+      : '⚡ +100 XP — ¡Bienvenido a Life OS!'
+  );
+  if (window.emitBurst) emitBurst();
+  // cerrar onboarding
+}
+```
+
+Si `completeOnboarding` ya existe, solo agregar el bloque de `awardXP + showToast + emitBurst` dentro de ella.
+
+---
+
+### [B7-3] Bottom nav dinámico — reordenar BN_ORDER según _bnVisitCount
+
+En `main.js`, buscar `BN_ORDER` con grep para encontrar la declaración. Buscar también `_bnVisitCount` o `bnVisitCount` con grep.
+
+La función `reorderBottomNav()` debe:
+1. Leer `_bnVisitCount` (objeto `{moduleId: count}`) de `S` o `localStorage`
+2. Reordenar los módulos adyacentes al dashboard por frecuencia de visita (los más visitados más cerca del centro)
+3. NO mover el dashboard (siempre en centro)
+
+```js
+function reorderBottomNavByUsage() {
+  if (!S._bnVisitCount) return;
+  const fixed = { id: 'dashboard', icon: '⚡', label: 'Tablero' };
+  const modules = BN_ORDER.filter(m => m.id !== 'dashboard');
+  modules.sort((a, b) => (S._bnVisitCount[b.id] || 0) - (S._bnVisitCount[a.id] || 0));
+  // Reconstruir BN_ORDER: módulos más usados cerca del centro
+  const left  = modules.slice(0, Math.floor(modules.length / 2)).reverse();
+  const right = modules.slice(Math.floor(modules.length / 2));
+  BN_ORDER.length = 0;
+  BN_ORDER.push(...left, fixed, ...right);
+  // Re-renderizar bottom nav
+  if (typeof renderBottomNav === 'function') renderBottomNav();
+}
+```
+
+Llamar `reorderBottomNavByUsage()` en el arranque después de cargar `S`.
+
+En la función que registra visitas a módulos (buscar `_bnVisitCount` o `navigate(` con grep), incrementar el contador:
+```js
+S._bnVisitCount = S._bnVisitCount || {};
+S._bnVisitCount[moduleId] = (S._bnVisitCount[moduleId] || 0) + 1;
+_save(); // persistir
+```
+
+---
+
+## BATCH 8 — Grupos truncados del análisis DEEP
+
+> El análisis deep tuvo 88 propuestas en 11 grupos. Solo se pudieron ver ~32.
+> Los 56 restantes están en el VPS en `/opt/openclaw/repo/lifeos/qa-reports/DEEP_2026-04-25.md`.
+>
+> **Obtener con:**
+> ```bash
+> ssh root@187.77.219.106 "cat /opt/openclaw/repo/lifeos/qa-reports/DEEP_2026-04-25.md" | grep -A 8 "^\- \["
+> ```
+>
+> Los grupos con propuestas pendientes de revisar son:
+> - Flow — Hábitos, Agenda, Productividad, Ideas y Metas (8 propuestas restantes)
+> - Módulo Cuerpo (10 propuestas)
+> - Mente & Poder y Gemelo Potenciado (8 propuestas restantes, tabs ya fixeados)
+> - Life OS World y Tienda de Decoración (8 propuestas restantes, routing ya fixeado)
+> - Settings, Modo XP/Aura, Dashboard Inteligente, Stripe y PWA (7 propuestas restantes)
+> - Experiencia Mobile — Android 360×800 y iOS 390×844 (7 propuestas restantes, MOB-1/2 ya hechos)
+
+**PENDIENTE**: Una vez obtenido el reporte completo del VPS, crear Batch 8 con esas 56 propuestas.
+
+Mientras tanto, los ítems conocidos de esos grupos desde la SÍNTESIS:
+
+### [B8-preview-1] Mobile — stat-cards ancho mínimo en Android 360px
+`"98 transacci..."` truncado sugiere que las cards de stats no tienen `min-width` correcto.
+```css
+@media (max-width:400px) {
+  .stat-card { min-width: 0; }
+  .stat-value { font-size: clamp(11px, 3vw, 15px); }
+  .stat-label { font-size: 10px; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+}
+```
+
+### [B8-preview-2] Leaderboard — verificar que es accesible tras fix de scroll
+El leaderboard nunca apareció en ningún screenshot. Con el fix de overflow (Batch 1) debería ser accesible. Si `renderLeaderboard()` existe, verificar que se llama en `renderAnalysis()` o en el módulo correcto y que el DOM se genera completo sin interacción del usuario.
+
+En `main.js`: `grep -n "renderLeaderboard\|leaderboard\|#leaderboard" main.js | head -10`
+
+---
+
+**Commit messages para estos batches:**
+- Batch 6: `Feat: push notifications + blackout emocional + racha danger badge + hero banner live data`
+- Batch 7: `Feat: gemelo CTA activación + onboarding friction fix + bottom nav dinámico`
+- Batch 8: `Fix: mobile polish + leaderboard + [items del reporte VPS]`
+
+**NO hacer commit ni deploy — Claude se encarga.**
