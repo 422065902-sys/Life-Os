@@ -823,6 +823,8 @@ function _applyVisualMode(mode) {
   document.body.dataset.mode = mode || 'xp';
   // Sync Aura accent vars with user's chosen color
   if (mode === 'aura') _setAuraAccentVars();
+  if (mode === 'aura') setTimeout(()=>initRadarChart(), 0);
+  else window.LifeOSAuraChart?.destroy();
   // data-term DOM terminology update
   const dict = TERM_DICT[mode] || TERM_DICT.xp;
   document.querySelectorAll('[data-term]').forEach(el => {
@@ -951,6 +953,9 @@ function applyAccent(c) {
   document.documentElement.style.setProperty('--accent-dark', `rgb(${dk(r)},${dk(g)},${dk(b)})`);
   document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},.15)`);
   document.documentElement.style.setProperty('--accent-glow', `0 0 20px rgba(${r},${g},${b},.4)`);
+  if (document.body.dataset.mode === 'aura') {
+    document.documentElement.style.setProperty('--aura-accent', cEfectivo);
+  }
   buildAccentPresets();
   document.getElementById('custom-hex') && (document.getElementById('custom-hex').value = c);
   document.getElementById('custom-color') && (document.getElementById('custom-color').value = c);
@@ -1159,12 +1164,57 @@ function getRadarAccentColor(data) {
   return { border: '#a855f7cc', bg: 'rgba(168,85,247,.15)' };
 }
 
+window.LifeOSAuraChart = {
+  canvas: null, ctx: null, particles: [], animFrame: null,
+  nodes: [
+    { id:'mente', label:'Mente', angle:-90, score:0 }, { id:'cuerpo', label:'Cuerpo', angle:-30, score:0 },
+    { id:'flow', label:'Flow', angle:30, score:0 }, { id:'finanzas', label:'Finanzas', angle:90, score:0 },
+    { id:'aprende', label:'Aprende', angle:150, score:0 }, { id:'mundo', label:'Mundo', angle:210, score:0 },
+  ],
+  init(containerId) {
+    const el = document.getElementById(containerId); if (!el) return;
+    this.destroy();
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'aura-chart-canvas';
+    this.canvas.width = el.offsetWidth || 320; this.canvas.height = el.offsetHeight || 320;
+    el.appendChild(this.canvas); this.ctx = this.canvas.getContext('2d');
+    this._spawnParticles(); this._loop();
+  },
+  updateScores(scores) { this.nodes.forEach(n => { if (scores[n.id] !== undefined) n.score = scores[n.id]; }); },
+  emitBurst() { if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return; for (let i=0;i<30;i++) this._addParticle(true); },
+  _spawnParticles() {
+    const count = window.matchMedia('(prefers-reduced-motion:reduce)').matches ? 25 : window.innerWidth < 640 ? 80 : 150;
+    for (let i=0;i<count;i++) this._addParticle(false);
+  },
+  _addParticle(burst) {
+    if (!this.canvas) return;
+    const cx=this.canvas.width/2, cy=this.canvas.height/2, angle=Math.random()*Math.PI*2, r=burst?10:Math.random()*cx*.8;
+    this.particles.push({ x:cx+Math.cos(angle)*r, y:cy+Math.sin(angle)*r, vx:(Math.random()-.5)*(burst?3:.4), vy:(Math.random()-.5)*(burst?3:.4), life:burst?60:200+Math.random()*200, maxLife:burst?60:400, size:Math.random()*2+.5, hue:270+Math.random()*60 });
+  },
+  _loop() {
+    const {ctx,canvas,nodes,particles}=this; if (!ctx || !canvas) return;
+    const cx=canvas.width/2, cy=canvas.height/2, R=cx*.6; ctx.clearRect(0,0,canvas.width,canvas.height);
+    nodes.forEach((n,i)=>{ const rad=n.angle*Math.PI/180, nx=cx+Math.cos(rad)*R*(n.score/10||.2), ny=cy+Math.sin(rad)*R*(n.score/10||.2); ctx.beginPath(); ctx.arc(nx,ny,6,0,Math.PI*2); ctx.fillStyle=`hsla(${270+i*20},80%,70%,.9)`; ctx.fill(); ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='11px sans-serif'; ctx.fillText(n.label,nx+8,ny+4); });
+    for (let i=particles.length-1;i>=0;i--) { const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; const a=p.life/p.maxLife; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle=`hsla(${p.hue},80%,70%,${a})`; ctx.fill(); if (p.life<=0) { particles.splice(i,1); this._addParticle(false); } }
+    this.animFrame = requestAnimationFrame(()=>this._loop());
+  },
+  destroy() { if (this.animFrame) cancelAnimationFrame(this.animFrame); this.animFrame=null; this.canvas?.remove(); this.canvas=null; this.ctx=null; this.particles=[]; }
+};
+
 function initRadarChart() {
   const canvas = document.getElementById('radarChart');
   if (!canvas) return;
   const _existingRadar = Chart.getChart('radarChart'); if (_existingRadar) _existingRadar.destroy();
   S.charts.radar = null;
   const data = getRadarData(radarMode);
+  if (document.body.dataset.mode === 'aura') {
+    canvas.style.display = 'none';
+    window.LifeOSAuraChart.init('aura-chart-container');
+    window.LifeOSAuraChart.updateScores({ mente:data[1]/10, cuerpo:data[0]/10, flow:data[3]/10, finanzas:data[2]/10, aprende:data[4]/10, mundo:data[5]/10 });
+    return;
+  }
+  window.LifeOSAuraChart.destroy();
+  canvas.style.display = '';
   const colors = getRadarAccentColor(data);
   S.charts.radar = new Chart(canvas, {
     type: 'radar',

@@ -161,3 +161,16 @@ Verificacion post-fix:
 
 - `node --check main.js`: OK.
 - Playwright headless local: OK, `errors: []`.
+
+## Batch 4 - Selector de color Aura
+
+- `applyAccent()` ahora actualiza `--aura-accent` cuando `document.body.dataset.mode === 'aura'`.
+- Verificacion: `node --check main.js` OK.
+
+## Batch 5 - AuraChart canvas
+
+- Se agrego `window.LifeOSAuraChart` con canvas 2D, nodos, particulas, `updateScores()`, `emitBurst()` y `destroy()`.
+- `initRadarChart()` ahora usa Chart.js solo fuera de Aura; en Aura oculta `#radarChart`, inicializa `#aura-chart-container` y mapea scores del radar al canvas.
+- `_applyVisualMode('aura')` inicializa el AuraChart; al salir de Aura destruye el canvas.
+- `index.html` ahora incluye `#aura-chart-container` junto al canvas radar.
+- Verificacion: `node --check main.js` OK.
