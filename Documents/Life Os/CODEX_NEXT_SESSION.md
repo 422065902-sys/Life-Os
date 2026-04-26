@@ -1007,48 +1007,393 @@ _save(); // persistir
 
 ---
 
-## BATCH 8 — Grupos truncados del análisis DEEP
+## BATCH 8 — Flow (restantes) + Cuerpo + Mente + World + Settings + Mobile
 
-> El análisis deep tuvo 88 propuestas en 11 grupos. Solo se pudieron ver ~32.
-> Los 56 restantes están en el VPS en `/opt/openclaw/repo/lifeos/qa-reports/DEEP_2026-04-25.md`.
->
-> **Obtener con:**
-> ```bash
-> ssh root@187.77.219.106 "cat /opt/openclaw/repo/lifeos/qa-reports/DEEP_2026-04-25.md" | grep -A 8 "^\- \["
-> ```
->
-> Los grupos con propuestas pendientes de revisar son:
-> - Flow — Hábitos, Agenda, Productividad, Ideas y Metas (8 propuestas restantes)
-> - Módulo Cuerpo (10 propuestas)
-> - Mente & Poder y Gemelo Potenciado (8 propuestas restantes, tabs ya fixeados)
-> - Life OS World y Tienda de Decoración (8 propuestas restantes, routing ya fixeado)
-> - Settings, Modo XP/Aura, Dashboard Inteligente, Stripe y PWA (7 propuestas restantes)
-> - Experiencia Mobile — Android 360×800 y iOS 390×844 (7 propuestas restantes, MOB-1/2 ya hechos)
+> Extraídos del reporte completo DEEP_2026-04-25.md del VPS.
+> Los marcados con ✅ ya los resolvió el Batch 1 (fix scroll global S-1) — verificar antes de tocar.
 
-**PENDIENTE**: Una vez obtenido el reporte completo del VPS, crear Batch 8 con esas 56 propuestas.
+---
 
-Mientras tanto, los ítems conocidos de esos grupos desde la SÍNTESIS:
+### FLOW — Ítems no cubiertos en Batch 1-3
 
-### [B8-preview-1] Mobile — stat-cards ancho mínimo en Android 360px
-`"98 transacci..."` truncado sugiere que las cards de stats no tienen `min-width` correcto.
+### [B8-F1] Flow/Hábitos — scroll no avanza (fold = scroll idénticos, 41 hábitos solo 2 visibles)
+
+El fix global S-1 (Batch 1) cubrió `.module-content` pero el panel específico de hábitos puede tener su propio constraint. Verificar:
+
+En `main.js`, buscar `renderHabits\|habitos-list\|habits-list\|flow-habits` con grep. Buscar el contenedor de la lista.
+En `styles.css`, buscar `flow.*habitos\|habits-list\|tab-content.*flow` con grep.
+
+Si el scroll sigue sin funcionar después de S-1, agregar:
 ```css
-@media (max-width:400px) {
-  .stat-card { min-width: 0; }
-  .stat-value { font-size: clamp(11px, 3vw, 15px); }
-  .stat-label { font-size: 10px; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+[data-flow-tab="habitos"] .habits-list,
+#flow-habits-content,
+.habitos-list { overflow-y: auto; max-height: none; }
+```
+
+---
+
+### [B8-F2] Flow/Agenda — scroll no avanza + calendario sin estado visual "hoy" + sin event dots
+
+Dos problemas en uno:
+
+**Scroll:** misma causa que B8-F1. Verificar:
+```css
+[data-flow-tab="agenda"] .calendar-wrapper,
+#flow-agenda-content { overflow-y: auto; }
+```
+
+**Datos vivos en calendario:**
+En `main.js`, buscar `renderCalendarGrid\|renderCalendar\|calendar-cell` con grep. En la función que genera las celdas del mes, agregar:
+
+```js
+// Al generar cada celda del calendario:
+const dateStr = formatDate(cellDate); // YYYY-MM-DD
+const isToday  = dateStr === today();
+const hasEvents = (S.tasks||[]).some(t => t.date === dateStr && !t.deleted)
+               || (S.events||[]).some(e => e.date === dateStr);
+
+cell.className = `calendar-cell ${isToday ? 'cal-today' : ''} ${hasEvents ? 'cal-has-events' : ''}`;
+```
+
+En `styles.css`:
+```css
+.cal-today { border: 2px solid #00ff88 !important; background: rgba(0,255,136,0.08); font-weight: 700; }
+.cal-has-events::after {
+  content: ''; display: block; width: 5px; height: 5px; border-radius: 50%;
+  background: #00ff88; margin: 2px auto 0;
 }
 ```
 
-### [B8-preview-2] Leaderboard — verificar que es accesible tras fix de scroll
-El leaderboard nunca apareció en ningún screenshot. Con el fix de overflow (Batch 1) debería ser accesible. Si `renderLeaderboard()` existe, verificar que se llama en `renderAnalysis()` o en el módulo correcto y que el DOM se genera completo sin interacción del usuario.
+---
 
-En `main.js`: `grep -n "renderLeaderboard\|leaderboard\|#leaderboard" main.js | head -10`
+### [B8-F3] Flow/Hábitos — accent verde #00ff88 no aplicado en labels secundarios (títulos de sección, Energía de Flow)
+
+El scope `[data-module="flow"]` existe pero los sub-componentes de hábitos no están dentro de ese scope o usan colores hardcoded.
+
+En `styles.css`, agregar:
+```css
+[data-module="flow"] .section-title,
+[data-module="flow"] .energy-card-title,
+[data-module="flow"] .module-subtitle { color: var(--module-accent, #00ff88); }
+[data-module="flow"] .flow-stat-value  { color: var(--module-accent, #00ff88); }
+```
+
+---
+
+### [B8-F4] Flow/Hábitos — stat-cards (Flujo Continuo / Hábitos / Hoy) con padding excesivo y sin micro-dato contextual
+
+```css
+.flow-stat-card { padding: 16px 20px; min-height: unset; }
+.flow-stat-value { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+```
+
+En la función que renderiza la card "FLUJO CONTINUO" (buscar `flujo.*continuo\|flow.*stat` con grep), agregar sublabel:
+```js
+`<span class="flow-stat-sub">🏆 Mejor: ${S.bestStreak || 0} días</span>`
+```
+
+---
+
+### [B8-F5] Flow/Hábitos — mini-heatmap 7 días por hábito + feedback visual al completar
+
+En `renderHabit(habit)` (buscar con grep), agregar debajo de la barra de progreso:
+
+```js
+// Mini heatmap 7 días
+const last7 = getLast7Days(); // helper que devuelve array YYYY-MM-DD
+const dots = last7.map(d => {
+  const done = (habit.history || {})[d];
+  return `<span class="h-dot ${done ? 'done' : ''}"></span>`;
+}).join('');
+html += `<div class="habit-week-dots">${dots}</div>`;
+```
+
+En `styles.css`:
+```css
+.habit-week-dots { display: flex; gap: 4px; margin-top: 6px; }
+.h-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.15); }
+.h-dot.done { background: #00ff88; box-shadow: 0 0 4px rgba(0,255,136,.4); }
+```
+
+Al hacer check (en `toggleHabit()`, buscar con grep), ya existe `emitBurst()`. Verificar que se llama Y que la animación sale de la posición de la card, no del centro de pantalla. Si `emitBurst()` usa coordenadas fijas, cambiar a:
+```js
+// Pasar posición del elemento tocado
+const rect = habitCard.getBoundingClientRect();
+emitBurst(rect.left + rect.width/2, rect.top + rect.height/2);
+```
+Si `emitBurst` no acepta coordenadas, agregar parámetros opcionales `(x, y)` a la función.
+
+---
+
+### [B8-F6] Flow/Ideas — 84 pendientes sin sistema de procesamiento guiado + push semanal
+
+En `main.js`, buscar la función que renderiza el módulo de Ideas (buscar `renderIdeas\|flow.*ideas` con grep).
+
+Agregar cuando `pendingCount > 20`:
+```js
+if (pendingCount > 20) {
+  ideasHeader.insertAdjacentHTML('beforeend',
+    `<div class="ideas-processing-hint">
+       💡 ${pendingCount} ideas esperan · Procesa 3 hoy → <strong>+75 XP</strong>
+       <button onclick="startIdeaProcessing()" class="btn-ideas-process">Procesar →</button>
+     </div>`
+  );
+}
+```
+
+```css
+.ideas-processing-hint { padding: 10px 16px; background: rgba(168,85,247,.1); border-radius: 10px; font-size: 13px; display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.btn-ideas-process { padding: 4px 14px; border-radius: 8px; background: rgba(168,85,247,.3); border: 1px solid rgba(168,85,247,.5); color: #c084fc; font-size: 12px; cursor: pointer; }
+```
+
+Agregar `startIdeaProcessing()` básico que navega a ideas con filtro pendientes y muestra la primera idea en modo "focus":
+```js
+function startIdeaProcessing() {
+  navigate('flow', 'ideas');
+  // mostrar primera idea pendiente en modo focus (si existe)
+  const first = (S.ideas||[]).find(i => i.status === 'pendiente' && !i.deleted);
+  if (first) showIdeaFocusModal(first);
+}
+```
+
+---
+
+### CUERPO — 10 propuestas del análisis DEEP
+
+### [B8-C1] Cuerpo/Peso — empty state "Añadir peso" en lugar de "— kg" ambiguo
+
+En `main.js`, buscar `renderBodyStats\|peso.*card\|weight.*card\|'— kg'\|"— kg"` con grep. En el render de la card de peso:
+
+```js
+// Reemplazar el render del valor de peso:
+const weightVal = S.userData?.weight;
+weightEl.innerHTML = weightVal
+  ? `<span class="body-stat-num">${weightVal}</span> <span class="body-stat-unit">kg</span>`
+  : `<span class="body-stat-empty">Añadir peso</span>`;
+if (!weightVal) weightEl.classList.add('empty-prompt');
+```
+
+```css
+.body-stat-empty { color: rgba(255,107,53,0.6); font-size: 0.85rem; text-decoration: underline dotted; cursor: pointer; }
+```
+
+---
+
+### [B8-C2] Cuerpo/Volumen — guard NaN + unidad faltante + guía contextual
+
+En `main.js`, buscar `totalVolume\|renderVolume\|volume.*card\|'—'\|"—"` cerca del módulo Cuerpo con grep.
+
+```js
+// Guard NaN y unidad:
+const rawVol = sessions.reduce((acc, s) => acc + (s.sets||0)*(s.reps||0)*(s.weight||0), 0);
+const totalVolume = isNaN(rawVol) ? null : rawVol;
+volEl.textContent = totalVolume !== null ? `${totalVolume.toFixed(0)} kg` : '—';
+
+// Guía contextual cuando hay sesiones pero sin peso:
+const hasSessions = sessions.length > 0;
+const hasWeight   = sessions.some(s => s.weight > 0);
+if (hasSessions && !hasWeight)
+  volSubEl.textContent = 'Añade peso a tus series para calcular';
+```
+
+---
+
+### [B8-C3] Cuerpo/Sesión-hoy banner — reducir padding (80px → 52px)
+
+```css
+.body-today-session,
+[data-module="body"] .session-banner,
+[data-module="cuerpo"] .session-cta-banner { padding: 10px 20px; min-height: unset; }
+```
+
+---
+
+### [B8-C4] Cuerpo/Heatmap frecuencia — height dinámico según datos + empty state
+
+En `main.js`, buscar `renderFrequencyHeatmap\|heatmap\|frecuencia.*entrenamiento` con grep. Después del render del heatmap:
+
+```js
+// Height dinámico:
+const weeksWithData = Math.max(4, getTrainingWeeksCount() + 1);
+heatmapEl.style.height = `${weeksWithData * 18 + 40}px`;
+
+// Empty state:
+if (totalActiveDays < 3) {
+  heatmapEl.insertAdjacentHTML('beforeend',
+    `<div class="heatmap-empty">Registra 3 sesiones para ver tu patrón de entrenamiento</div>`
+  );
+}
+```
+
+```css
+.heatmap-empty { text-align: center; color: rgba(255,107,53,.5); font-size: 12px; padding: 16px; }
+```
+
+---
+
+### [B8-C5] Cuerpo/Módulo — falta context banner dismissable (igual que otros módulos)
+
+El banner de Cuerpo existe pero con diseño diferente. Verificar que `initContextCardDismiss('cuerpo')` se llama al renderizar el módulo (Batch 3 S-3/S-4 lo debería haber hecho). Si no se ve el dismiss, buscar `[data-context-card="cuerpo"]` en el DOM generado y confirmar que el selector coincide.
+
+---
+
+### MENTE — Propuestas adicionales (tabs ya fixeadas en Batch 1)
+
+### [B8-M1] Mente/Gemelo — "OBSERVANDO EN SILENCIO" necesita contexto de activación
+
+(Ya en Batch 7 como B7-1 — no duplicar)
+
+### [B8-M2] Mente/Bitácora — estado vacío sin guía de primer uso
+
+En `main.js`, buscar `renderBitacora\|bitacora.*empty\|panel.*bitacora` con grep. Si la Bitácora está vacía (sin entradas), mostrar:
+
+```js
+if (!entries || entries.length === 0) {
+  bitacoraContent.innerHTML = `
+    <div class="bitacora-empty">
+      <div style="font-size:2rem">📝</div>
+      <p>Tu Bitácora está vacía</p>
+      <p style="opacity:.6;font-size:13px">Escribe tu primer pensamiento del día — tu Gemelo aprende de aquí</p>
+      <button onclick="focusBitacoraInput()" class="btn btn-a" style="margin-top:12px">Escribir ahora</button>
+    </div>`;
+}
+```
+
+---
+
+### [B8-M3] Mente/Aliados — estado vacío sin CTA para agregar primer aliado
+
+Mismo patrón que Bitácora. En `renderAliados()` (buscar con grep), si lista vacía:
+```js
+if (!allies || allies.length === 0) {
+  aliadosContent.innerHTML = `
+    <div class="aliados-empty">
+      <div style="font-size:2rem">🤝</div>
+      <p>Sin aliados aún</p>
+      <p style="opacity:.6;font-size:13px">Agrega a las personas clave en tu vida para hacer seguimiento del plan</p>
+      <button onclick="openAddAllyModal()" class="btn btn-a" style="margin-top:12px">+ Primer Aliado</button>
+    </div>`;
+}
+```
+
+---
+
+### [B8-M4] Mente/Biblioteca — estado vacío sin CTA para agregar primer libro/recurso
+
+Mismo patrón. En `renderBiblioteca()`, si vacía mostrar:
+```js
+bibliotecaContent.innerHTML = `
+  <div class="biblioteca-empty">
+    <div style="font-size:2rem">📚</div>
+    <p>Tu Biblioteca está vacía</p>
+    <p style="opacity:.6;font-size:13px">Agrega libros, podcasts o recursos que estás consumiendo</p>
+    <button onclick="openAddResourceModal()" class="btn btn-a" style="margin-top:12px">+ Primer Recurso</button>
+  </div>`;
+```
+
+---
+
+### WORLD — Propuestas adicionales (routing ya fixeado en Batch 1)
+
+### [B8-W1] World/Mapa — leaderboard verificar accesibilidad tras fix scroll
+
+El leaderboard nunca apareció en ningún screenshot. Con el fix S-1 debería ser visible. Verificar:
+```bash
+grep -n "renderLeaderboard\|leaderboard\|#leaderboard" main.js | head -10
+```
+Si `renderLeaderboard()` existe, confirmar que se llama en el render del módulo y que el DOM se genera completo sin requerir click. Si está lazy-loaded, cambiar a eager render.
+
+---
+
+### [B8-W2] World/Tienda — catálogo de muebles debe renderizar con grid visible
+
+Tras el fix de Batch 1 (tabs World), verificar que al navegar a la tab "Tienda", el catálogo de items muestra un grid real. Si `renderShop()` existe pero devuelve una lista vacía, agregar mock items o el indicador correcto de "Tienda próximamente".
+
+En `main.js`, buscar `renderShop\|render.*tienda\|shop.*items` con grep. Verificar que la función genera DOM visible.
+
+---
+
+### SETTINGS / PWA — Propuestas no cubiertas
+
+### [B8-S1] Settings — toggle de notificaciones muestra estado correcto al cargar
+
+Si el usuario ya tiene permiso concedido (`Notification.permission === 'granted'`), el toggle en Settings debe mostrarse como "activado" al cargar, no como "desactivado" hasta que el usuario interactúe.
+
+En `initNotificationsToggle()` (buscar con grep), verificar:
+```js
+const alreadyGranted = Notification.permission === 'granted';
+toggleEl.checked = alreadyGranted;
+_updateNotifStatusUI(Notification.permission);
+if (alreadyGranted) scheduleDailyReminders(); // B6-2 — iniciar scheduling
+```
+
+---
+
+### [B8-S2] Settings — Modo Aura selector de color actualiza preview en tiempo real
+
+El selector de color ya actualiza `--aura-accent` (Batch 4 ✅). Verificar que el preview de la paleta en Settings muestra los 8 colores preset con el color activo resaltado, y que al seleccionar uno el preview del accent en el mismo panel se actualiza sin recargar.
+
+En `main.js`, buscar `renderColorPicker\|accent.*picker\|color.*preset` con grep. Al hacer click en un preset:
+```js
+presetEl.addEventListener('click', () => {
+  setAccentColor(color); // Batch 4 ya lo hace
+  // Asegurar feedback visual en el picker:
+  document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('active'));
+  presetEl.classList.add('active');
+});
+```
+
+---
+
+### MOBILE — Propuestas no cubiertas (MOB-1/MOB-2 ya hechos)
+
+### [B8-MOB1] Mobile/Android — topbar XP badge truncado en 360px (ya cubierto MOB-1, verificar)
+
+MOB-1 hizo `#tb-coins { display:none }` en ≤380px. Verificar que el badge de racha (B6-4) también tiene regla para 360px:
+```css
+@media (max-width:380px) {
+  #tb-streak { display: none; } /* ocultar en 360px si no hay espacio */
+}
+```
+
+---
+
+### [B8-MOB2] Mobile — FAB tapa contenido de Saldo y Racha en 360px (ya cubierto S-2, verificar)
+
+S-2 (Batch 1) fijó `bottom: calc(80px + env(safe-area-inset-bottom))`. En 360px específicamente verificar que el saldo y la card de racha del Dashboard no quedan bajo el FAB. Si el contenido del Dashboard en mobile tiene un último row de cards que coincide con la posición del FAB, agregar:
+```css
+@media (max-width:640px) {
+  .module-content { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+```
+
+---
+
+### [B8-MOB3] Mobile/iOS — safe-area en bottom nav (barra de gestos)
+
+El bottom nav en iOS puede quedar sobre la barra de gestos si no tiene padding. Verificar:
+```css
+#bottom-nav,
+.bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+```
+
+---
+
+### [B8-MOB4] Mobile — Dashboard stat-cards "98 transacci..." truncado en 360px
+
+MOB-2 (Batch 3) hizo `text-overflow:ellipsis` pero el contenido puede necesitar también `max-width`. Verificar:
+```css
+@media (max-width:400px) {
+  .stat-card { max-width: calc(50vw - 16px); min-width: 0; }
+  .stat-label { font-size: 10px; }
+}
+```
 
 ---
 
 **Commit messages para estos batches:**
 - Batch 6: `Feat: push notifications + blackout emocional + racha danger badge + hero banner live data`
 - Batch 7: `Feat: gemelo CTA activación + onboarding friction fix + bottom nav dinámico`
-- Batch 8: `Fix: mobile polish + leaderboard + [items del reporte VPS]`
+- Batch 8: `Feat: Flow completo + Cuerpo empty states + Mente empty states + World/Settings/Mobile polish`
 
 **NO hacer commit ni deploy — Claude se encarga.**
