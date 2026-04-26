@@ -482,6 +482,179 @@ Crear `renderNucleoMicroWidget()` → card pequeña con % Núcleo. Inyectar en s
 - Batch 2: `Fix: identidad visual — colores módulos, Aura consistency, terminología XP/Aura`
 - Batch 3: `Feat: UX improvements — banners dismissables, Bento layouts, gamificación Financiero, mobile, landing`
 
+**NO hacer commit ni deploy — Claude se encarga de eso.**
+Solo modifica los archivos locales. Cuando termines un batch, avisa. Claude hace el commit, push y deploy a staging.
+
+---
+
+## PROTOCOLO DE EFICIENCIA — LEE ESTO PRIMERO
+
+> De IA a IA: trabajamos en equipo. Claude hace análisis, commits y deploy. Tú haces los cambios en código. Para que el equipo funcione bien, necesito que trabajes quirúrgico, no exhaustivo.
+
+`main.js` tiene ~12,000 líneas. Leerlo completo cada vez que necesitas editar una función = tokens quemados sin valor. El patrón correcto es:
+
+### Flujo obligatorio por cada corrección
+
+```
+1. grep exacto  →  encuentra la línea
+2. read offset  →  lee solo ±30 líneas alrededor
+3. edit         →  cambia solo lo necesario
+4. node --check →  verifica sintaxis
+5. siguiente corrección
+```
+
+### Reglas concretas
+
+- **Un grep, no un read completo.** Si necesitas `renderFinanciero()`, corre `grep -n "renderFinanciero" main.js` y lee desde esa línea, no el archivo entero.
+- **No re-leas lo que acabas de editar.** Edit/Write confirma el cambio o falla — no hay razón para leer después.
+- **No razones antes de actuar.** Si el batch dice "agrega esta clase CSS a styles.css", hazlo directamente. No expliques qué vas a hacer, hazlo.
+- **Un batch = un bloque de trabajo.** Termina todos los ítems del batch, corre `node --check main.js`, reporta resultado. Sin pausas intermedias para validar con el usuario.
+- **Si algo no existe** (función, selector, elemento HTML), búscalo con grep antes de asumir que hay que crearlo.
+- **No toques lo que no está en el batch.** Sin refactors de oportunidad, sin "aproveché y también arreglé X".
+
+### Por qué importa
+
+Los Batches 1-3 costaron ~178k tokens. Deberían haber costado ~30k. La diferencia fue leer archivos completos múltiples veces y razonar en voz alta antes de cada edit. En este proyecto main.js es el cuello de botella — cada lectura completa desperdicia ~8k tokens.
+
+---
+
+## BATCH 4 — Bug selector de color Modo Aura
+
+### [A-1] `setAccentColor()` no actualiza `--aura-accent` — solo `--accent`
+
+En `main.js`, busca `setAccentColor` con grep. La función actualmente hace algo como:
+```js
+document.documentElement.style.setProperty('--accent', color);
+```
+Agregar detección de modo:
+```js
+function setAccentColor(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  if (document.body.dataset.mode === 'aura') {
+    document.documentElement.style.setProperty('--aura-accent', color);
+  }
+}
+```
+Si la función ya tiene más lógica, conservarla — solo agregar el bloque `if` para `--aura-accent`.
+
+---
+
+## BATCH 5 — AuraChart canvas de partículas
+
+### [AC-1] Reemplazar radar Chart.js en Modo Aura con canvas de partículas
+
+Este es el feature visual más importante pendiente. En `main.js`:
+
+1. Busca con grep dónde se inicializa el radar chart (`RadarChart` o `radar` en Chart.js).
+2. Envuelve la creación en: `if (document.body.dataset.mode !== 'aura') { /* radar actual */ }`
+3. Para modo Aura, crear canvas 2D con esta API:
+
+```js
+window.LifeOSAuraChart = {
+  canvas: null,
+  ctx: null,
+  nodes: [
+    { id:'mente',     label:'Mente',     angle: -90, score: 0 },
+    { id:'cuerpo',    label:'Cuerpo',    angle: -30, score: 0 },
+    { id:'flow',      label:'Flow',      angle:  30, score: 0 },
+    { id:'finanzas',  label:'Finanzas',  angle:  90, score: 0 },
+    { id:'aprende',   label:'Aprende',   angle: 150, score: 0 },
+    { id:'mundo',     label:'Mundo',     angle: 210, score: 0 },
+  ],
+  particles: [],
+  animFrame: null,
+
+  init(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width  = el.offsetWidth  || 320;
+    this.canvas.height = el.offsetHeight || 320;
+    el.appendChild(this.canvas);
+    this.ctx = this.canvas.getContext('2d');
+    this._spawnParticles();
+    this._loop();
+  },
+
+  updateScores(scores) {
+    // scores = { mente:7, cuerpo:5, flow:8, finanzas:6, aprende:4, mundo:3 }
+    this.nodes.forEach(n => { if (scores[n.id] !== undefined) n.score = scores[n.id]; });
+  },
+
+  emitBurst() {
+    for (let i = 0; i < 30; i++) this._addParticle(true);
+  },
+
+  _spawnParticles() {
+    const count = window.matchMedia('(prefers-reduced-motion:reduce)').matches ? 25
+                : window.innerWidth < 640 ? 80 : 150;
+    for (let i = 0; i < count; i++) this._addParticle(false);
+  },
+
+  _addParticle(burst) {
+    const cx = this.canvas.width / 2, cy = this.canvas.height / 2;
+    const angle = Math.random() * Math.PI * 2;
+    const r = burst ? 10 : Math.random() * cx * 0.8;
+    this.particles.push({
+      x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r,
+      vx: (Math.random() - 0.5) * (burst ? 3 : 0.4),
+      vy: (Math.random() - 0.5) * (burst ? 3 : 0.4),
+      life: burst ? 60 : 200 + Math.random() * 200,
+      maxLife: burst ? 60 : 400,
+      size: Math.random() * 2 + 0.5,
+      hue: 270 + Math.random() * 60,
+    });
+  },
+
+  _loop() {
+    const { ctx, canvas, nodes, particles } = this;
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const R  = cx * 0.6;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // nodos y conexiones
+    nodes.forEach((n, i) => {
+      const rad = (n.angle * Math.PI) / 180;
+      const nx = cx + Math.cos(rad) * R * (n.score / 10 || 0.2);
+      const ny = cy + Math.sin(rad) * R * (n.score / 10 || 0.2);
+      ctx.beginPath();
+      ctx.arc(nx, ny, 6, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${270 + i * 20}, 80%, 70%, 0.9)`;
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(n.label, nx + 8, ny + 4);
+    });
+
+    // partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.life--;
+      const alpha = p.life / p.maxLife;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 80%, 70%, ${alpha})`;
+      ctx.fill();
+      if (p.life <= 0) { particles.splice(i, 1); this._addParticle(false); }
+    }
+
+    this.animFrame = requestAnimationFrame(() => this._loop());
+  },
+
+  destroy() {
+    if (this.animFrame) cancelAnimationFrame(this.animFrame);
+    this.canvas?.remove();
+  }
+};
+```
+
+Llamar `window.LifeOSAuraChart.init('aura-chart-container')` cuando se activa el Modo Aura (`_applyVisualMode('aura')`). Llamar `destroy()` al salir del modo Aura.
+
+`reduced motion`: si `matchMedia('prefers-reduced-motion:reduce').matches` → `count = 25`, sin animación de burst.
+
+---
+
 **Sync al VPS después de cada commit:**
 ```bash
 cd /opt/openclaw/repo/lifeos && git pull origin main
