@@ -6788,6 +6788,12 @@ function confirmSeedMissions() {
   // No redirigir: el usuario se queda en el Dashboard
 }
 
+function updateFABVisibility() {
+  const fab = document.getElementById('fab-btn');
+  if (!fab) return;
+  fab.style.display = S.userData ? '' : 'none';
+}
+
 function checkOnboarding() {
   // Primera sesión: onboarding obligatorio del Gemelo Potenciado (solo si no está ya activado)
   if (S.primeraSesion && !S.onboardingGemeloCompletado && S.gemelo?.state !== 'observing') {
@@ -7040,6 +7046,10 @@ function chargeHabitBatteries() {
       h.battery = Math.min(100, h.battery + 25);
     }
   });
+}
+
+function ensureHabitBattery(h) {
+  if (h && h.battery === undefined) h.battery = 100;
 }
 
 function getBatteryState(pct) {
