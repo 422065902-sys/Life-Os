@@ -6901,7 +6901,7 @@ function parseLocalNLP(raw) {
     return result;
   }
 
-  const hasFinKw = /gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|cobré|cobre|\$\d/.test(lower);
+  const hasFinKw = /gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|cobré|cobre|recibi|recibí|deposito|depósito|ingreso|\$\d|\b(uber|didi|rappi|cabify|renta|gasolina|farmacia|super|mercado|netflix|spotify|amazon|gym|gimnasio)\b/.test(lower);
   const amountRE = /\$?([\d,]+\.?\d*)\s*(?:pesos|mxn|mx)?/i;
   const hasAmount = amountRE.test(lower);
 
