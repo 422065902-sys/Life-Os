@@ -12,9 +12,9 @@
 - [x] Batch 3 — UX y mejoras
 - [x] Batch 4 — Selector color Aura (`--aura-accent`)
 - [x] Batch 5 — AuraChart canvas partículas
-- [ ] Batch 6 — Push notifications + Blackout emocional + Racha danger + Hero banner
-- [ ] Batch 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
-- [ ] Batch 8 — Grupos truncados (Cuerpo · Mente · World · Settings · Mobile)
+- [x] Batch 6 — Push notifications + Blackout emocional + Racha danger + Hero banner
+- [x] Batch 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
+- [x] Batch 8 — Grupos truncados (Cuerpo · Mente · World · Settings · Mobile)
 
 ---
 

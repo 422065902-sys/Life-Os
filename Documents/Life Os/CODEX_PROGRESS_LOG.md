@@ -174,3 +174,27 @@ Verificacion post-fix:
 - `_applyVisualMode('aura')` inicializa el AuraChart; al salir de Aura destruye el canvas.
 - `index.html` ahora incluye `#aura-chart-container` junto al canvas radar.
 - Verificacion: `node --check main.js` OK.
+
+## Batch 6 - Push notifications + Blackout emocional + Racha danger + Hero banner
+
+- `setBlackoutOverlay(active)` ahora dispara push notification si hay permiso, con tag `blackout-alert`.
+- Se agrego `scheduleDailyReminders()` con recordatorios 8:00, 20:00 y 21:00; se llama al activar notificaciones y al inicializar Settings si el permiso ya esta granted.
+- Blackout overlay ahora incluye titulo contextual Aura/XP, subtitulo, CTA y particulas ember con reduced-motion.
+- Topbar: agregado `#tb-streak` y actualizacion en `updateXP()` con estado danger despues de 18:00 sin actividad del dia.
+- Dashboard context banner ahora usa datos vivos: racha y habitos completados/total.
+- Verificacion: `node --check main.js` OK.
+
+## Batch 7 - Gemelo activacion + Onboarding narrativo + Bottom nav dinamico
+
+- Gemelo observando ahora muestra CTA contextual con dias restantes para activarse y acceso directo a Habitos.
+- Onboarding marca `onboardingComplete`, emite burst del AuraChart y muestra recompensa contextual Aura/XP.
+- Bottom nav ahora sincroniza `_bnVisitCount` en `S`/localStorage y reordena modulos por uso manteniendo Dashboard en el centro.
+- Verificacion: `node --check main.js` OK.
+
+## Batch 8 - Flow + Cuerpo + Mente + World/Settings/Mobile polish
+
+- Flow: scroll reforzado en Habitos/Agenda, accent verde en labels/stat cards, microdato de mejor racha, mini heatmap de 7 dias por habito, feedback visual al completar e incentivo para procesar muchas ideas pendientes.
+- Cuerpo: peso muestra `Anadir peso` cuando esta vacio, volumen evita NaN y agrega guia contextual, heatmap de frecuencia gana altura dinamica/empty state y banner de sesion reduce densidad.
+- Mente: Bitacora, Aliados y Biblioteca ahora tienen empty states con CTA de primer uso.
+- World/Settings/Mobile: mini leaderboard visible en World, tienda verificada con grid real, toggle de notificaciones refleja permiso granted al cargar, picker de color mantiene estado activo, safe-area/padding mobile reforzados.
+- Verificacion: `node --check main.js` OK.

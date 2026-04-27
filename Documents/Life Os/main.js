@@ -456,6 +456,25 @@ const BN_CTR = 5;           // índice de dashboard en BN_ORDER
 const BN_LEN = BN_ORDER.length; // 9
 const BN_IW  = 56;          // ancho de cada ítem en px
 
+function reorderBottomNavByUsage() {
+  let counts = S._bnVisitCount;
+  try {
+    counts = counts || JSON.parse(localStorage._bnVisitCount || '{}');
+  } catch(e) {
+    counts = {};
+  }
+  S._bnVisitCount = counts || {};
+  if (!Object.keys(S._bnVisitCount).length) return;
+  const fixed = BN_ORDER.find(m => m.id === 'dashboard') || { id:'dashboard', icon:'⚡', label:'Tablero' };
+  const modules = BN_ORDER.filter(m => m.id !== 'dashboard');
+  modules.sort((a, b) => (S._bnVisitCount[b.id] || 0) - (S._bnVisitCount[a.id] || 0));
+  const left = modules.slice(0, BN_CTR).reverse();
+  const right = modules.slice(BN_CTR);
+  BN_ORDER.length = 0;
+  BN_ORDER.push(...left, fixed, ...right);
+  buildBottomNav();
+}
+
 function buildNav() {
   // Desktop sidebar
   const dn = document.getElementById('desktop-nav');
@@ -699,8 +718,9 @@ function navigate(id) {
   if (id==='routines')  { navigate('cuerpo'); switchInnerTab('cuerpo','physical'); return; }
   // ── Visit count para Dashboard Inteligente ──
   try {
-    const vc = JSON.parse(localStorage._bnVisitCount || '{}');
+    const vc = S._bnVisitCount || JSON.parse(localStorage._bnVisitCount || '{}');
     vc[id] = (vc[id] || 0) + 1;
+    S._bnVisitCount = vc;
     localStorage._bnVisitCount = JSON.stringify(vc);
   } catch(e) {}
   // ── Telemetría: módulo visitado ──
@@ -720,10 +740,24 @@ function navigate(id) {
 
 function renderContextBanner(moduleId, emoji, title, body) {
   if (localStorage.getItem(`ctx_dismissed_${moduleId}`)) return '';
+  if (moduleId === 'dashboard') return renderDashboardContextBanner();
   return `<div class="context-banner" data-context-card="${moduleId}">
     <span class="context-banner-emoji">${emoji}</span>
     <div class="context-banner-text"><strong>${title}</strong><p>${body}</p></div>
     <button class="btn-entendido" data-dismiss title="Entendido">✓</button>
+  </div>`;
+}
+
+function renderDashboardContextBanner() {
+  if (localStorage.getItem('ctx_dismissed_dashboard')) return '';
+  const streak = S.checkInStreak || 0;
+  const habDone = (S.habits || []).filter(h => !h.deleted && h.completedToday).length;
+  const habTotal = (S.habits || []).filter(h => !h.deleted).length;
+  const label = streak > 0 ? `🔥 Día ${streak} de racha` : '⚡ Comienza tu racha hoy';
+  return `<div class="context-banner" data-context-card="dashboard" style="min-height:unset;padding:10px 16px;gap:12px;align-items:center">
+    <span style="font-size:1.1rem">${label}</span>
+    <span style="opacity:.6;font-size:12px">${habDone}/${habTotal} hábitos hoy</span>
+    <button class="btn-entendido" data-dismiss style="margin-left:auto">✕</button>
   </div>`;
 }
 
@@ -1095,6 +1129,22 @@ function updateXP() {
   document.getElementById('tb-xp').textContent    = id.totalLabel(S.xp);
   document.getElementById('tb-lvl').textContent   = id.levelPrefix + lvl;
   document.getElementById('tb-coins').textContent = id.coinIcon + ' ' + S.coins;
+  const streakEl = document.getElementById('tb-streak');
+  if (streakEl) {
+    const streak = S.checkInStreak || 0;
+    if (streak > 0) {
+      const todayStr = new Date().toISOString().slice(0,10);
+      const checkedToday = S.xpHistory && S.xpHistory[todayStr];
+      const inDanger = !checkedToday && new Date().getHours() >= 18;
+      streakEl.textContent = `🔥 +${streak}`;
+      streakEl.style.display = '';
+      streakEl.style.background = inDanger ? 'rgba(239,68,68,.25)' : 'rgba(255,107,53,.15)';
+      streakEl.style.color = inDanger ? '#f87171' : '#ff6b35';
+      streakEl.style.animation = inDanger ? 'streak-pulse 1.5s ease-in-out infinite' : '';
+    } else {
+      streakEl.style.display = 'none';
+    }
+  }
   document.getElementById('db-level').textContent = id.levelPrefixFull + lvl;
   document.getElementById('db-xp-sub').textContent = id.barFraction(inLvl);
 
@@ -1485,6 +1535,16 @@ function addHabit() {
   guardarDatos();
 }
 
+function getLast7Days() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+  }
+  return days;
+}
+
 function renderHabits() {
   const el = document.getElementById('habit-list');
   if (!el) return;
@@ -1494,6 +1554,9 @@ function renderHabits() {
   document.getElementById('h-streak')     && (document.getElementById('h-streak').textContent     = maxStreak + ' días');
   document.getElementById('h-count')      && (document.getElementById('h-count').textContent      = active.length);
   document.getElementById('h-done-today') && (document.getElementById('h-done-today').textContent = doneToday + '/' + active.length);
+  document.querySelector('#h-streak + .flow-stat-sub')?.remove();
+  document.getElementById('h-streak')?.insertAdjacentHTML('afterend',
+    `<span class="flow-stat-sub">🏆 Mejor: ${S.bestStreak || maxStreak || 0} días</span>`);
   if (!active.length) {
     el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px">
       <div style="font-size:42px;animation:float-empty 3s ease-in-out infinite">🌱</div>
@@ -1507,11 +1570,17 @@ function renderHabits() {
     ensureHabitBattery(h);
     const bState = getBatteryState(h.battery);
     const bColor = { high: 'var(--accent)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
+    const dots = getLast7Days().map(d => {
+      const hist = h.history || [];
+      const done = Array.isArray(hist) ? hist.includes(d) : !!hist[d];
+      return `<span class="h-dot ${done ? 'done' : ''}"></span>`;
+    }).join('');
     return `
     <div class="habit-item ${h.completedToday ? 'done-h' : ''}" data-battery="${bState}">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;text-decoration:${h.completedToday ? 'line-through' : 'none'};opacity:${h.completedToday ? .6 : 1};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(displayHabitName(h.name))}</div>
         <div style="font-size:11px;color:#ff6b35;margin-top:2px;font-family:'JetBrains Mono',monospace">🔥 Racha: ${h.streak} días</div>
+        <div class="habit-week-dots">${dots}</div>
       </div>
       <div class="habit-battery" title="Batería del hábito">
         <div class="battery-bar-wrap">
@@ -1747,6 +1816,14 @@ function buildFreqHeatmap() {
   document.getElementById('bio-entrenos') && (document.getElementById('bio-entrenos').textContent = gymCount || '—');
 
   _buildHeatmapGrid(el, S.gymDays, 1, totalDays, cols, { binaryMode: true });
+  const totalActiveDays = Object.keys(S.gymDays || {}).length;
+  const weeksWithData = Math.max(4, Math.ceil(totalActiveDays / 3) + 1);
+  el.style.minHeight = `${weeksWithData * 18 + 40}px`;
+  el.parentElement?.querySelector('.body-heatmap-empty')?.remove();
+  if (totalActiveDays < 3) {
+    el.insertAdjacentHTML('afterend',
+      `<div class="body-heatmap-empty">Registra 3 entrenos para ver tu patrón semanal.</div>`);
+  }
 }
 
 // Keep old name as alias for legacy calls
@@ -1796,8 +1873,13 @@ async function updateBioVol() {
   const uid = _auth?.currentUser?.uid; if (!uid) { el.textContent = '—'; return; }
   el.textContent = '…';
   const semanas = await calcularVolumenSemanal(uid);
-  const vol = semanas[5] || 0;
-  el.textContent = vol > 0 ? (vol >= 1000 ? (vol / 1000).toFixed(1) + ' t' : vol.toLocaleString() + ' kg') : '—';
+  const rawVol = semanas[5] || 0;
+  const totalVolume = isNaN(rawVol) ? null : rawVol;
+  el.textContent = totalVolume !== null && totalVolume > 0
+    ? (totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + ' t' : totalVolume.toLocaleString() + ' kg')
+    : '—';
+  const sub = el.parentElement?.querySelector('.stat-sub');
+  if (sub && totalVolume !== null && totalVolume <= 0) sub.textContent = 'Agrega peso en tus series';
 }
 
 async function initVolumeChart() {
@@ -1925,7 +2007,11 @@ function editWeightPrompt() {
   const w = prompt('Nuevo peso (kg):', current);
   if (w && !isNaN(w)) {
     S.physWeight = parseFloat(w);
-    document.getElementById('phys-weight').textContent = S.physWeight.toFixed(1);
+    const weightEl = document.getElementById('phys-weight');
+    if (weightEl) {
+      weightEl.innerHTML = `<span class="body-stat-num">${S.physWeight.toFixed(1)}</span>`;
+      weightEl.classList.remove('empty-prompt');
+    }
     guardarDatos();
   }
 }
@@ -3202,6 +3288,7 @@ function init() {
   initChat();
   // Cargar datos guardados primero
   cargarDatos();
+  reorderBottomNavByUsage();
   // Aplicar modo visual y tema guardados
   document.body.classList.toggle('light', !S.dark);
   _applyVisualMode(S.visualMode || 'xp');
@@ -3594,7 +3681,12 @@ function renderBiblioteca() {
   if (badge) badge.textContent = 'XP Mental: ' + S.xpMental;
   const active = (S.biblioteca||[]).filter(b => !b.deleted);
   if (!active.length) {
-    el.innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Agrega libros y habilidades para ganar XP Mental</div>';
+    el.innerHTML = `<div class="biblioteca-empty">
+      <div style="font-size:2rem">📚</div>
+      <p>Tu Biblioteca está vacía</p>
+      <p style="opacity:.6;font-size:13px">Agrega libros, podcasts o recursos que estás consumiendo</p>
+      <button onclick="document.getElementById('bib-titulo')?.focus()" class="btn btn-a" style="margin-top:12px">+ Primer Recurso</button>
+    </div>`;
     return;
   }
   el.innerHTML = active.map(b => {
@@ -3664,10 +3756,11 @@ function guardarBitacora() {
 
 function renderBitacoraList() {
   const el = document.getElementById('bitacora-list'); if(!el) return;
-  if(!S.bitacora.length){ el.innerHTML=`<div style="text-align:center;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:8px">
-    <div style="font-size:32px;animation:float-empty 3s ease-in-out infinite">📓</div>
-    <div style="font-size:13px;font-weight:700;color:var(--text2)">Tu bitácora está en blanco</div>
-    <div style="font-size:12px;color:var(--text3);max-width:220px;line-height:1.5">Cada victoria que registres aquí construye tu historia. ¿Cuál fue tu logro de hoy?</div>
+  if(!S.bitacora.length){ el.innerHTML=`<div class="bitacora-empty">
+    <div style="font-size:2rem">📝</div>
+    <p>Tu Bitácora está vacía</p>
+    <p style="opacity:.6;font-size:13px">Escribe tu primer pensamiento del día — tu Gemelo aprende de aquí</p>
+    <button onclick="document.getElementById('bit-victoria')?.focus()" class="btn btn-a" style="margin-top:12px">+ Primera entrada</button>
   </div>`; return; }
   el.innerHTML = S.bitacora.slice(0,5).map(b=>`
     <div style="padding:10px 12px;border-radius:10px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.08);margin-bottom:6px">
@@ -4198,11 +4291,11 @@ function renderAliados() {
   if (!el) return;
 
   if (!S.aliados.length) {
-    el.innerHTML = `<div style="text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px">
-      <div style="font-size:42px;animation:float-empty 3s ease-in-out infinite">🤝</div>
-      <div style="font-size:15px;font-weight:800;color:var(--text2);font-family:'Orbitron',monospace">Sin aliados aún</div>
-      <div style="font-size:12px;color:var(--text3);max-width:220px;line-height:1.6">Conecta con otros para potenciar tu mente. ¡Tu primer aliado puede cambiar tu trayectoria!</div>
-      <button class="btn btn-a" onclick="document.getElementById('aliado-search-input')?.focus();document.getElementById('aliado-search-input')?.scrollIntoView({behavior:'smooth'})" style="margin-top:4px;padding:9px 20px;font-size:12px;background:linear-gradient(135deg,#a855f7,#7c3aed)">🔮 Buscar Aliados</button>
+    el.innerHTML = `<div class="aliados-empty">
+      <div style="font-size:2rem">🤝</div>
+      <p>Sin aliados aún</p>
+      <p style="opacity:.6;font-size:13px">Agrega a las personas clave en tu vida para hacer seguimiento del plan</p>
+      <button class="btn btn-a" onclick="document.getElementById('aliado-search-input')?.focus();document.getElementById('aliado-search-input')?.scrollIntoView({behavior:'smooth'})" style="margin-top:12px">+ Primer Aliado</button>
     </div>`;
     return;
   }
@@ -5251,6 +5344,29 @@ function renderLeaderboard() {
     </tr>`).join('');
 }
 
+function renderWorldLeaderboard() {
+  const panel = document.getElementById('world-panel');
+  if (!panel) return;
+  let box = document.getElementById('world-leaderboard-mini');
+  if (!box) {
+    panel.insertAdjacentHTML('beforeend', `
+      <hr style="border:none;border-top:1px solid var(--border)"/>
+      <div id="world-leaderboard-mini">
+        <div class="w-panel-title" style="margin-bottom:8px">🏆 LEADERBOARD</div>
+        <div class="world-lb-list"></div>
+      </div>`);
+    box = document.getElementById('world-leaderboard-mini');
+  }
+  const miXP = S.xp % 1000;
+  const rows = [{alias:'Tú ★',nivel:S.level,xp:miXP,racha:S.checkInStreak,esUsuario:true}, ...LEADERBOARD_DATA]
+    .sort((a,b)=>b.xp-a.xp)
+    .slice(0, 5);
+  box.querySelector('.world-lb-list').innerHTML = rows.map((r,i) => `
+    <div class="world-lb-row ${r.esUsuario ? 'me' : ''}">
+      <span>${i+1}</span><strong>${r.alias}</strong><em>Nv.${r.nivel}</em><b>${r.xp} XP</b>
+    </div>`).join('');
+}
+
 function renderWrapped() {
   const el = document.getElementById('wrapped-vertical');
   if (!el) return; // New vertical container
@@ -5379,7 +5495,13 @@ function _applyData(d) {
   if (S.bubbleEmoji) W.bubble.emoji = S.bubbleEmoji;
   // Restaurar peso corporal guardado en la UI (elimina el hardcode de 78.5)
   const physWeightEl = document.getElementById('phys-weight');
-  if (physWeightEl && S.physWeight) physWeightEl.textContent = parseFloat(S.physWeight).toFixed(1);
+  if (physWeightEl) {
+    const weightVal = S.physWeight;
+    physWeightEl.innerHTML = weightVal
+      ? `<span class="body-stat-num">${parseFloat(weightVal).toFixed(1)}</span>`
+      : `<span class="body-stat-empty">Añadir peso</span>`;
+    physWeightEl.classList.toggle('empty-prompt', !weightVal);
+  }
   // Restaurar score de cuerpo
   const bioScoreEl = document.getElementById('bio-score-val');
   if (bioScoreEl) {
@@ -6646,6 +6768,7 @@ function confirmSeedMissions() {
 
   S.onboardingDone = true;
   S.primeraSesion  = false;   // A partir de aquí el Blackout opera normalmente
+  localStorage.setItem('onboardingComplete', 'true');
   gainXP(100, true);
   guardarDatos();
   renderTasks();
@@ -6653,7 +6776,10 @@ function confirmSeedMissions() {
   closeModal('modal-onboarding');
   document.getElementById('modal-onboarding')?.removeAttribute('data-mandatory');
   spawnAuraOrbs && spawnAuraOrbs();
-  showToast('+100 Aura — ¡Tu aventura comienza!');
+  window.LifeOSAuraChart?.emitBurst?.();
+  showToast(document.body.dataset.mode === 'aura'
+    ? '✦ +100 Aura — ¡Tu aventura comienza!'
+    : '⚡ +100 XP — ¡Bienvenido a Life OS!');
 
   // Levantar supresión — Blackout ya puede operar (primeraSesion = false)
   window._suppressNucleoToast = false;
@@ -6934,14 +7060,34 @@ function setBlackoutOverlay(active) {
       overlay.id = 'blackout-overlay';
       overlay.innerHTML = `
         <div class="blackout-content">
-          <div class="blackout-icon">⚠</div>
-          <h2>SYSTEM BLACKOUT</h2>
-          <p>Tu Núcleo está en 0%. Completa un hábito o tarea para reactivar el sistema.</p>
-          <button class="btn btn-a" onclick="navigate('productividad');setBlackoutOverlay(false)">Reactivar ahora</button>
+          <div class="blackout-icon">⚠️</div>
+          <h2 class="blackout-title">${document.body.dataset.mode === 'aura' ? 'TU FLUJO SE HA INTERRUMPIDO' : 'SYSTEM BLACKOUT'}</h2>
+          <p class="blackout-sub">Tu Núcleo está en 0%. Completa un hábito o tarea para reactivar.</p>
+          <div class="blackout-ember-container" id="blackout-embers"></div>
+          <button class="btn btn-a blackout-cta" onclick="navigate('productividad');setBlackoutOverlay(false)">Recuperar ahora →</button>
         </div>`;
       document.body.appendChild(overlay);
+      const embers = overlay.querySelector('#blackout-embers');
+      if (embers) {
+        for (let i = 0; i < 18; i++) {
+          const e = document.createElement('span');
+          e.className = 'blackout-ember';
+          e.style.cssText = `left:${Math.random()*100}%;animation-delay:${Math.random()*2}s;animation-duration:${1.5+Math.random()*2}s`;
+          embers.appendChild(e);
+        }
+      }
     }
     overlay.classList.add('show');
+    if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(document.body.dataset.mode === 'aura' ? '⚠️ Tu Flujo se ha interrumpido' : '⚠️ RACHA EN PELIGRO', {
+          body: 'Completa 1 hábito ahora para recuperar tu progreso',
+          icon: '/icon-192.png', badge: '/icon-192.png',
+          data: { url: '/?module=flow&action=checkin' },
+          vibrate: [200,100,200], tag: 'blackout-alert', renotify: false
+        });
+      });
+    }
   } else if (overlay) {
     overlay.classList.remove('show');
     setTimeout(() => { if (!overlay.classList.contains('show')) overlay.remove(); }, 220);
@@ -8228,6 +8374,7 @@ const ANON_NAMES = ['Cyber_Nomad_42','Isom_Arch_99','PixelDrifter_7','NeonWalker
 
 function initWorldMap() {
   renderWorldTabs(S.worldTab || 'mapa');
+  renderWorldLeaderboard();
   if (W._init) return;
   W._init = true;
   // Spawn demo friend bubbles after brief delay
@@ -8830,6 +8977,14 @@ function renderIdeas() {
 
   const ideas = S.ideas || [];
   const pendingCount = ideas.filter(i => !i.status || i.status === 'pending').length;
+  document.getElementById('ideas-processing-hint')?.remove();
+  if (pendingCount > 20) {
+    grid.insertAdjacentHTML('beforebegin',
+      `<div class="ideas-processing-hint" id="ideas-processing-hint">
+        💡 ${pendingCount} ideas esperan · Procesa 3 hoy → <strong>+75 XP</strong>
+        <button onclick="startIdeaProcessing()" class="btn-ideas-process">Procesar →</button>
+      </div>`);
+  }
 
   // Update pending badge in tab
   const badge = document.getElementById('ideas-pending-badge');
@@ -8871,6 +9026,15 @@ function renderIdeas() {
   }
 
   grid.innerHTML = visible.map(idea => _renderIdeaCard(idea)).join('');
+}
+
+function startIdeaProcessing() {
+  _ideasFilter = 'pending';
+  renderIdeas();
+  const first = document.querySelector('#ideas-grid .idea-card');
+  first?.scrollIntoView({ behavior:'smooth', block:'center' });
+  first?.classList.add('idea-card-focus');
+  setTimeout(() => first?.classList.remove('idea-card-focus'), 1200);
 }
 
 function _renderIdeaCard(idea) {
@@ -9881,6 +10045,7 @@ async function registerPushNotifications(uid) {
     console.info('[Life OS] 🔔 FCM token registrado correctamente para uid:', uid);
     showToast('🔔 Notificaciones activadas — recibirás tu Daily Briefing cada mañana');
     _updateNotifStatusUI('granted');
+    scheduleDailyReminders();
     return true;
 
   } catch(e) {
@@ -9888,6 +10053,39 @@ async function registerPushNotifications(uid) {
     showToast('⚠️ Error al activar notificaciones. Intenta de nuevo.');
     return false;
   }
+}
+
+function scheduleDailyReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!('serviceWorker' in navigator)) return;
+  if (window._reminderTimers) window._reminderTimers.forEach(clearTimeout);
+  window._reminderTimers = [];
+  function msUntilHour(h, m = 0) {
+    const now = new Date(), target = new Date();
+    target.setHours(h, m, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    return target - now;
+  }
+  async function sendReminder(title, body, tag, url) {
+    if (Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    reg.showNotification(title, { body, icon:'/icon-192.png', badge:'/icon-192.png', data:{url}, tag, renotify:true, vibrate:[150,75,150] });
+  }
+  window._reminderTimers.push(setTimeout(() => {
+    const h = (S.habits || []).filter(x => !x.deleted && !x.completedToday).length;
+    if (h > 0) sendReminder('☀️ Buenos días · Life OS', `Tienes ${h} hábito${h>1?'s':''} pendiente${h>1?'s':''} hoy`, 'morning', '/?module=flow');
+    scheduleDailyReminders();
+  }, msUntilHour(8)));
+  window._reminderTimers.push(setTimeout(() => {
+    const pending = (S.habits || []).filter(x => !x.deleted && !x.completedToday).length;
+    if (pending > 0) sendReminder(document.body.dataset.mode === 'aura' ? '🌙 Tu Aura necesita energía' : '🌙 Hábitos pendientes', `${pending} hábito${pending>1?'s':''} sin completar hoy — quedan pocas horas`, 'evening-habits', '/?module=flow');
+  }, msUntilHour(20)));
+  window._reminderTimers.push(setTimeout(() => {
+    const streak = S.checkInStreak || 0;
+    const lastDate = S.xpHistory ? Object.keys(S.xpHistory).sort().pop() : null;
+    const todayStr = new Date().toISOString().slice(0,10);
+    if (streak > 0 && lastDate !== todayStr) sendReminder(`🔥 Racha de ${streak} días en peligro`, 'Haz check-in antes de medianoche para mantenerla', 'streak-danger', '/?module=flow&action=checkin');
+  }, msUntilHour(21)));
 }
 
 // ── Helper: convertir VAPID key de base64 a Uint8Array ──
@@ -9911,13 +10109,13 @@ function initNotificationsToggle(uid, userData) {
   const blockedMsg = document.getElementById('notif-blocked-msg');
   if (!toggle) return;
 
-  // Reflejar estado guardado en Firestore
-  const isEnabled = userData?.notifications_enabled === true;
-  toggle.checked  = isEnabled;
-
   // Mostrar estado real del permiso del navegador
   const permission = ('Notification' in window) ? Notification.permission : 'unsupported';
+  const alreadyGranted = permission === 'granted';
+  // El permiso real del navegador manda sobre el estado guardado.
+  toggle.checked = alreadyGranted || userData?.notifications_enabled === true;
   _updateNotifStatusUI(permission);
+  if (alreadyGranted) scheduleDailyReminders();
 
   // Si están bloqueadas en el navegador, deshabilitar el toggle y mostrar instrucciones
   if (permission === 'denied') {
@@ -10673,11 +10871,19 @@ function _renderStateB() {
   const pts = g.dataPoints || _countGemeloPoints();
   const habits = S.habits||[];
   const txs = S.transactions||[];
+  const checkIns = S.checkInStreak || 0;
+  const daysLeft = Math.max(0, 3 - checkIns);
+  const activationHint = daysLeft > 0 ? `
+    <div class="gemelo-activation-hint">
+      <span>Para activar tu Gemelo: ${daysLeft} día${daysLeft>1?'s':''} más de datos</span>
+      <button onclick="navigate('productividad');switchInnerTab('productividad','habits')" class="btn-gemelo-cta">→ Ir a Hábitos</button>
+    </div>` : '';
   return `
     <div class="gemelo-header" style="padding-bottom:16px">
       <div class="gemelo-sigil" style="font-size:32px">✦</div>
       <div class="gemelo-title" style="font-size:15px">OBSERVANDO EN SILENCIO</div>
     </div>
+    ${activationHint}
     <div class="gemelo-ring-wrap" style="padding-bottom:72px">
       <svg class="gemelo-ring" viewBox="0 0 100 100">
         <circle class="gemelo-ring-track" cx="50" cy="50" r="44"/>
