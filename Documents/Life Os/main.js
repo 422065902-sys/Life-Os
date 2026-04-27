@@ -6788,10 +6788,344 @@ function confirmSeedMissions() {
   // No redirigir: el usuario se queda en el Dashboard
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   FAB CONSOLA UNIVERSAL — NLP, Routing, Chip de confirmación
+═══════════════════════════════════════════════════════════════ */
+let _fabChipTimer = null;
+let _fabLastResult = null;
+
+const MODULE_LABELS = {
+  calendar:  { icon:'📅', label:'Calendario'   },
+  financial: { icon:'💰', label:'Finanzas'      },
+  task:      { icon:'✅', label:'Tareas'        },
+  idea:      { icon:'💡', label:'Ideas Rápidas' },
+};
+
+async function callClaudeNLP(text) {
+  const key = S.claudeApiKey || '';
+  if (!key || !key.startsWith('sk-ant-')) return null;
+  try {
+    const todayStr = today();
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 350,
+        messages: [{ role: 'user', content:
+`Analiza este texto en español y extrae la intención. Responde SOLO con JSON válido, sin texto adicional.
+
+Texto: "${text.replace(/"/g,"'")}"
+Fecha de hoy: ${todayStr}
+Sábado próximo: ${getNextWeekday(6)}
+Domingo próximo: ${getNextWeekday(0)}
+
+Devuelve:
+{"modules":["calendar","financial","task","idea"],"correctedText":"texto con ortografía corregida","calendar":{"text":"nombre evento","date":"YYYY-MM-DD","time":"HH:MM o vacío"},"financial":{"amount":número,"desc":"descripción","type":"salida"},"task":{"name":"nombre tarea"},"idea":{"text":"texto idea"}}
+
+Reglas:
+- modules puede incluir múltiples valores si el texto combina intenciones (ej: gasto + fecha → calendar+financial)
+- ideas: textos que comienzan con "idea:", "nota:", o que son reflexiones/sugerencias sobre la app
+- Usa solo los campos relevantes según modules
+- Para fechas relativas calcula la fecha YYYY-MM-DD correcta` }]
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : null;
+  } catch(e) { return null; }
+}
+
+function getNextWeekday(target) {
+  const d = new Date();
+  let diff = target - d.getDay();
+  if (diff <= 0) diff += 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
+function parseRelativeDate(text) {
+  const t = text.toLowerCase();
+  const d = new Date();
+  if (/mañana/.test(t))               { d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
+  if (/\bhoy\b/.test(t))              return today();
+  if (/sábado|sabado/.test(t))        return getNextWeekday(6);
+  if (/domingo/.test(t))              return getNextWeekday(0);
+  if (/\blunes\b/.test(t))            return getNextWeekday(1);
+  if (/martes/.test(t))               return getNextWeekday(2);
+  if (/miércoles|miercoles/.test(t))  return getNextWeekday(3);
+  if (/jueves/.test(t))               return getNextWeekday(4);
+  if (/viernes/.test(t))              return getNextWeekday(5);
+  const dayM = t.match(/el\s+(\d{1,2})(?:ro|er|avo|°)?/);
+  if (dayM) {
+    const day = parseInt(dayM[1]);
+    const nd = new Date(d.getFullYear(), d.getMonth(), day);
+    if (nd <= d) nd.setMonth(nd.getMonth()+1);
+    return nd.toISOString().split('T')[0];
+  }
+  return today();
+}
+
+function formatChipDate(dateStr) {
+  if (!dateStr || dateStr === today()) return 'Hoy';
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  return `${days[d.getDay()]} ${d.getDate()}`;
+}
+
+const _TYPOS = {
+  cosina:'cocina',cosinando:'cocinando',cosinar:'cocinar',
+  aser:'hacer',acer:'hacer',jym:'gym',gimnacio:'gimnasio',
+  tarea:'tarea',apuntar:'apuntar',recordar:'recordar'
+};
+function fixTypos(text) {
+  return text.split(/\s+/).map(w => _TYPOS[w.toLowerCase()] || w).join(' ');
+}
+
+function parseLocalNLP(raw) {
+  const text = raw.trim();
+  const fixed = fixTypos(text);
+  const lower = fixed.toLowerCase();
+  const result = { modules:[], correctedText:fixed };
+
+  if (/^(idea|nota|apunta|sugerencia)[:\s]/i.test(lower)) {
+    result.modules.push('idea');
+    result.idea = { text: fixed.replace(/^(idea|nota|apunta|sugerencia)[:\s]+/i,'').trim() };
+    return result;
+  }
+
+  const hasFinKw = /gasté|gaste|pagué|pague|costó|costo|gasto|compré|compre|cobré|cobre|\$\d/.test(lower);
+  const amountRE = /\$?([\d,]+\.?\d*)\s*(?:pesos|mxn|mx)?/i;
+  const hasAmount = amountRE.test(lower);
+
+  const hasCalKw = /\b(agendar|reunion|reunión|meeting|cita|evento|call|llamada|comer|cenar|dentista|doctor|vuelo|viaje|partido|concierto|ir al|gym)\b/i.test(lower);
+  const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo)\b/i.test(lower);
+  const timeRE   = /(?:a las?|at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
+  const timeM    = lower.match(timeRE);
+
+  if (hasFinKw && hasAmount && hasDate) {
+    const amtM  = lower.match(amountRE);
+    const amount = parseFloat((amtM[1]||'0').replace(/,/g,''));
+    const desc  = fixed.replace(amountRE,'').replace(/pagar|el \d+\S*|mañana|hoy|pesos|mxn/gi,'').trim() || 'pago';
+    const date  = parseRelativeDate(fixed);
+    result.modules.push('calendar','financial');
+    result.calendar  = { text:desc, date, time:'' };
+    result.financial = { amount, desc, type:'salida' };
+    return result;
+  }
+
+  if (hasFinKw && hasAmount) {
+    const amtM  = lower.match(amountRE);
+    const amount = parseFloat((amtM[1]||'0').replace(/,/g,''));
+    const desc  = fixed.replace(amountRE,'').replace(/gasté|gaste|pagué|pague|en|de|por|pesos|mxn/gi,'').trim() || 'gasto';
+    result.modules.push('financial');
+    result.financial = { amount, desc, type:'salida' };
+    return result;
+  }
+
+  if (hasCalKw || (hasDate && timeM)) {
+    let eventText = fixed;
+    let timeStr = '';
+    if (timeM) {
+      let h = parseInt(timeM[1]);
+      const min = timeM[2]||'00';
+      const mer = (timeM[3]||'').toLowerCase();
+      if (mer==='pm'&&h<12) h+=12;
+      if (mer==='am'&&h===12) h=0;
+      timeStr = `${String(h).padStart(2,'0')}:${min}`;
+      eventText = fixed.replace(timeM[0],'').trim();
+    }
+    const date = parseRelativeDate(fixed);
+    result.modules.push('calendar');
+    result.calendar = { text:eventText, date, time:timeStr };
+    return result;
+  }
+
+  result.modules.push('task');
+  result.task = { name:fixed };
+  return result;
+}
+
 function updateFABVisibility() {
-  const fab = document.getElementById('fab-btn');
-  if (!fab) return;
-  fab.style.display = S.userData ? '' : 'none';
+  const btn = document.getElementById('fab-btn');
+  if (!btn) return;
+  const checkedIn  = !!S.dailyCheckIn?.[today()];
+  const onboarded  = !!(S.onboardingDone || S.tasks?.length > 0);
+  btn.classList.toggle('fab-hidden', !(checkedIn && onboarded));
+}
+
+function openFABConsole() {
+  openModal('modal-fab-console');
+  setTimeout(()=>{
+    const inp = document.getElementById('fab-input');
+    if (inp) { inp.value=''; inp.focus(); }
+    const prev = document.getElementById('fab-preview');
+    if (prev) { prev.style.display='none'; prev.className='fab-preview'; prev.style.borderColor=''; prev.style.color=''; }
+  }, 80);
+}
+
+function parseFABPreview(raw) {
+  const prev = document.getElementById('fab-preview');
+  if (!raw.trim()) { prev.style.display='none'; return; }
+  const p = parseLocalNLP(raw);
+  prev.style.display='block';
+  prev.style.borderColor=''; prev.style.color='';
+  if (p.modules.includes('financial') && p.modules.includes('calendar')) {
+    prev.className='fab-preview financial';
+    prev.textContent=`📅💰 Calendario + Finanzas — $${(p.financial?.amount||0).toLocaleString()} · "${p.calendar?.text||''}"`;
+  } else if (p.modules.includes('financial')) {
+    prev.className='fab-preview financial';
+    prev.textContent=`💰 Finanzas: $${(p.financial?.amount||0).toLocaleString()} — "${p.financial?.desc||''}"`;
+  } else if (p.modules.includes('calendar')) {
+    prev.className='fab-preview task';
+    prev.style.borderColor='rgba(168,85,247,.3)'; prev.style.color='#a855f7';
+    const d = p.calendar?.date ? ` · ${formatChipDate(p.calendar.date)}` : '';
+    const t = p.calendar?.time ? ` ${p.calendar.time}` : '';
+    prev.textContent=`📅 "${p.calendar?.text||''}"${d}${t} → Calendario`;
+  } else if (p.modules.includes('idea')) {
+    prev.className='fab-preview idea';
+    prev.textContent=`💡 "${p.idea?.text||''}" → Ideas Rápidas`;
+  } else {
+    prev.className='fab-preview task';
+    prev.textContent=`✅ Tarea: "${p.task?.name||''}" → Tareas`;
+  }
+}
+
+async function executeFAB() {
+  const raw = document.getElementById('fab-input').value.trim();
+  if (!raw) return;
+  const btn = document.getElementById('fab-exec-btn');
+  if (btn) { btn.textContent='⏳ Analizando...'; btn.disabled=true; }
+  let p = null;
+  try { p = await callClaudeNLP(raw); } catch(e) {}
+  if (!p || !p.modules?.length) p = parseLocalNLP(raw);
+  _fabLastResult = p;
+  closeModal('modal-fab-console');
+  if (btn) { btn.textContent='⚡ Ejecutar'; btn.disabled=false; }
+  _applyFABResult(p);
+  guardarDatos();
+  updateGlobalCore();
+  if (typeof renderMorningBriefing === 'function') renderMorningBriefing();
+}
+
+function _applyFABResult(p) {
+  const routed = [];
+  for (const mod of (p.modules||[])) {
+    if (mod==='financial' && p.financial) {
+      S.transactions.unshift({ id:uid(), type:'salida', scope:'personal',
+        category:'Otro', amount:p.financial.amount,
+        desc:p.financial.desc, date:today(), cuotas:false });
+      if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
+      routed.push({ mod:'financial', detail:`$${(p.financial.amount||0).toLocaleString()}` });
+    }
+    if (mod==='calendar' && p.calendar) {
+      const d = p.calendar.date || today();
+      if (!S.calEvents[d]) S.calEvents[d]=[];
+      const txt = p.calendar.time ? `${p.calendar.text} — ${p.calendar.time}` : p.calendar.text;
+      S.calEvents[d].push({ id:uid(), text:txt });
+      routed.push({ mod:'calendar', detail:formatChipDate(p.calendar.date) });
+    }
+    if (mod==='task' && p.task) {
+      S.tasks.unshift({ id:uid(), name:p.task.name, desc:'', date:today(), time:'', done:false });
+      if (typeof renderTasks==='function') renderTasks();
+      if (typeof updateDashboardTaskCount==='function') updateDashboardTaskCount();
+      routed.push({ mod:'task', detail:(p.task.name||'').substring(0,22) });
+    }
+    if (mod==='idea') {
+      if (!S.ideas) S.ideas=[];
+      const ideaText = p.idea?.text || p.correctedText || '';
+      S.ideas.unshift({ id:uid(), text:ideaText, date:today() });
+      routed.push({ mod:'idea', detail:ideaText.substring(0,24) });
+    }
+  }
+  showFABChip(routed, p.modules||[]);
+}
+
+function showFABChip(routed, modules) {
+  const chip = document.getElementById('fab-confirm-chip');
+  const labelEl = document.getElementById('chip-label');
+  const menu = document.getElementById('chip-menu');
+  if (!chip || !routed.length) return;
+  clearTimeout(_fabChipTimer);
+  menu.classList.remove('open');
+  const parts = routed.map(r => {
+    const m = MODULE_LABELS[r.mod];
+    return `${m.icon} ${m.label}${r.detail ? ' — ' + r.detail : ''}`;
+  });
+  labelEl.innerHTML = `${parts.join(' · ')} <span class="chip-check">✓</span>`;
+  const allMods = ['task','calendar','financial','idea'];
+  const opts = allMods.filter(m => !modules.includes(m));
+  menu.innerHTML = opts.map(m => {
+    const info = MODULE_LABELS[m];
+    return `<button class="chip-correct-opt" onclick="correctFABRouting('${m}')">${info.icon} Mover a ${info.label}</button>`;
+  }).join('');
+  chip.classList.add('show');
+  _fabChipTimer = setTimeout(dismissFABChip, 5500);
+}
+
+function dismissFABChip() {
+  document.getElementById('fab-confirm-chip')?.classList.remove('show');
+  document.getElementById('chip-menu')?.classList.remove('open');
+}
+
+function toggleChipMenu() {
+  const menu = document.getElementById('chip-menu');
+  menu.classList.toggle('open');
+  if (menu.classList.contains('open')) clearTimeout(_fabChipTimer);
+  else _fabChipTimer = setTimeout(dismissFABChip, 3000);
+}
+
+function correctFABRouting(newMod) {
+  if (!_fabLastResult) return;
+  dismissFABChip();
+  const prev = _fabLastResult;
+  for (const m of (prev.modules||[])) {
+    if (m==='task'     && S.tasks.length)        S.tasks.shift();
+    if (m==='financial'&& S.transactions.length) S.transactions.shift();
+    if (m==='idea'     && S.ideas?.length)       S.ideas.shift();
+    if (m==='calendar') {
+      const d = prev.calendar?.date || today();
+      if (S.calEvents[d]?.length) S.calEvents[d].pop();
+    }
+  }
+  const raw = prev.correctedText || '';
+  const newP = { ...prev, modules:[newMod] };
+  if (newMod==='task'     && !newP.task)      newP.task      = { name:raw };
+  if (newMod==='idea'     && !newP.idea)      newP.idea      = { text:raw };
+  if (newMod==='financial'&& !newP.financial) newP.financial = { amount:0, desc:raw, type:'salida' };
+  if (newMod==='calendar' && !newP.calendar)  newP.calendar  = { text:raw, date:today(), time:'' };
+  _fabLastResult = newP;
+  _applyFABResult(newP);
+  guardarDatos();
+  updateGlobalCore();
+}
+
+function saveClaudeKey() {
+  const inp = document.getElementById('claude-api-key-input');
+  if (!inp) return;
+  S.claudeApiKey = inp.value.trim();
+  guardarDatos();
+  const status = document.getElementById('claude-key-status');
+  if (status) {
+    if (S.claudeApiKey.startsWith('sk-ant-')) {
+      status.textContent = '✓ Clave guardada — IA semántica activa';
+      status.style.color = 'var(--green)';
+    } else if (S.claudeApiKey) {
+      status.textContent = '⚠ Formato incorrecto (debe comenzar con sk-ant-)';
+      status.style.color = 'var(--red)';
+    } else {
+      status.textContent = 'Clave eliminada — usando analizador local';
+      status.style.color = 'var(--text3)';
+    }
+  }
+  showToast(S.claudeApiKey ? '✨ IA semántica activada' : '🔧 Usando NLP local');
 }
 
 function checkOnboarding() {
