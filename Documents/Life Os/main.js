@@ -7117,6 +7117,7 @@ function updateGlobalCore() {
   let state, badgeClass, labelText, badgeText;
   const hasData = (totalH + totalT) > 0;
   const enRecuperacion = S.modoRecuperacion && S.modoRecuperacionFecha === today();
+  const hasAppHistory = Object.keys(S.xpHistory || {}).length > 0;
 
   if (enRecuperacion) {
     // Modo Recuperación: estado pacífico independiente del progreso real
@@ -7125,8 +7126,8 @@ function updateGlobalCore() {
   } else if (!hasData) {
     // Sin hábitos ni tareas aún: estado inactivo
     state='idle'; badgeClass='state-idle'; labelText='SIN ACTIVIDAD'; badgeText='NÚCLEO INACTIVO';
-  } else if (combined === 0 && S.blackoutOverrideToday !== todayStr && !S.primeraSesion) {
-    // Blackout solo si combined=0, sin XP real hoy, y onboarding completado (Fix 1.5 + primera sesión)
+  } else if (combined === 0 && S.blackoutOverrideToday !== todayStr && !S.primeraSesion && hasAppHistory) {
+    // Blackout solo si combined=0, usuario tiene historial previo de XP y no es primera sesión
     state='blackout'; badgeClass='state-blackout'; labelText='SYSTEM BLACKOUT'; badgeText='⚠ BLACKOUT ACTIVO';
   } else if (combined === 0) {
     // XP real ganado hoy → Blackout desactivado, mostrar como activo
