@@ -149,12 +149,15 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 - ✅ Git: VPS hace commits directos a GitHub — siempre `git pull --rebase` antes de push desde local
 - ✅ runner.js: log corregido — "Claude Sonnet 4.6" en vez de "Gemini Vision"
 - ✅ analyze.js: log corregido — "Claude Sonnet 4.6 Vision" en vez de "Gemini/Anthropic Vision"
-- ✅ CODEX_NEXT_SESSION.md: 3 batches de correcciones QA documentados (101 propuestas totales)
+- ✅ CODEX_NEXT_SESSION.md: 8 batches de correcciones QA completados (101+ propuestas totales)
 - ✅ Codex Batch 1 completado — tabs Mente/Flow/World, scroll overflow, FAB, blackout overlay, window.__QA
 - ✅ Codex Batch 2 completado — colores módulos, Aura consistency, terminología XP/Aura
-- ⚠️ Codex Batch 3 en progreso — banners dismissables, Bento layouts, gamificación Financiero, mobile, landing
-- ⚠️ BUG CONOCIDO: selector de color en Modo Aura no actualiza `--aura-accent` — solo actualiza `--accent` (XP). Fix: en `setAccentColor()` detectar modo y setear la variable correcta
-- ⚠️ Pendiente: AuraChart canvas partículas (alta prioridad)
+- ✅ Codex Batch 3 completado — banners dismissables, Bento layouts, gamificación Financiero, mobile, landing
+- ✅ Codex Batch 4 completado — selector color Aura (`--aura-accent` actualizado correctamente)
+- ✅ Codex Batch 5 completado — AuraChart canvas 2D, nodos, partículas, updateScores(), emitBurst(), destroy()
+- ✅ Codex Batch 6 completado — push notifications scheduling (8am/8pm/9pm), blackout emocional + ember particles, racha danger badge topbar, hero banner con datos reales
+- ✅ Codex Batch 7 completado — Gemelo CTA activación, onboarding recompensa emitBurst/awardXP, bottom nav dinámico por uso
+- ✅ Codex Batch 8 completado — Flow scroll/heatmap/ideas, Cuerpo empty states, Mente empty states, World leaderboard/shop, Settings toggle init, Mobile safe-area
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
 
 ## FLUJO RECOMENDADO
@@ -179,9 +182,19 @@ cd /opt/openclaw && node analyze-deep.js
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-25 (sesión 4)
-- Deploy: staging ✅ https://mylifeos-staging.web.app
-- VPS: Codex ejecutando Batch 3 al cerrar sesión
+- Fecha: 2026-04-26 (sesión 5)
+- Deploy: staging ✅ https://mylifeos-staging.web.app — commit 0d5efe5
+- Codex: completó Batches 6-7-8 en una sola pasada, node --check OK en todos
+
+### Cambios sesión 2026-04-26 (sesión 5)
+
+#### Batches Codex ejecutados
+- Batch 6 ✅ — `scheduleDailyReminders()` 8am/8pm/9pm, push notification en blackout, overlay emocional ember particles, `#tb-streak` en topbar con danger pulse después de 18:00, hero banner con datos vivos
+- Batch 7 ✅ — Gemelo CTA contextual "X días → Ir a Hábitos", onboarding emitBurst + awardXP + toast recompensa, bottom nav reordenado por `_bnVisitCount`
+- Batch 8 ✅ — Flow (scroll hábitos/agenda, accent verde, mini heatmap 7 días por hábito, ideas processing mode), Cuerpo (empty state peso, NaN guard volumen, heatmap dinámico), Mente (empty states Bitácora/Aliados/Biblioteca), World (leaderboard visible, tienda grid), Settings (toggle notif init correcto, color picker estado activo), Mobile (safe-area bottom nav, padding FAB, stat-card max-width)
+
+#### Commit
+- `0d5efe5` — Feat: Batches 6-7-8, push a GitHub + deploy staging
 
 ### Cambios sesión 2026-04-25 (sesión 4)
 
