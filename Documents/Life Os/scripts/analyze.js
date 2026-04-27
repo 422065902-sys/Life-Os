@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * OpenClaw AI Analyst — Life OS
- * Versión: 3.0 (Anthropic Vision — Modo XP/Aura + Dashboard Inteligente)
+ * Versión: 3.1 (Gemini Vision — Modo XP/Aura + Dashboard Inteligente)
  * Fecha: 2026-04-24
  *
  * Lee reportes QA + screenshots y genera diagnóstico visual con Anthropic.
@@ -21,13 +21,13 @@ const fs   = require('fs');
 const path = require('path');
 const https = require('https');
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
 const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
 
-if (!ANTHROPIC_API_KEY) {
-  console.error('[analyze] ERROR: ANTHROPIC_API_KEY no configurada en .env');
+if (!GEMINI_API_KEY) {
+  console.error('[analyze] ERROR: GEMINI_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -449,37 +449,39 @@ BUG, DISEÑO, UX, PERFORMANCE, SEGURIDAD, GAMIFICACIÓN, ANIMACIÓN, MOBILE, RET
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A ANTHROPIC API (multimodal, con retry + backoff)
+// LLAMAR A GEMINI API (multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callAnthropicOnce(content) {
+function callGeminiOnce(content) {
   return new Promise((resolve, reject) => {
-    const anthropicContent = content.map(item => {
-      if (item.type === 'text') return { type: 'text', text: item.text };
+    const parts = content.map(item => {
+      if (item.type === 'text') return { text: item.text };
       if (item.type === 'image_url') {
         const urlData = item.image_url.url;
         const mime    = urlData.match(/^data:([^;]+);base64,/)?.[1] || 'image/jpeg';
         const b64     = urlData.replace(/^data:[^;]+;base64,/, '');
-        return { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+        return { inlineData: { mimeType: mime, data: b64 } };
       }
-      return item;
+      if (item.type === 'image' && item.source) {
+        return { inlineData: { mimeType: item.source.media_type, data: item.source.data } };
+      }
+      return { text: JSON.stringify(item) };
     });
 
     const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system: 'Eres el equipo senior de análisis de Life OS: QA, producto, diseño, gamificación y retención. Analiza reportes y screenshots de la app y produce diagnóstico concreto, priorizado y accionable en español. Nunca te niegues ni trunques la respuesta.',
-      messages: [{ role: 'user', content: anthropicContent }],
+      systemInstruction: {
+        parts: [{ text: 'Eres el equipo senior de análisis de Life OS: QA, producto, diseño, gamificación y retención. Analiza reportes y screenshots de la app y produce diagnóstico concreto, priorizado y accionable en español. Nunca te niegues ni trunques la respuesta.' }]
+      },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { maxOutputTokens: 4096, temperature: 0.4 },
     });
 
     const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length':    Buffer.byteLength(body),
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
       }
     };
 
@@ -490,10 +492,9 @@ function callAnthropicOnce(content) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.content?.[0]?.text;
-          const stop = json?.stop_reason;
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía stop=${stop} (${res.statusCode}): ${data.slice(0, 200)}`));
+          else reject(new Error(`Respuesta vacía (${res.statusCode}): ${data.slice(0, 200)}`));
         } catch (e) {
           reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`));
         }
@@ -506,10 +507,10 @@ function callAnthropicOnce(content) {
   });
 }
 
-async function callAnthropic(content, retries = 3) {
+async function callGemini(content, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callAnthropicOnce(content);
+      return await callGeminiOnce(content);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
       const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('overloaded');
@@ -587,9 +588,9 @@ function saveProposals(proposals, reportName) {
 function appendToReport(reportPath, analysis, screenshotCount) {
   const existing = fs.readFileSync(reportPath, 'utf8');
   const shotNote = screenshotCount > 0
-    ? `> 📸 ${screenshotCount} screenshots analizados con Claude Sonnet 4.6 Vision\n\n`
+    ? `> 📸 ${screenshotCount} screenshots analizados con Gemini 2.0 Flash Vision\n\n`
     : '';
-  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Claude Sonnet 4.6\n\n';
+  const divider = '\n\n---\n\n## 🤖 ANÁLISIS IA — Gemini 2.0 Flash\n\n';
   fs.writeFileSync(reportPath, existing + divider + shotNote + analysis + '\n', 'utf8');
 }
 
@@ -607,10 +608,10 @@ async function main() {
 
   const screenshots = loadScreenshots(SHOTS_DIR);
   log(`Cargados ${reports.length} reportes y ${screenshots.length} screenshots.`);
-  log('Analizando con Claude Sonnet 4.6...');
+  log('Analizando con Gemini 2.0 Flash...');
 
   const content  = buildParts(reports, screenshots);
-  const rawResp  = await callAnthropic(content);
+  const rawResp  = await callGemini(content);
   const { analysis, proposals } = parseResponse(rawResp);
 
   log(`Análisis recibido ✓ | ${proposals.length} propuestas generadas`);

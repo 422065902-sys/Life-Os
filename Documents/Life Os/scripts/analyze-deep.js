@@ -23,11 +23,11 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
 
-if (!ANTHROPIC_API_KEY) {
-  console.error('[deep] ERROR: ANTHROPIC_API_KEY no configurada en .env');
+if (!GEMINI_API_KEY) {
+  console.error('[deep] ERROR: GEMINI_API_KEY no configurada en .env');
   process.exit(1);
 }
 
@@ -809,38 +809,39 @@ Ordena por ROI = IMPACTO ÷ ESFUERZO. Incluye el módulo afectado y el archivo e
 }
 
 // ══════════════════════════════════════════════════════════════
-// LLAMAR A ANTHROPIC API (multimodal, con retry + backoff)
+// LLAMAR A GEMINI API (multimodal, con retry + backoff)
 // ══════════════════════════════════════════════════════════════
-function callAnthropicOnce(content, maxTokens) {
+function callGeminiOnce(content, maxTokens) {
   return new Promise((resolve, reject) => {
-    // Convertir formato image_url -> formato Anthropic image
-    const anthropicContent = content.map(item => {
-      if (item.type === 'text') return { type: 'text', text: item.text };
+    const parts = content.map(item => {
+      if (item.type === 'text') return { text: item.text };
       if (item.type === 'image_url') {
         const urlData = item.image_url.url;
         const mime    = urlData.match(/^data:([^;]+);base64,/)?.[1] || 'image/jpeg';
         const b64     = urlData.replace(/^data:[^;]+;base64,/, '');
-        return { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+        return { inlineData: { mimeType: mime, data: b64 } };
       }
-      return item;
+      if (item.type === 'image' && item.source) {
+        return { inlineData: { mimeType: item.source.media_type, data: item.source.data } };
+      }
+      return { text: JSON.stringify(item) };
     });
 
     const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: Math.min(maxTokens, 6000),
-      system: 'Eres el equipo senior completo de Life OS: QA engineer, frontend developer, product designer, game designer, mobile UX specialist y retention analyst. Analiza screenshots reales de la app gamificada Life OS y produce el análisis más detallado, concreto y accionable posible. Nunca te niegues ni trunques la respuesta. El fundador depende de este análisis para mejorar el producto para usuarios reales.',
-      messages: [{ role: 'user', content: anthropicContent }],
+      systemInstruction: {
+        parts: [{ text: 'Eres el equipo senior completo de Life OS: QA engineer, frontend developer, product designer, game designer, mobile UX specialist y retention analyst. Analiza screenshots reales de la app gamificada Life OS y produce el análisis más detallado, concreto y accionable posible. Nunca te niegues ni trunques la respuesta. El fundador depende de este análisis para mejorar el producto para usuarios reales.' }]
+      },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { maxOutputTokens: Math.min(maxTokens, 8192), temperature: 0.4 },
     });
 
     const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length':    Buffer.byteLength(body),
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
       }
     };
 
@@ -851,10 +852,9 @@ function callAnthropicOnce(content, maxTokens) {
         try {
           const json = JSON.parse(data);
           if (json.error) return reject(new Error(`API error ${res.statusCode}: ${json.error.message}`));
-          const text = json?.content?.[0]?.text;
-          const stop = json?.stop_reason;
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) resolve(text);
-          else reject(new Error(`Respuesta vacía stop=${stop} (${res.statusCode}): ${data.slice(0, 200)}`));
+          else reject(new Error(`Respuesta vacía (${res.statusCode}): ${data.slice(0, 200)}`));
         } catch(e) { reject(new Error(`Parse error: ${e.message} — raw: ${data.slice(0, 200)}`)); }
       });
     });
@@ -864,10 +864,10 @@ function callAnthropicOnce(content, maxTokens) {
   });
 }
 
-async function callAnthropic(content, maxTokens, retries = 3) {
+async function callGemini(content, maxTokens, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await callAnthropicOnce(content, maxTokens);
+      return await callGeminiOnce(content, maxTokens);
     } catch (e) {
       const isRateLimit = e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('rate');
       const isRetryable = isRateLimit || e.message.includes('ECONNRESET') || e.message.includes('socket') || e.message.includes('503') || e.message.includes('overloaded');
@@ -949,7 +949,7 @@ async function main() {
         content.push({ type: 'image_url', image_url: { url: `data:${shot.mime};base64,${shot.data}`, detail: 'low' } });
       }
 
-      const raw = await callAnthropic(content, group.maxTokens);
+      const raw = await callGemini(content, group.maxTokens);
       const { analysis, proposals, health } = parseResponse(raw);
 
       groupResults.push({ group: group.name, analysis, proposals, health });
@@ -972,7 +972,7 @@ async function main() {
   let synthesis = '';
   try {
     const synthParts = [{ type: 'text', text: buildSynthesisPrompt(groupResults, totalShots) }];
-    synthesis = await callAnthropic(synthParts, 4096);
+    synthesis = await callGemini(synthParts, 4096);
     log('✅ Síntesis generada');
   } catch(e) {
     log(`❌ Síntesis falló: ${e.message}`);

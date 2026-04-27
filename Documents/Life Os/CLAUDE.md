@@ -58,11 +58,11 @@ cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/sc
 
 ### Deploy a staging (Firebase Hosting)
 ```bash
-cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && firebase deploy --only hosting:staging --project mylifeos-staging
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" firebase deploy --only hosting:staging --project mylifeos-staging
 ```
-- ⚠️ `--token` deprecado en firebase-tools 15.x — usar `firebase login --no-localhost` si expira sesión
+- ⚠️ Siempre usar `GOOGLE_APPLICATION_CREDENTIALS` con `firebase-adc.json` — `firebase login` falla en el VPS (headless, no-localhost tampoco funciona)
 - firebase.json DEBE estar en `Documents/Life Os/` — el deploy falla si se corre desde la raíz del repo
-- Si dice "Failed to authenticate": correr `firebase login --no-localhost` en el VPS
+- `--token` deprecado en firebase-tools 15.x
 
 ### Correr OpenClaw
 ```bash
@@ -99,8 +99,8 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 ├── .firebaserc          → default=staging
 ├── scripts/
 │   ├── runner.js        → Runner E2E
-│   ├── analyze-deep.js  → Claude Sonnet 4.6 Vision profundo (11 grupos)
-│   ├── analyze.js       → Claude Sonnet 4.6 Vision ligero
+│   ├── analyze-deep.js  → Gemini 2.0 Flash Vision profundo (11 grupos)
+│   ├── analyze.js       → Gemini 2.0 Flash Vision ligero
 │   ├── set-qa-pro.js    → Da is_pro:true al usuario QA via Firebase Auth REST + Firestore PATCH
 │   ├── seedDemoUser.js  → Semilla usuario demo
 │   ├── setup-qa-user.js → Crea usuario QA en staging
@@ -116,24 +116,24 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 - Ubicación: `/opt/openclaw/.env`
 
 ## MODELO DE IA — IMPORTANTE
-- **Ambos scripts** usan `claude-sonnet-4-6` via `api.anthropic.com/v1/messages`
-- **analyze-deep.js** → `max_tokens: 6000`, imágenes en formato Anthropic (`source.base64`), sin cap de screenshots por grupo
-- **analyze.js** → `max_tokens: 4096`, cap 20 screenshots (ligero por diseño), lee 3 días de reportes
-- API headers: `x-api-key: ANTHROPIC_API_KEY`, `anthropic-version: 2023-06-01`
-- Response: `json.content[0].text`
-- Costo estimado analyze-deep.js: ~$1.15 USD por run completo (82 screenshots, 11 grupos)
-- `ANTHROPIC_API_KEY` en `/opt/openclaw/.env` — NUNCA en git
+- **Ambos scripts** usan `gemini-2.0-flash` via `generativelanguage.googleapis.com/v1beta`
+- **analyze-deep.js** → `maxOutputTokens: 8192`, imágenes en formato Gemini (`inlineData`), sin cap de screenshots por grupo
+- **analyze.js** → `maxOutputTokens: 4096`, cap 20 screenshots (ligero por diseño), lee 3 días de reportes
+- API: URL con `?key=GEMINI_API_KEY`, sin headers especiales de auth
+- Response: `json.candidates[0].content.parts[0].text`
+- `GEMINI_API_KEY` en `/opt/openclaw/.env` — NUNCA en git (obtener en aistudio.google.com/apikey)
+- ⚠️ Al reiniciar: verificar que GEMINI_API_KEY tenga la key real (no el placeholder "TU_KEY_AQUI")
 - Respaldos históricos en scripts/ (NO eliminar): ORIGINAL-GEMINI.js, BACKUP-GPT4O, BACKUP-GPT55
 
 ## ESTADO ACTUAL
 - ✅ runner.js --deep pipeline completo funcionando
-- ✅ analyze-deep.js: Claude Sonnet 4.6, prompts base ORIGINAL-GEMINI, sin cap screenshots por grupo
+- ✅ analyze-deep.js: Gemini 2.0 Flash, prompts base ORIGINAL-GEMINI, sin cap screenshots por grupo
 - ✅ analyze-deep.js: health regex flexible — no depende del emoji 💊
 - ✅ analyze-deep.js: Bento Grid 2026 — dimensión 6 por grupo + veredictos BENTO/WEB/iOS/MOTION en síntesis
 - ✅ analyze-deep.js: roles nuevos — Living Data Strategist + Adaptive Bento Layout Strategist
 - ✅ analyze-deep.js: 25+ tipos válidos nuevos (BENTO-LAYOUT, CARD-DENSITY, LIVING-DATA, MICROINTERACTION, etc.)
 - ✅ analyze-deep.js: formato propuestas enriquecido — EVIDENCIA, PLATAFORMA, PERFORMANCE, REDUCED MOTION, CONFIANZA
-- ✅ analyze.js: Claude Sonnet 4.6, mismos roles y veredictos que analyze-deep.js
+- ✅ analyze.js: Gemini 2.0 Flash, mismos roles y veredictos que analyze-deep.js
 - ✅ analyze.js: PLATAFORMA + PERFORMANCE + REDUCED MOTION en propuestas
 - ✅ PWA offline: firebase-messaging-sw.js tiene install/activate/fetch handlers
 - ✅ Bento Grid CSS: .module-bento-grid 12col + .bento-compact/medium/wide/large/full/tall en styles.css
@@ -182,19 +182,43 @@ cd /opt/openclaw && node analyze-deep.js
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-26 (sesión 5)
-- Deploy: staging ✅ https://mylifeos-staging.web.app — commit 0d5efe5
-- Codex: completó Batches 6-7-8 en una sola pasada, node --check OK en todos
+- Fecha: 2026-04-27 (sesión 6)
+- Deploy: staging ✅ https://mylifeos-staging.web.app — NLP fix + FAB system restaurado
+- Scripts IA migrados: Anthropic → Gemini 2.0 Flash (GEMINI_API_KEY en .env del VPS)
 
-### Cambios sesión 2026-04-26 (sesión 5)
+### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
+1. ⚠️ **Completar GEMINI_API_KEY en VPS** — se guardó el placeholder, reemplazar con key real:
+   ```bash
+   sed -i 's/GEMINI_API_KEY=TU_KEY_AQUI/GEMINI_API_KEY=LA_KEY_REAL/' /opt/openclaw/.env
+   ```
+   Key disponible en: https://aistudio.google.com/apikey
+2. **Correr pipeline QA completo**: `cd /opt/openclaw && node runner.js --deep`
+3. **Bugs pendientes para próximo batch Codex**:
+   - Tab Biblioteca muestra contenido de Gemelo (índice de tab incorrecto)
+   - Flow/Metas muestra contenido de Flow/Ideas (mismo bug de tabs)
+   - Layout Análisis/Núcleo roto — texto overflow en columna estrecha
+   - Shop muestra XP en vez de coins (`S.xp` en lugar de `S.coins`)
+   - Onboarding/Blackout/Paywall muestran modal de calibración en vez del contenido correcto
 
-#### Batches Codex ejecutados
-- Batch 6 ✅ — `scheduleDailyReminders()` 8am/8pm/9pm, push notification en blackout, overlay emocional ember particles, `#tb-streak` en topbar con danger pulse después de 18:00, hero banner con datos vivos
-- Batch 7 ✅ — Gemelo CTA contextual "X días → Ir a Hábitos", onboarding emitBurst + awardXP + toast recompensa, bottom nav reordenado por `_bnVisitCount`
-- Batch 8 ✅ — Flow (scroll hábitos/agenda, accent verde, mini heatmap 7 días por hábito, ideas processing mode), Cuerpo (empty state peso, NaN guard volumen, heatmap dinámico), Mente (empty states Bitácora/Aliados/Biblioteca), World (leaderboard visible, tienda grid), Settings (toggle notif init correcto, color picker estado activo), Mobile (safe-area bottom nav, padding FAB, stat-card max-width)
+### Cambios sesión 2026-04-27 (sesión 6)
 
-#### Commit
-- `0d5efe5` — Feat: Batches 6-7-8, push a GitHub + deploy staging
+#### Scripts IA migrados Anthropic → Gemini 2.0 Flash
+- analyze.js + analyze-deep.js: variable `GEMINI_API_KEY` (antes `ANTHROPIC_API_KEY`)
+- Endpoint: `generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=...`
+- Formato imágenes: `inlineData.mimeType + inlineData.data` (antes `source.base64`)
+- Response: `candidates[0].content.parts[0].text` (antes `content[0].text`)
+- maxOutputTokens deep: 8192 (antes 6000 hardcap Anthropic)
+
+#### Deploy fix definitivo
+- `firebase login` interactivo falla en VPS (headless) — solución: `GOOGLE_APPLICATION_CREDENTIALS` con `firebase-adc.json`
+- Comando correcto documentado en sección "Deploy a staging"
+
+#### main.js fixes (sesión 6)
+- `hasAppHistory` guard — blackout no dispara para usuarios nuevos sin historial XP
+- `ensureHabitBattery(h)` — inicializa `h.battery=100` si undefined
+- FAB system completo restaurado (~337 líneas) — `openFABConsole`, `parseFABPreview`, `executeFAB`, `parseLocalNLP`, etc.
+- NLP keywords financieras expandidas — uber/didi/rappi/cabify/renta/gasolina/farmacia/super/netflix/spotify/amazon/gym
+- Deploy exitoso commit `9afbec2a` a staging
 
 ### Cambios sesión 2026-04-25 (sesión 4)
 
