@@ -1902,7 +1902,7 @@ input[type=range].calib-range.emocional::-webkit-slider-thumb{background:var(--p
 .light .bn-tab-icon{filter:grayscale(1) brightness(.5)}
 .light .bn-tab.active .bn-tab-icon{filter:none}
 .light .bn-tab.active::before{background:rgba(0,0,0,.08);border-color:rgba(0,0,0,.12)}
-@media(max-width:767px){
+@media(max-width:900px){
   #bottom-nav{display:block}
   #mob-tab{display:none!important}
   #content{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}

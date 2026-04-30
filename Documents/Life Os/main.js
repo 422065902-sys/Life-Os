@@ -6803,7 +6803,7 @@ function runBootSequence(onComplete) {
 
   // Timeout de seguridad: si Firestore tarda más de 8s, desbloquear la app igual.
   if (_bootTimeoutId) clearTimeout(_bootTimeoutId);
-  _bootTimeoutId = setTimeout(() => { _bootDataReady = true; _tryCompleteBoot(); }, 8000);
+  _bootTimeoutId = setTimeout(() => { _bootDataReady = true; _bootAnimDone = true; _tryCompleteBoot(); }, 8000);
 
   // ── Apply accent-derived palette to boot screen ──
   const accent = (typeof S !== 'undefined' && S.accent) ? S.accent : '#00e5ff';
