@@ -22,6 +22,7 @@ const path = require('path');
 const https = require('https');
 
 const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL    = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR  || '/opt/openclaw/repo/lifeos/qa-reports';
 const SHOTS_DIR      = process.env.QA_SHOTS_DIR    || null;
 const REPORTS_DAYS   = parseInt(process.env.REPORTS_DAYS || '3');
@@ -477,7 +478,7 @@ function callGeminiOnce(content) {
 
     const options = {
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      path: `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       method: 'POST',
       headers: {
         'Content-Type':   'application/json',

@@ -24,6 +24,7 @@ const path  = require('path');
 const https = require('https');
 
 const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL    = process.env.GEMINI_MODEL_DEEP || 'gemini-2.5-pro';
 const REPORTS_DIR    = process.env.QA_REPORTS_DIR || '/opt/openclaw/repo/lifeos/qa-reports';
 
 if (!GEMINI_API_KEY) {
@@ -837,7 +838,7 @@ function callGeminiOnce(content, maxTokens) {
 
     const options = {
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`,
+      path: `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       method: 'POST',
       headers: {
         'Content-Type':   'application/json',
