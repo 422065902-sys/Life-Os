@@ -2310,6 +2310,33 @@ async function main() {
     }
   }
 
+  // Sync status to Firestore (best-effort — no bloquea si no está configurado)
+  const _saPath = process.env.FIREBASE_CENTRO_OPS_SA;
+  const _projectId = process.env.FIREBASE_CENTRO_OPS_PROJECT_ID;
+  if (_saPath && _projectId && !_saPath.includes('TODO')) {
+    try {
+      const admin = require('firebase-admin');
+      if (!admin.apps.length) {
+        admin.initializeApp({ credential: admin.credential.cert(_saPath), projectId: _projectId });
+      }
+      const _db = admin.firestore();
+      const _total = results.length;
+      const _passed = results.filter(r => r.status === 'PASS').length;
+      const _failed = results.filter(r => r.status === 'FAIL').length;
+      await _db.collection('status').doc('lifeos-qa').set({
+        runner: 'lifeos-qa',
+        status: _failed > 0 ? 'FALLAS' : 'COMPLETADA',
+        lastRun: new Date().toISOString(),
+        reportName: path.basename(reportPath),
+        tests: { total: _total, passed: _passed, failed: _failed },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      log('[Firestore] ✓ Status QA sincronizado');
+    } catch (_e) {
+      log(`[Firestore] Skipping — ${_e.message.split('\n')[0]}`);
+    }
+  }
+
   log('═══ OpenClaw QA Suite completado ═══');
 
   const hasFails = results.some(r => r.status === 'FAIL');

@@ -15,9 +15,26 @@
 - [x] Batch 6 — Push notifications + Blackout emocional + Racha danger + Hero banner
 - [x] Batch 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
 - [x] Batch 8 — Grupos truncados (Cuerpo · Mente · World · Settings · Mobile)
-- [ ] Batch 9A — P0 Conversión: Blackout + tabs rotos + scroll (Gemini 2.5 Pro · 2026-04-30)
-- [ ] Batch 9B — P1 Quick wins: iOS safe-area + Landing CTA + moneda World + Android logout
-- [ ] Batch 9C — UX/Gamificación: framing scores + validaciones + identidad visual
+- [x] Batch 9A — P0 Conversión: Blackout + tabs rotos + scroll (Gemini 2.5 Pro · 2026-04-30)
+- [x] Batch 9B — P1 Quick wins: iOS safe-area + Landing CTA + moneda World + Android logout
+- [x] Batch 9C — UX/Gamificación: framing scores + validaciones + identidad visual
+- [ ] Batch 10 — PENDIENTE: revisar reporte post-Batch 9 y determinar correcciones
+
+## INFRAESTRUCTURA — sesión 11 (2026-05-01)
+
+Firebase `centro-ops-ecosistema` operativo:
+- Tablero live: https://centro-ops-ecosistema.web.app
+- Firestore: colección `status/` — `lifeos-qa` + `centro-ops`
+- `runner.js` Life OS: escribe a Firestore al terminar (sync al VPS pendiente — ver CLAUDE.md)
+- `runner.js` Centro Ops: escribe a Firestore al terminar ✅ operativo
+
+**Primer paso próxima sesión:**
+```bash
+# Sync runner Life OS al VPS
+cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
+# Luego correr el pipeline completo
+cd /opt/openclaw && node runner.js --deep
+```
 
 ---
 
