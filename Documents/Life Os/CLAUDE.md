@@ -303,27 +303,25 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-30 (sesión 9)
-- Sin cambios al código de Life OS en esta sesión
+- Fecha: 2026-05-01 (sesión 10)
+- Codex Batches 9A + 9B + 9C ejecutados y commiteados (`23445c10`)
+- runner.js con scroll completo synced al VPS
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. ⚠️ **GEMINI_API_KEY en VPS** — reemplazar placeholder con key real:
-   ```bash
-   sed -i 's/GEMINI_API_KEY=TU_KEY_AQUI/GEMINI_API_KEY=LA_KEY_REAL/' /opt/openclaw/.env
-   ```
-   Key en: https://aistudio.google.com/apikey
-2. **Correr pipeline QA Life OS**: `cd /opt/openclaw && node runner.js --deep`
-3. **Bugs P0 Life OS** — bloquean conversión, siguiente batch Codex:
-   - Onboarding/Blackout/Paywall muestran modal de calibración en vez del contenido correcto
-   - Tab Biblioteca muestra contenido de Gemelo (índice de tab incorrecto)
-   - Flow/Metas muestra contenido de Flow/Ideas (mismo bug de tabs)
-   - Shop muestra XP en vez de coins (`S.xp` en lugar de `S.coins`)
-   - Layout Análisis/Núcleo roto — texto overflow en columna estrecha
-4. **Configurar claves externas** (features sesión 7 — pendientes):
+1. **Revisar reporte QA post-Batch 9** — pipeline corriendo al cerrar sesión (`node runner.js --deep`)
+   - Ver si blackout/tabs/scroll fueron corregidos correctamente
+   - Si hay regresiones → nuevo batch Codex
+2. **Firebase `centro-ops`** — tarea principal próxima sesión:
+   - Crear proyecto Spark (gratis) en Firebase Console
+   - Habilitar Firestore + Hosting
+   - Bajar service account JSON → subir al VPS
+   - Cada runner escribe `status.json` a Firestore al terminar
+   - `tablero.html` lee de Firestore en tiempo real (reemplaza localStorage)
+   - Deploy tablero a Firebase Hosting → URL pública
+3. **Configurar claves externas** (features sesión 7 — pendientes):
    - TMDB API Key → https://www.themoviedb.org/settings/api
    - Spotify App → https://developer.spotify.com/dashboard (Client ID + Secret)
    - Redirect URI en Spotify: `https://mylifeos-staging.web.app/spotify-callback`
-5. **Centro Ops — primer `PROPONER PLAN`**: ejecutar desde Claude Code para generar primeras propuestas reales en INBOX
 
 ### Cambios sesión 2026-04-30 (sesión 9)
 
