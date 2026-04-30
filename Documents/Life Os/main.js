@@ -1265,9 +1265,8 @@ function openModal(id) {
     // Update XP badge based on whether checkin already done
     const xpBadge = document.getElementById('checkin-xp-badge');
     if (xpBadge) {
-      xpBadge.textContent = S.dailyCheckIn[today()]
-        ? '+15 XP · CALIBRACIÓN'
-        : '+30 XP · CALIBRACIÓN + CONSTANCIA';
+      const xp = calculateCalibrationXP(Number(S.energia) || 50, Number(S.claridad) || 50, Number(S.productividad) || 50);
+      xpBadge.textContent = `+${xp} XP · CALIBRACIÓN DINÁMICA`;
     }
     // Update name
     try {
@@ -1544,6 +1543,7 @@ function _addTaskOriginal() {
   const name = document.getElementById('t-name').value.trim();
   if (!name) return;
   S.tasks.unshift({ id:uid(), name, desc:document.getElementById('t-desc').value, date:document.getElementById('t-date').value, time:document.getElementById('t-time').value, done:false });
+  track('task_created', { source: 'manual' });
   ['t-name','t-desc'].forEach(id=>document.getElementById(id).value='');
   guardarDatos();
   renderTasks();
@@ -1554,7 +1554,13 @@ function _addTaskOriginal() {
 function renderTasks() {
   const el = document.getElementById('task-list');
   if (!el) return;
-  const visible = (S.tasks || []).filter(t => !t.deleted);
+  const todayTasks = (S.tasks || [])
+    .filter(t => !t.deleted && !t.done && isToday(t.dueDate || t.date))
+    .sort((a, b) => getTaskPriority(b) - getTaskPriority(a))
+    .slice(0, 5);
+  const visible = todayTasks.length ? todayTasks : (S.tasks || []).filter(t => !t.deleted).slice(0, 5);
+  const title = el.closest('.card')?.querySelector('.card-title');
+  if (title) title.textContent = todayTasks.length ? `${todayTasks.length} tareas críticas hoy` : 'MÓDULO DE TAREAS GAMIFICADO';
   if (!visible.length) { el.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text3)">No hay tareas. ¡Agrega una!</div>'; return; }
   el.innerHTML = visible.map(t=>`
     <div class="task-item ${t.done?'done':''}">
@@ -1581,12 +1587,27 @@ function toggleTask(id) {
   if (!t || t.done) return;
   t.done = true;
   gainXP(50);
+  S.lastXP = 50;
+  track('task_completed', { xp_earned: S.lastXP || 10, source: 'manual' });
   _logActivity('task', 50, t.name || 'Tarea completada');
   spawnConfetti();
   showToast('🎉 +50 XP ganado!');
   renderTasks();
   updateDashboardTaskCount();
   updateGlobalCore();
+}
+
+function isToday(dateValue) {
+  if (!dateValue) return true;
+  return String(dateValue).slice(0, 10) === today();
+}
+
+function getTaskPriority(task) {
+  if (Number.isFinite(Number(task?.priority))) return Number(task.priority);
+  const text = `${task?.name || ''} ${task?.desc || ''}`.toLowerCase();
+  if (/urgente|crítico|critico|importante|hoy|deadline|venc/i.test(text)) return 3;
+  if (task?.time) return 2;
+  return 1;
 }
 
 function deleteTask(id) {
@@ -1705,20 +1726,36 @@ function displayHabitName(name) {
 
 function addHabit() {
   const input = document.getElementById('new-habit');
-  const raw = input?.value.trim();
+  const raw = input?.value?.trim();
   if (!raw) {
     input?.classList.add('input-error');
-    showToast('Dale un nombre a tu habito', 'warning');
+    showToast('El nombre del hábito no puede estar vacío.', 'warning');
     setTimeout(() => input?.classList.remove('input-error'), 600);
     input?.focus();
     return;
   }
   const emoji = habitEmoji(raw);
   const name  = emoji + ' ' + raw;
-  S.habits.push({ id:uid(), name, streak:0, completedToday:false, lastCompletedDate:'' });
+  const h = { id:uid(), name, streak:0, completedToday:false, lastCompletedDate:'' };
+  S.habits.push(h);
+  track('habit_created', { category: h.category || 'general' });
   input.value='';
+  document.getElementById('new-habit-add-btn') && (document.getElementById('new-habit-add-btn').disabled = true);
   renderHabits();
   guardarDatos();
+}
+
+function wireHabitInputState() {
+  const inputEl = document.getElementById('new-habit') || document.querySelector('#new-habit-input');
+  const addBtn = document.getElementById('new-habit-add-btn') || inputEl?.closest('.row')?.querySelector('button');
+  if (!inputEl || !addBtn || inputEl.dataset.habitInputWired === 'true') return;
+  const sync = () => { addBtn.disabled = !inputEl.value.trim(); };
+  inputEl.addEventListener('input', sync);
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && inputEl.value.trim()) addHabit();
+  });
+  inputEl.dataset.habitInputWired = 'true';
+  sync();
 }
 
 function getLast7Days() {
@@ -1784,9 +1821,32 @@ function renderHabits() {
   renderMorningBriefing();
 }
 
+function showFloatingXP(anchorEl, text) {
+  if (!anchorEl) return;
+  const r = anchorEl.getBoundingClientRect();
+  const floater = document.createElement('div');
+  floater.className = 'floating-xp';
+  floater.textContent = text;
+  floater.style.left = (r.left + r.width / 2) + 'px';
+  floater.style.top = r.top + 'px';
+  document.body.appendChild(floater);
+  setTimeout(() => floater.remove(), 900);
+}
+
+function emitBurst(anchorEl) {
+  if (S.visualMode === 'aura' && window.LifeOSAuraChart?.emitBurst) {
+    window.LifeOSAuraChart.emitBurst();
+    return;
+  }
+  spawnConfetti();
+}
+
 function toggleHabit(id) {
   const h = S.habits.find(x => x.id === id); if (!h) return;
   ensureHabitBattery(h);
+  const habitEl = document.querySelector(`.habit-check[onclick="toggleHabit('${id}')"]`)?.closest('.habit-item');
+  const habitBar = habitEl?.querySelector('.battery-bar-fill');
+  if (habitBar) habitBar.style.transition = 'width 0.3s ease-out';
 
   const todayKey = today();
   const wasCompleted = h.completedToday;
@@ -1805,8 +1865,10 @@ function toggleHabit(id) {
     if (!h.history) h.history = [];
     if (!h.history.includes(todayKey)) h.history.push(todayKey);
     gainXP(25);
+    track('habit_completed', { streak: S.streak || h.streak || 0, xp_earned: 25 });
     _logActivity('habit', 25, displayHabitName(h.name) || 'Hábito completado');
-    S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
+    showFloatingXP(habitEl, '+25 XP');
+    emitBurst(habitEl);
   } else {
     // Desmarcando: revertir racha solo si se completó hoy mismo
     if (h.lastCompletedDate === todayKey) {
@@ -2018,12 +2080,46 @@ function buildFreqCalendar() { buildFreqHeatmap(); }
 
 /* ─── Telemetría silenciosa ─────────────────────────────────── */
 function registrarEvento(tipo, datos) {
+  console.log('[TRACK]', tipo, datos || {});
   if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
   const uid = _auth.currentUser.uid;
   _db.collection('analytics').doc(uid).collection('eventos').add({
     tipo, datos, uid,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   }).catch(() => {}); // silencioso — no bloquea UI
+}
+
+function track(tipo, datos = {}) {
+  const safe = {
+    project_id: 'lifeos',
+    source: 'web',
+    mode: S.visualMode || 'xp',
+    plan: S.isPro ? 'pro' : (S.isTrial ? 'trial' : (S.plan || 'free')),
+    app_version: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.0'),
+    ...datos
+  };
+  console.log('[TRACK]', tipo, safe);
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  const uid = _auth.currentUser.uid;
+  _db.collection('analytics').doc(uid).collection('eventos').add({
+    tipo,
+    datos: safe,
+    uid,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
+}
+
+function logAiTrace({ promptVersion = '1', featureName = 'gemelo', rawText = '', isValidJson = true, usedFallback = false } = {}) {
+  if (!CLOUD_ENABLED || !_db || !_auth?.currentUser) return;
+  _db.collection('aiLogs').add({
+    prompt_version: promptVersion,
+    feature_name: featureName,
+    user_id: _auth.currentUser.uid,
+    ai_output_raw: String(rawText || '').slice(0, 500),
+    validation_status: isValidJson ? 'ok' : 'failed',
+    fallback_used: !!usedFallback,
+    created_at: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
 }
 
 async function calcularVolumenSemanal(uid) {
@@ -3482,6 +3578,7 @@ function init() {
     }
   });
   // Habit list init empty state
+  wireHabitInputState();
   renderHabits();
   // Tasks init
   renderTasks();
@@ -3536,7 +3633,7 @@ function renderCheckinDots(containerId) {
   const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;   // días desde el lunes
   const isDashboard  = containerId === 'dashboard-ci-dots';
   // Etiquetas Mon→Sun en español
-  const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   let html = '';
   for (let i = 0; i < 7; i++) {
     const d = new Date(now);
@@ -4701,6 +4798,20 @@ function startExecClock() {
 // Track usage counts for each poder sub-section
 if (!S.poderUsage) S.poderUsage = { biblioteca: 0, bitacora: 0, aliados: 0 };
 
+function _renderBibliotecaContent() {
+  renderPoderSections('biblioteca');
+}
+
+function _renderGemeloContent() {
+  initGemelo();
+}
+
+function renderMenteTab(tab) {
+  if (tab === 'biblioteca') return _renderBibliotecaContent();
+  if (tab === 'aliados' || tab === 'bitacora') return renderPoderSections(tab);
+  return _renderGemeloContent();
+}
+
 function renderPoderSections(activeSection = 'bitacora') {
   const container = document.getElementById('poder-sections-container');
   if (!container) return;
@@ -5533,6 +5644,7 @@ function renderMuscleMapAnalisis() {
 
 function initAnalisisCharts() {
   renderMuscleMapAnalisis();
+  renderStatsModule();
   // Sync progress bars with S values (read-only, no sliders)
   ['claridad','energia','productividad'].forEach(m=>{
     const vl=document.getElementById('an-'+m); if(vl) vl.textContent=S[m];
@@ -5580,6 +5692,54 @@ function initAnalisisCharts() {
 /* ═══════════════════════════════════════════
    SAAS — LEADERBOARD & WRAPPED
 ═══════════════════════════════════════════ */
+function renderStatsModule() {
+  const heatmap = document.getElementById('stats-streak-heatmap');
+  const modules = document.getElementById('stats-xp-modules');
+  const achievements = document.getElementById('stats-recent-achievements');
+  const days = getLast7Days();
+
+  if (heatmap) {
+    heatmap.innerHTML = days.map(day => {
+      const done = (S.habits || []).some(h => {
+        const hist = h.history || [];
+        return Array.isArray(hist) ? hist.includes(day) : !!hist[day];
+      });
+      return `<div title="${day}" style="height:26px;border-radius:7px;background:${done ? 'var(--accent)' : 'rgba(255,255,255,.08)'};box-shadow:${done ? '0 0 12px rgba(0,229,255,.28)' : 'none'}"></div>`;
+    }).join('');
+  }
+
+  if (modules) {
+    const totals = {
+      Habitos: (S.habits || []).filter(h => isHabitDoneToday(h)).length * 25,
+      Tareas: (S.tasks || []).filter(t => t.done && isToday(t.date)).length * 50,
+      Mente: Number(S.xpMental || 0),
+      Cuerpo: Number(S.saludXP || 0)
+    };
+    const max = Math.max(1, ...Object.values(totals));
+    modules.innerHTML = Object.entries(totals).map(([label, value]) => `
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px">
+          <span>${label}</span><strong>${value} XP</strong>
+        </div>
+        <div style="height:8px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden">
+          <div style="height:100%;width:${Math.round((value / max) * 100)}%;background:var(--accent)"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  if (achievements) {
+    const recent = [];
+    if ((S.checkInStreak || 0) > 0) recent.push(`Racha diaria: ${S.checkInStreak}d`);
+    const doneHabits = getTodayHabits(S.habits || []).filter(h => isHabitDoneToday(h)).length;
+    if (doneHabits > 0) recent.push(`${doneHabits} hábitos completados hoy`);
+    const doneTasks = (S.tasks || []).filter(t => t.done && isToday(t.date)).length;
+    if (doneTasks > 0) recent.push(`${doneTasks} tareas cerradas hoy`);
+    achievements.innerHTML = (recent.length ? recent : ['Completa una acción para desbloquear logros.'])
+      .map(item => `<div style="padding:10px 12px;border:1px solid var(--border);border-radius:10px;color:var(--text2);font-size:12px">${escHtml(item)}</div>`)
+      .join('');
+  }
+}
+
 const LEADERBOARD_DATA = [
   {alias:'WM_OS',nivel:4,xp:920,racha:7},{alias:'AlphaX',nivel:3,xp:870,racha:5},
   {alias:'DriveOS',nivel:3,xp:810,racha:4},{alias:'NovaMind',nivel:3,xp:760,racha:6},
@@ -5635,7 +5795,7 @@ function renderWrapped() {
   const year = new Date().getFullYear();
   const daysInMonth = new Date(year, mesIdx+1, 0).getDate();
   const firstDay = new Date(year, mesIdx, 1).getDay(); // 0=Dom
-  const DAYS = ['D','L','M','X','J','V','S'];
+  const DAYS = ['D','L','M','M','J','V','S'];
   const accent = S.accent || '#00e5ff';
   const hex = accent.replace('#','');
   const r = parseInt(hex.slice(0,2),16)||0, g = parseInt(hex.slice(2,4),16)||229, b = parseInt(hex.slice(4,6),16)||255;
@@ -5702,6 +5862,7 @@ function procesarPago() {
   const priceId = selectedPlan === 'estudiante'
     ? STRIPE_PRICE_ESTUDIANTE
     : STRIPE_PRICE_GENERAL;
+  track('payment_started', { plan: selectedPlan, price_id: priceId });
 
   closeModal('modal-pago');
   showToast('⏳ Redirigiendo a pago seguro...');
@@ -6073,6 +6234,7 @@ async function doRegister() {
         notifications_enabled: false,
       });
       await cred.user.updateProfile({ displayName: nombre });
+      track('user_created', { method: 'email' });
       // Aplicar color elegido al estado local
       applyAccent(chosenAccent);
       // onAuthStateChanged finaliza el login
@@ -6877,6 +7039,10 @@ function runBootSequence(onComplete) {
 
 function syncCalibration() { syncCalibrationAndCheckin(); } // legacy alias
 
+function calculateCalibrationXP(energia, claridad, estabilidad) {
+  return 10 + Math.round((energia + claridad + estabilidad) / 15);
+}
+
 function syncCalibrationAndCheckin() {
   const energia   = parseInt(document.getElementById('calib-energia').value);
   const claridad  = parseInt(document.getElementById('calib-claridad').value);
@@ -6891,12 +7057,12 @@ function syncCalibrationAndCheckin() {
   const yaHizoCheckin = !!S.dailyCheckIn[key];
   S.dailyCheckIn[key] = true;
 
-  // XP: 15 calibración + 15 check-in (solo si no lo había hecho antes)
+  // XP dinámico: 10-30 según energía, claridad y estabilidad.
   // skipBlackout=true: check-in y calibración NO deben desactivar el Blackout (Fix 1.5)
-  const xpTotal = yaHizoCheckin ? 15 : 30;
+  const xpTotal = calculateCalibrationXP(energia, claridad, emocional);
   gainXP(xpTotal, true);
   spawnConfetti();
-  showToast(yaHizoCheckin ? '🧬 Calibración lista — +15 XP' : '⚡ +30 XP · ¡Calibrado y check-in completado!');
+  showToast(`⚡ +${xpTotal} XP · ¡Día activado!`);
 
   // Update streak + dots
   updateCheckinStreak();
@@ -7063,6 +7229,7 @@ function confirmSeedMissions() {
   });
 
   S.onboardingDone = true;
+  track('user_completed_onboarding', { mode_selected: S.visualMode });
   S.primeraSesion  = false;   // A partir de aquí el Blackout opera normalmente
   localStorage.setItem('onboardingComplete', 'true');
   gainXP(100, true);
@@ -7096,6 +7263,8 @@ const MODULE_LABELS = {
   task:      { icon:'✅', label:'Tareas'        },
   idea:      { icon:'💡', label:'Ideas Rápidas' },
 };
+
+MODULE_LABELS.habits = { icon:'+', label:'Habitos' };
 
 async function callClaudeNLP(text) {
   const key = S.claudeApiKey || '';
@@ -7135,8 +7304,12 @@ Reglas:
     const data = await res.json();
     const raw = data.content?.[0]?.text || '';
     const match = raw.match(/\{[\s\S]*\}/);
+    logAiTrace({ promptVersion:'1', featureName:'fab_nlp', rawText: raw, isValidJson: !!match, usedFallback: !match });
     return match ? JSON.parse(match[0]) : null;
-  } catch(e) { return null; }
+  } catch(e) {
+    logAiTrace({ promptVersion:'1', featureName:'fab_nlp', rawText: e.message || '', isValidJson: false, usedFallback: true });
+    return null;
+  }
 }
 
 function getNextWeekday(target) {
@@ -7189,6 +7362,7 @@ function parseLocalNLP(raw) {
   const text = raw.trim();
   const fixed = fixTypos(text);
   const lower = fixed.toLowerCase();
+  const normalized = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const result = { modules:[], correctedText:fixed };
 
   if (/^(idea|nota|apunta|sugerencia)[:\s]/i.test(lower)) {
@@ -7205,6 +7379,45 @@ function parseLocalNLP(raw) {
   const hasDate  = /\b(hoy|mañana|sábado|sabado|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|el \d{1,2}|próximo|proximo)\b/i.test(lower);
   const timeRE   = /(?:a las?|at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|hrs?)?/i;
   const timeM    = lower.match(timeRE);
+  const normalizedHasCalKw = /\b(agendar|junta|reunion|meeting|cita|evento|call|llamada|sesion|conferencia|presentacion|comer|cenar|dentista|doctor|vuelo|viaje|partido|concierto|ir al|gym)\b/i.test(normalized);
+
+  const gastoKeys = ['pague','gaste','compre','costo','cobre','transferi','deposite','gasto','pago'];
+  const ingresoKeys = ['gane','ingreso','recibi','deposito','pagaron','venta','vendi'];
+  const agendaKeys = ['junta','reunion','cita','meeting','evento','llamada','sesion','conferencia','presentacion'];
+  const habitoKeys = ['habito','complete','hice','practique','ejercicio','meditacion','medite','entrene','corri','cori','bebi','agua','dormi','gym','gimnasio'];
+
+  if (habitoKeys.some(k => normalized.includes(k)) && !gastoKeys.some(k => normalized.includes(k)) && !ingresoKeys.some(k => normalized.includes(k))) {
+    result.modules.push('habits');
+    result.habit = { name: fixed.replace(/^(complete|complete|hice|practique)\s+(mi\s+)?/i, '').trim() || fixed };
+    return result;
+  }
+
+  if (ingresoKeys.some(k => normalized.includes(k)) && hasAmount) {
+    const amtM = lower.match(amountRE);
+    const amount = parseFloat((amtM?.[1] || '0').replace(/,/g,''));
+    const desc = fixed.replace(amountRE,'').trim() || 'ingreso';
+    result.modules.push('financial');
+    result.financial = { amount, desc, type:'entrada' };
+    return result;
+  }
+
+  if (gastoKeys.some(k => normalized.includes(k)) && !hasAmount) {
+    result.modules.push('financial');
+    result.financial = { amount:0, desc:fixed, type:'salida' };
+    return result;
+  }
+
+  if (ingresoKeys.some(k => normalized.includes(k)) && !hasAmount) {
+    result.modules.push('financial');
+    result.financial = { amount:0, desc:fixed, type:'entrada' };
+    return result;
+  }
+
+  if (agendaKeys.some(k => normalized.includes(k)) && !normalizedHasCalKw) {
+    result.modules.push('calendar');
+    result.calendar = { text:fixed, date:parseRelativeDate(fixed), time:'' };
+    return result;
+  }
 
   if (hasFinKw && hasAmount && hasDate) {
     const amtM  = lower.match(amountRE);
@@ -7226,7 +7439,7 @@ function parseLocalNLP(raw) {
     return result;
   }
 
-  if (hasCalKw || (hasDate && timeM)) {
+  if (hasCalKw || normalizedHasCalKw || (hasDate && timeM)) {
     let eventText = fixed;
     let timeStr = '';
     if (timeM) {
@@ -7285,6 +7498,9 @@ function parseFABPreview(raw) {
     const d = p.calendar?.date ? ` · ${formatChipDate(p.calendar.date)}` : '';
     const t = p.calendar?.time ? ` ${p.calendar.time}` : '';
     prev.textContent=`📅 "${p.calendar?.text||''}"${d}${t} → Calendario`;
+  } else if (p.modules.includes('habits')) {
+    prev.className='fab-preview task';
+    prev.textContent=`+ Habito: "${p.habit?.name || p.correctedText || ''}" -> Habitos`;
   } else if (p.modules.includes('idea')) {
     prev.className='fab-preview idea';
     prev.textContent=`💡 "${p.idea?.text||''}" → Ideas Rápidas`;
@@ -7306,6 +7522,7 @@ async function executeFAB() {
   closeModal('modal-fab-console');
   if (btn) { btn.textContent='⚡ Ejecutar'; btn.disabled=false; }
   _applyFABResult(p);
+  track('quick_capture_created', { capture_type: (p.modules || [])[0] || 'unknown', fallback_used: !!p.isLocal });
   guardarDatos();
   updateGlobalCore();
   if (typeof renderMorningBriefing === 'function') renderMorningBriefing();
@@ -7315,7 +7532,7 @@ function _applyFABResult(p) {
   const routed = [];
   for (const mod of (p.modules||[])) {
     if (mod==='financial' && p.financial) {
-      S.transactions.unshift({ id:uid(), type:'salida', scope:'personal',
+      S.transactions.unshift({ id:uid(), type:p.financial.type || 'salida', scope:'personal',
         category:'Otro', amount:p.financial.amount,
         desc:p.financial.desc, date:today(), cuotas:false });
       if (typeof updateFinancialDisplay==='function') updateFinancialDisplay();
@@ -7333,6 +7550,15 @@ function _applyFABResult(p) {
       if (typeof renderTasks==='function') renderTasks();
       if (typeof updateDashboardTaskCount==='function') updateDashboardTaskCount();
       routed.push({ mod:'task', detail:(p.task.name||'').substring(0,22) });
+    }
+    if (mod==='habits') {
+      const habitName = (p.habit?.name || p.correctedText || '').trim();
+      if (habitName) {
+        S.habits.push({ id:uid(), name:habitEmoji(habitName) + ' ' + habitName, streak:1, completedToday:true, lastCompletedDate:today(), history:[today()] });
+        gainXP(25);
+        if (typeof renderHabits==='function') renderHabits();
+        routed.push({ mod:'habits', detail:habitName.substring(0,22) });
+      }
     }
     if (mod==='idea') {
       if (!S.ideas) S.ideas=[];
@@ -7356,7 +7582,7 @@ function showFABChip(routed, modules) {
     return `${m.icon} ${m.label}${r.detail ? ' — ' + r.detail : ''}`;
   });
   labelEl.innerHTML = `${parts.join(' · ')} <span class="chip-check">✓</span>`;
-  const allMods = ['task','calendar','financial','idea'];
+  const allMods = ['task','calendar','financial','habits','idea'];
   const opts = allMods.filter(m => !modules.includes(m));
   menu.innerHTML = opts.map(m => {
     const info = MODULE_LABELS[m];
@@ -7698,8 +7924,27 @@ function isOnboardingIncomplete() {
   return !(S.onboardingDone || (S.tasks && S.tasks.length > 0));
 }
 
+function getCreatedAtMs() {
+  const created = S.createdAt || S.created_at || S.trialStart || S.planActivedAt;
+  if (!created) return 0;
+  if (typeof created === 'number') return created;
+  if (created?.toMillis) return created.toMillis();
+  if (created?.seconds) return created.seconds * 1000;
+  const parsed = Date.parse(created);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isNewUserForBlackout() {
+  const xpHistory = S.xpHistory || {};
+  const hasXpHistory = Array.isArray(xpHistory) ? xpHistory.length > 0 : Object.keys(xpHistory).length > 0;
+  const hasHistory = hasXpHistory || (S.totalXP > 0) || ((S.habits || []).filter(h => !h.deleted).length > 0);
+  const createdAtMs = getCreatedAtMs();
+  const accountAgeDays = createdAtMs ? (Date.now() - createdAtMs) / 86400000 : 0;
+  return !hasHistory || accountAgeDays < 3;
+}
+
 function canShowBlackoutOverlay() {
-  return !isOnboardingIncomplete() && (S.plan === 'pro' || S.isPro || S.is_pro);
+  return !isOnboardingIncomplete() && !isNewUserForBlackout() && (S.plan === 'pro' || S.isPro || S.is_pro);
 }
 
 function buildBlackoutCTA() {
@@ -7759,6 +8004,24 @@ function setBlackoutOverlay(active) {
     setTimeout(() => { if (!overlay.classList.contains('show')) overlay.remove(); }, 220);
   }
   syncBodyScrollLock();
+}
+
+function renderBlackoutInlineWidget(active) {
+  const existing = document.getElementById('blackout-inline-widget');
+  if (!active) { existing?.remove(); return; }
+  const host = document.getElementById('panel-analisis') || document.querySelector('#page-dashboard .grid') || document.getElementById('content');
+  if (!host) return;
+  const html = `
+    <div id="blackout-inline-widget" class="blackout-inline-widget">
+      <div class="blackout-inline-icon">!</div>
+      <div>
+        <div class="blackout-inline-title">${document.body.dataset.mode === 'aura' ? 'Flujo interrumpido' : 'System blackout'}</div>
+        <div class="blackout-inline-copy">Tu Nucleo esta en 0%. Completa un habito o tarea para reactivar el dia.</div>
+      </div>
+      ${buildBlackoutCTA()}
+    </div>`;
+  if (existing) { existing.outerHTML = html; return; }
+  host.insertAdjacentHTML('afterbegin', html);
 }
 
 function updateGlobalCore() {
@@ -7948,10 +8211,11 @@ function updateGlobalCore() {
   // ── SYSTEM BLACKOUT ──────────────────────────────
   const enRecuperacionCheck = S.modoRecuperacion && S.modoRecuperacionFecha === today();
   const shouldBlackout = state === 'blackout' && !enRecuperacionCheck && canShowBlackoutOverlay();
+  renderBlackoutInlineWidget(shouldBlackout);
   if (shouldBlackout) {
-    setBlackoutOverlay(true);
-    if (!document.body.classList.contains('blackout')) {
-      document.body.classList.add('blackout');
+    setBlackoutOverlay(false);
+    if (S._blackoutPenaltyDate !== todayStr) {
+      S._blackoutPenaltyDate = todayStr;
       S.xp = Math.max(0, S.xp - 50);
       updateXP();
       showToast('⚠️ SYSTEM BLACKOUT — −50 XP · Núcleo al 0%');
@@ -7959,6 +8223,7 @@ function updateGlobalCore() {
   } else if (!shouldBlackout) {
     document.body.classList.remove('blackout');
     setBlackoutOverlay(false);
+    renderBlackoutInlineWidget(false);
   }
 
   // ── WEEKLY BONUS ─────────────────────────────────
@@ -10176,7 +10441,7 @@ function openRoomShop() {
   if (!el) { showToast('Tienda no disponible en este momento'); return; }
   el.classList.add('open');
   const xpEl = document.getElementById('shop-exp-display');
-  if (xpEl) xpEl.textContent = S.xp || 0;
+  if (xpEl) xpEl.textContent = S.coins || 0;
   syncBodyScrollLock();
 }
 
@@ -10207,7 +10472,7 @@ function renderShop() {
     tiers[tier].forEach(room => {
       const unlocked  = S.unlockedRooms.includes(room.id);
       const equipped  = S.equippedRoom === room.id;
-      const canAfford = (S.xp || 0) >= room.precio;
+      const canAfford = (S.coins || 0) >= room.precio;
       const free      = room.precio === 0;
       const imgSrc    = ROOM_IMAGES[room.id] || '';
 
@@ -10218,10 +10483,10 @@ function renderShop() {
         btnHtml = `<button class="room-btn room-btn-equip" onclick="equipRoom('${room.id}')">🏠 Equipar</button>`;
       } else if (canAfford) {
         btnHtml = `<button class="room-btn room-btn-unlock" onclick="unlockRoom('${room.id}',${room.precio})">
-          🔓 Desbloquear · ${room.precio.toLocaleString()} XP</button>`;
+          🔓 Desbloquear · ${room.precio.toLocaleString()} coins</button>`;
       } else {
         btnHtml = `<button class="room-btn room-btn-locked" disabled>
-          🔒 ${room.precio.toLocaleString()} XP</button>`;
+          🔒 ${room.precio.toLocaleString()} coins</button>`;
       }
 
       html += `
@@ -10242,7 +10507,7 @@ function renderShop() {
   });
 
   container.innerHTML = html;
-  document.getElementById('shop-exp-display').textContent = (S.xp||0).toLocaleString();
+  document.getElementById('shop-exp-display').textContent = (S.coins||0).toLocaleString();
 }
 
 /* ── Equip a room (already unlocked) ── */
@@ -10261,13 +10526,13 @@ function equipRoom(roomId) {
 /* ── Unlock + equip a room ── */
 function unlockRoom(roomId, precio) {
   initRoomShopState();
-  if ((S.xp||0) < precio) { showToast('❌ XP insuficiente'); return; }
-  S.xp -= precio;
+  if ((S.coins||0) < precio) { showToast('Coins insuficientes'); return; }
+  S.coins -= precio;
   S.unlockedRooms.push(roomId);
   updateXP();
   guardarDatos();
   equipRoom(roomId);
-  showToast(`🔓 ¡Habitación desbloqueada! −${precio.toLocaleString()} XP`);
+  showToast(`Habitacion desbloqueada -${precio.toLocaleString()} coins`);
   S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
   const rcard = document.getElementById(`rcard-${roomId}`);
   if (rcard) { rcard.classList.add('unlock-glow'); setTimeout(() => rcard.classList.remove('unlock-glow'), 1200); }
@@ -10909,6 +11174,7 @@ function _preparePaymentWindow() {
 async function irAPagarStripe() {
   closeModal('modal-pago');
   showToast('🔐 Preparando sesión de pago...');
+  track('payment_started', { plan: 'general', price_id: STRIPE_PRICE_GENERAL });
   // ⚠️ DEBE llamarse antes de cualquier await (contexto síncrono del click)
   const openUrl = _preparePaymentWindow();
   if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
@@ -10994,6 +11260,7 @@ async function verificarEmailEstudiante() {
 
 async function irAPagarStripeEstudiante(emailEstudiantil) {
   const openUrl = _preparePaymentWindow();
+  track('payment_started', { plan: 'estudiante', price_id: STRIPE_PRICE_ESTUDIANTE });
   if (CLOUD_ENABLED && _functions && _auth?.currentUser) {
     try {
       const createSession = _functions.httpsCallable('createStripeCheckoutSession');
@@ -11437,6 +11704,7 @@ function addTask() {
   const _cat = _categorizarTarea(_cor);
   const _emo = _tareaEmoji(_cor);
   S.tasks.unshift({ id:uid(), name:_emo+' '+_cor, desc:document.getElementById('t-desc')&&document.getElementById('t-desc').value||'', date:document.getElementById('t-date')&&document.getElementById('t-date').value||'', time:document.getElementById('t-time')&&document.getElementById('t-time').value||'', done:false, categoria:_cat, originalInput:_raw });
+  track('task_created', { source: 'manual' });
   ['t-name','t-desc'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   showToast(_emo + ' Tarea creada · ' + _cat);
   renderTasks(); updateDashboardTaskCount && updateDashboardTaskCount(); updateGlobalCore && updateGlobalCore(); guardarDatos();
@@ -11867,12 +12135,18 @@ async function activateGemeloAnalysis() {
     </div>`;
 
   try {
+    const startTs = Date.now();
+    track('ai_action_started', { feature_name: 'gemelo', prompt_version: (typeof GEMELO_PROMPT_V !== 'undefined' ? GEMELO_PROMPT_V : '1') });
     const fn = _functions.httpsCallable('generateGemeloAnalysis');
-    await fn({});
+    const result = await fn({});
+    track('ai_action_completed', { feature_name: 'gemelo', latency_ms: Date.now() - startTs });
+    logAiTrace({ promptVersion: (typeof GEMELO_PROMPT_V !== 'undefined' ? GEMELO_PROMPT_V : '1'), featureName: 'gemelo', rawText: JSON.stringify(result?.data || {}) });
     // Cargar y mostrar el análisis generado
     await loadGemeloData();
   } catch(e) {
     console.error('[Life OS] generateGemeloAnalysis:', e);
+    track('ai_action_failed', { feature_name: 'gemelo', error_code: e.code || 'unknown', fallback_used: true });
+    logAiTrace({ promptVersion: (typeof GEMELO_PROMPT_V !== 'undefined' ? GEMELO_PROMPT_V : '1'), featureName: 'gemelo', rawText: e.message || '', isValidJson: false, usedFallback: true });
     showToast('⚠️ No se pudo conectar con el Gemelo. Mostrando análisis local.');
     g.state = 'activated';
     guardarDatos();
@@ -12594,6 +12868,7 @@ function _buildPaywallHookText() {
  */
 function showPaywallLockdown() {
   if (document.getElementById('paywall-lockdown') || S.plan === 'pro') return;
+  track('paywall_viewed', { trigger: 'lockdown' });
 
   // ── Inyectar CSS una sola vez ──
   if (!document.getElementById('paywall-lockdown-css')) {
@@ -12774,6 +13049,7 @@ function showPaywallLockdown() {
 async function paywallTriggerPayment() {
   const btn = document.querySelector('.pwl-cta');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando acceso seguro...'; }
+  track('payment_started', { plan: 'general', price_id: STRIPE_PRICE_GENERAL });
 
   // ⚠️ DEBE llamarse antes de cualquier await (contexto síncrono del click)
   const openUrl = _preparePaymentWindow();
