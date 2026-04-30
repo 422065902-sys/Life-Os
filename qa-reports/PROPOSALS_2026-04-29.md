@@ -7,3 +7,10 @@
 
 ---
 
+## Run: 2026-04-29_22-45.md
+
+- [ ] [BUG] FAB / NLP: El Procesamiento de Lenguaje Natural (NLP) del FAB clasifica incorrectamente entradas financieras como tareas. | EVIDENCIA: Reportes `2026-04-29_22-45.md`, `..._22-15.md`, `..._20-53.md`. Input: "gasoline 500 para el carro" → preview: "✅ Tarea...". Input: "me pagaron 1500 del cliente" → preview: "✅ Tarea...". | CAUSA PROBABLE: El modelo de intención o las reglas de clasificación en la función `processNLPInput()` no priorizan correctamente los keywords financieros ("gasolina", "pagué", "pagaron") o la presencia de montos numéricos. | SOLUCIÓN: Ajustar la lógica de `processNLPInput()` para que keywords de gasto/ingreso tengan mayor peso que la estructura genérica de una frase. Si detecta un número junto a un keyword financiero, debe clasificarlo como `Finanzas` por defecto. | PLATAFORMA: TODAS | PERFORMANCE: BAJO | REDUCED MOTION: N/A | PRIORIDAD: ALTA | CATEGORÍA: MICRO | CONFIANZA: ALTA
+- [ ] [BUG] MENTE / BIBLIOTECA: El tab "Biblioteca" en el módulo Mente & Poder no muestra su contenido; en su lugar, renderiza el contenido del tab "Gemelo". | EVIDENCIA: `15-mente-biblioteca_fold.jpg` es idéntica a `09-gemelo
+
+---
+
