@@ -19,22 +19,119 @@
 - [x] Batch 9B — P1 Quick wins: iOS safe-area + Landing CTA + moneda World + Android logout
 - [x] Batch 9C — UX/Gamificación: framing scores + validaciones + identidad visual
 - [x] Batch 10 — Fixes onboarding/UI · commit `03fb3c69` · staging validado con QA Playwright (2026-04-30)
-- [ ] Batch 11 — PENDIENTE: correr baseline Gemini post-Batch 10 y determinar nuevos fixes
+- [ ] Batch 11 — Conversión + Confianza + Retención · baseline Gemini 2.5 Pro 2026-04-30 · 62 propuestas
 
-## INFRAESTRUCTURA — sesión 11 (2026-05-01)
+## INFRAESTRUCTURA — sesión 13 (2026-04-30)
 
 Firebase `centro-ops-ecosistema` operativo:
-- Tablero live: https://centro-ops-ecosistema.web.app
-- Firestore: colección `status/` — `lifeos-qa` + `centro-ops`
-- `runner.js` Life OS: escribe a Firestore al terminar (sync al VPS pendiente — ver CLAUDE.md)
-- `runner.js` Centro Ops: escribe a Firestore al terminar ✅ operativo
+- Tablero live: https://centro-ops-ecosistema.web.app ✅ Live Status en tiempo real vía Firestore onSnapshot
+- Firestore rules: `status/*` allow read: if true — `firestore.rules` creado y desplegado
+- `runner.js` Life OS: escribe a Firestore al terminar ✅ confirmado operativo
+- Modelos Gemini: `analyze-deep.js` → `GEMINI_MODEL_DEEP` (default: `gemini-2.5-pro`) | `analyze.js` → `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- Para cambiar modelo sin tocar código: editar `/opt/openclaw/.env`
 
-**Primer paso próxima sesión:**
-```bash
-# Sync runner Life OS al VPS
-cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
-# Luego correr el pipeline completo
-cd /opt/openclaw && node runner.js --deep
+**Baseline post-Batch 10 (2026-04-30):** 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
+
+---
+
+## BATCH 11 — Conversión + Confianza + Retención
+> Fuente: analyze-deep.js baseline 2026-04-30 · Gemini 2.5 Pro · 62 propuestas
+> Archivos: `main.js` + `styles.css`
+> Solo staging — prod NO se toca
+
+### GRUPO A — Conversión (esfuerzo 1, impacto catastrófico si no se arregla)
+
+#### [A-1] Landing mobile: hero "above the fold" roto — CRÍTICO
+El titular, propuesta de valor y CTA principal son invisibles en mobile sin scroll. Fuga de conversión total.
+```css
+/* styles.css — dentro del breakpoint @media (max-width: 767px) */
+.lp-hero-img-container { display: none; }
+.lp-hero-content { text-align: center; align-items: center; }
+```
+
+#### [A-2] Touch targets nav mobile demasiado pequeños (< 44px)
+```css
+@media (max-width: 767px) {
+  .lp-nav .btn { padding: 10px 16px; min-height: 44px; font-size: 15px; }
+}
+```
+
+#### [A-3] Copy subtítulo hero genérico
+En `main.js`, función que renderiza landing, reemplazar subtítulo:
+```
+DESPUÉS: "Life OS convierte tus hábitos, finanzas y metas en un RPG épico. Gana XP, sube de nivel con tu Gemelo IA y compite con amigos en un mundo que evoluciona contigo."
+```
+
+---
+
+### GRUPO B — Confianza (bugs que destruyen credibilidad)
+
+#### [B-1] "Hábito sin nombre" — falta validación de input vacío
+En `main.js`, función `_handleCreateHabit()` (o equivalente):
+```js
+const habitName = document.querySelector('#new-habit-input')?.value?.trim();
+if (!habitName) { showToast('El nombre del hábito no puede estar vacío.'); return; }
+// Deshabilitar botón "+ Agregar" si input vacío:
+inputEl.addEventListener('input', () => { addBtn.disabled = !inputEl.value.trim(); });
+```
+
+#### [B-2] Contador "HOY 0/55" desmotivador — solo hábitos del día
+En `main.js`, `_renderHabitStats()` o `renderHabits()`:
+```js
+// denominador = solo hábitos programados para HOY, no el total histórico
+const todayHabits = allHabits.filter(h => isScheduledForToday(h));
+// "HOY X/Y" donde Y = todayHabits.length
+```
+
+#### [B-3] Racha semanal: "X" para Miércoles — typo
+En `main.js`, buscar el array de iniciales de días:
+```js
+// ANTES: ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+const DAY_INITIALS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+```
+
+#### [B-4] Stats/Análisis: texto desbordado + layout colapsado (< 30% espacio usado)
+```css
+/* styles.css */
+.module-description p { overflow-wrap: break-word; max-width: 100%; }
+.stats-grid, #panel-analisis .ui-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(12, 1fr);
+}
+```
+En `main.js`, `renderStatsModule()`: agregar cards al grid — "Racha heatmap", "XP por módulo (pie)", "Logros Recientes".
+
+#### [B-5] Biblioteca tab muestra contenido de Gemelo — bug de routing
+En `main.js`, verificar `renderMenteTab(tab)`: tab "Biblioteca" debe llamar `_renderBibliotecaContent()`, no `_renderGemeloContent()`.
+
+---
+
+### GRUPO C — Retención (gamificación que se siente viva)
+
+#### [C-1] Completar hábito: feedback estático, sin celebración
+En `main.js`, `toggleHabit()` o `_handleCompleteHabit()`:
+```js
+habitBar.style.transition = 'width 0.3s ease-out';
+showFloatingXP(habitEl, '+25 XP');  // float texto hacia arriba
+emitBurst(habitEl);                 // confetti/orbs — ya implementado, conectar aquí
+```
+
+#### [C-2] Dashboard: "137 tareas pendientes" → solo tareas críticas de hoy (máx 5)
+En `main.js`, `_getDashboardSummary()` o `renderDashboard()`:
+```js
+const todayTasks = allTasks
+  .filter(t => !t.done && isToday(t.dueDate))
+  .sort((a, b) => b.priority - a.priority)
+  .slice(0, 5);
+// Label: "5 tareas críticas hoy" en lugar de "137 pendientes"
+```
+
+#### [C-3] Calibración: CTA genérico + XP fijo
+```js
+// CTA: "Sincronizar y comenzar el día" → "¡ACTIVAR MI DÍA!"
+function calculateCalibrationXP(energia, claridad, estabilidad) {
+  return 10 + Math.round((energia + claridad + estabilidad) / 15); // 10–30 XP dinámico
+}
 ```
 
 ---

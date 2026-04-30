@@ -184,13 +184,13 @@ userDirectory/{uid}:
 
 ## ESTADO ACTUAL
 - ✅ runner.js --deep pipeline completo funcionando
-- ✅ analyze-deep.js: Gemini 2.0 Flash, prompts base ORIGINAL-GEMINI, sin cap screenshots por grupo
+- ✅ analyze-deep.js: Gemini 2.5 Pro (configurable via GEMINI_MODEL_DEEP en .env), prompts ORIGINAL-GEMINI, sin cap screenshots
 - ✅ analyze-deep.js: health regex flexible — no depende del emoji 💊
 - ✅ analyze-deep.js: Bento Grid 2026 — dimensión 6 por grupo + veredictos BENTO/WEB/iOS/MOTION en síntesis
 - ✅ analyze-deep.js: roles nuevos — Living Data Strategist + Adaptive Bento Layout Strategist
 - ✅ analyze-deep.js: 25+ tipos válidos nuevos (BENTO-LAYOUT, CARD-DENSITY, LIVING-DATA, MICROINTERACTION, etc.)
 - ✅ analyze-deep.js: formato propuestas enriquecido — EVIDENCIA, PLATAFORMA, PERFORMANCE, REDUCED MOTION, CONFIANZA
-- ✅ analyze.js: Gemini 2.0 Flash, mismos roles y veredictos que analyze-deep.js
+- ✅ analyze.js: Gemini 2.5 Flash (configurable via GEMINI_MODEL en .env), mismos roles y veredictos
 - ✅ analyze.js: PLATAFORMA + PERFORMANCE + REDUCED MOTION en propuestas
 - ✅ PWA offline: firebase-messaging-sw.js tiene install/activate/fetch handlers
 - ✅ Bento Grid CSS: .module-bento-grid 12col + .bento-compact/medium/wide/large/full/tall en styles.css
@@ -215,6 +215,12 @@ userDirectory/{uid}:
 - ✅ Codex Batch 6 completado — push notifications scheduling (8am/8pm/9pm), blackout emocional + ember particles, racha danger badge topbar, hero banner con datos reales
 - ✅ Codex Batch 7 completado — Gemelo CTA activación, onboarding recompensa emitBurst/awardXP, bottom nav dinámico por uso
 - ✅ Codex Batch 8 completado — Flow scroll/heatmap/ideas, Cuerpo empty states, Mente empty states, World leaderboard/shop, Settings toggle init, Mobile safe-area
+- ✅ Codex Batch 9A/9B/9C completados — P0 conversión, quick wins iOS/Android, UX/gamificación
+- ✅ Codex Batch 10 completado — onboarding/UI · commit `03fb3c69` · staging validado QA Playwright
+- ✅ Centro Ops tablero Live Status: Firestore onSnapshot en tiempo real — funciona en Chrome/HTTPS
+- ✅ Gemini model configurable via .env: GEMINI_MODEL_DEEP (deep) / GEMINI_MODEL (light)
+- ✅ Baseline QA post-Batch 10: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
+- ✅ Batch 11 definido en CODEX_NEXT_SESSION.md — 3 grupos: Conversión · Confianza · Retención
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
 
 ## FLUJO RECOMENDADO
@@ -303,12 +309,41 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-30 (sesión 13)
-- Telegram bridge "Chief of Staff" construido y desplegado en pm2 — commit `d573127b`
-- Baseline post-Batch 10 lanzado (`node runner.js --deep`) — reporte pendiente de revisión
-- TMDB API: decisión tomada → usar personal use key (actualizar a comercial cuando haya revenue)
-- Spotify + demo@mylifeos.lat: pendientes para próxima sesión
-- Firebase `centro-ops` completado (sesión 11)
+- Fecha: 2026-04-30 (sesión 14)
+- Gemini model deprecado corregido: `gemini-2.0-flash-001` → `gemini-2.5-pro` (deep) / `gemini-2.5-flash` (light)
+- Modelo configurable via `.env`: `GEMINI_MODEL_DEEP` y `GEMINI_MODEL` — commits `b7022d49` + `a98495ae`
+- Centro Ops tablero Live Status activado: `firestore.rules` creado + `firebase deploy` → onSnapshot en tiempo real
+- Baseline QA post-Batch 10 corrido: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
+- Batch 11 definido en CODEX_NEXT_SESSION.md — 3 grupos: Conversión · Confianza · Retención
+
+### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
+1. **Ejecutar Batch 11** — está listo en CODEX_NEXT_SESSION.md con código exacto para Codex
+   - Grupo A: Landing mobile hero + touch targets + copy (esfuerzo mínimo, impacto máximo)
+   - Grupo B: Validaciones + routing Biblioteca + Stats layout + typo racha
+   - Grupo C: XP burst hábitos + dashboard tareas hoy + calibración gamificada
+2. **Deploy a staging** después de Batch 11 y correr `node runner.js --deep` para validar
+3. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true (usuario para mockup iPhone)
+4. **Actualizar tablero Centro Ops** — quitar GEMINI_API_KEY del BLOQUEANTE ACTIVO (resuelto)
+
+### Cambios sesión 2026-04-30 (sesión 14)
+
+#### Gemini model fix + configurable via .env
+- `gemini-2.0-flash-001` deprecado por Google → actualizado a `gemini-2.5-pro` (deep) / `gemini-2.5-flash` (light)
+- `GEMINI_MODEL_DEEP` y `GEMINI_MODEL` en `/opt/openclaw/.env` — scripts usan default si no están
+- Commits: `b7022d49` (model fix) + `a98495ae` (configurable)
+
+#### Centro Ops tablero — Live Status en tiempo real
+- Problema: Edge bloqueaba Firebase en `file://` y en HTTPS por Tracking Prevention
+- Fix: `firestore.rules` creado en repo centro-operaciones + `firebase.json` actualizado
+- `firebase deploy --project centro-ops-ecosistema` → reglas desplegadas
+- onSnapshot en Chrome funciona: LIFE OS QA y CENTRO OPS status en tiempo real
+
+#### Baseline QA post-Batch 10 analizado
+- Runner: 165 ✅ / 1 ❌ / 213 tests
+- analyze-deep.js: 62 propuestas (1 crítica: landing mobile hero, 53 altas)
+- Patrón sistémico: layouts quebradizos + estado inconsistente + gamificación superficial
+- Módulo más urgente: Stats/Análisis (inutilizable, < 30% espacio usado)
+- Landing mobile: hero "above the fold" invisible = fuga de conversión catastrófica
 
 ### Cambios sesión 2026-05-01 (sesión 11)
 
