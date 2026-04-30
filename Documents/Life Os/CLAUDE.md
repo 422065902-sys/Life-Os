@@ -303,8 +303,11 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-30 (sesión 12)
-- Batch 10 cerrado: commit `03fb3c69` — fixes onboarding/UI, staging validado con QA Playwright
+- Fecha: 2026-04-30 (sesión 13)
+- Telegram bridge "Chief of Staff" construido y desplegado en pm2 — commit `d573127b`
+- Baseline post-Batch 10 lanzado (`node runner.js --deep`) — reporte pendiente de revisión
+- TMDB API: decisión tomada → usar personal use key (actualizar a comercial cuando haya revenue)
+- Spotify + demo@mylifeos.lat: pendientes para próxima sesión
 - Firebase `centro-ops` completado (sesión 11)
 
 ### Cambios sesión 2026-05-01 (sesión 11)
@@ -323,22 +326,41 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - Commits: `5564d4e` (código) + `bcfa2bf` (config real) en repo centro-operaciones
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. **Activar GEMINI_API_KEY en el VPS** — bloqueante principal:
+1. **Revisar reporte baseline post-Batch 10** — ya corrió, leer DEEP report y decidir si hay Batch 11
+2. **TMDB API Key** — obtener en `themoviedb.org/settings/api` → personal use → pegar en Settings → APIs de la app
+3. **Spotify** — pendiente:
+   - Crear app en `developer.spotify.com/dashboard`
+   - Redirect URI: `https://mylifeos-staging.web.app/spotify-callback`
+   - Agregar Client ID en Settings → APIs de la app
+   - Client Secret en VPS: `firebase functions:config:set spotify.client_id="..." spotify.client_secret="..."`
+4. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true (usuario para mockup iPhone)
+5. **Telegram bridge** — sync del bridge expandido al VPS:
    ```bash
-   # Obtener key en aistudio.google.com/apikey
-   echo 'GEMINI_API_KEY=TU_KEY_AQUI' >> /opt/openclaw/.env
+   cd /opt/openclaw/repo/lifeos && git pull origin main && \
+     cp "Documents/Life Os/scripts/telegram-bridge.js" /opt/openclaw/telegram-bridge.js && \
+     pm2 restart lifeos-tg-bridge --update-env
    ```
-2. **Correr baseline OpenClaw post-Batch 10**:
-   ```bash
-   cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
-   cd /opt/openclaw && node runner.js --deep
-   ```
-   - Primer baseline real post-Batch 10 (onboarding/UI ya corregidos)
-   - Revisar reporte y decidir si hay Batch 11
-3. **Configurar claves externas** (features sesión 7 — pendientes):
-   - TMDB API Key → https://www.themoviedb.org/settings/api
-   - Spotify App → https://developer.spotify.com/dashboard (Client ID + Secret)
-   - Redirect URI en Spotify: `https://mylifeos-staging.web.app/spotify-callback`
+
+### Cambios sesión 2026-04-30 (sesión 13)
+
+#### Telegram Bridge — "Chief of Staff"
+- Script: `scripts/telegram-bridge.js` — corre en el HOST (`/opt/openclaw/telegram-bridge.js`), NO en el contenedor
+- pm2: `lifeos-tg-bridge` — online, startup systemd configurado
+- Token: `TELEGRAM_BRIDGE_TOKEN` en `/opt/openclaw/.env`
+- Usuario autorizado: `8412757068`
+- 20 comandos: QA (`/run` `/analyze` `/status` `/log` `/report` `/errors` `/scores` `/history` `/todo` `/reset_qa`) + VPS (`/sync` `/deploy` `/git` `/diff` `/uptime`) + Centro Ops (`/dashboard` `/ruta` `/inbox` `/cola` `/proyectos` `/centrosync`)
+- ⚠️ `pm2 restart` mata el runner activo — esperar a que termine antes de reiniciar
+- Sync del bridge expandido pendiente al arrancar siguiente sesión
+
+#### Baseline post-Batch 10
+- GEMINI_API_KEY activada en VPS
+- `node runner.js --deep` lanzado — reporte pendiente de revisión
+- Primer baseline real con onboarding/UI ya corregidos
+
+#### API Keys — decisiones
+- TMDB: usar personal use key (actualizar a comercial cuando haya revenue real)
+- OMDb descartado — Poster API solo para patrons de pago
+- Spotify + demo@mylifeos.lat: pendientes próxima sesión
 
 ### Cambios sesión 2026-04-30 (sesión 9)
 
