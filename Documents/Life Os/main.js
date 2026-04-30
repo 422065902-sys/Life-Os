@@ -1240,6 +1240,7 @@ IDENTITY.aura.spawnReward = spawnAuraOrbs;
    MODAL HELPERS
 ═══════════════════════════════════════════ */
 function openModal(id) {
+  if (id === 'modal-calibration' && typeof isOnboardingIncomplete === 'function' && isOnboardingIncomplete()) return;
   document.getElementById(id).classList.add('open');
   syncBodyScrollLock();
   // Pre-fill calibration sliders with current S values
@@ -1755,7 +1756,7 @@ function renderHabits() {
   el.innerHTML = active.map(h => {
     ensureHabitBattery(h);
     const bState = getBatteryState(h.battery);
-    const bColor = { high: 'var(--accent)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
+    const bColor = { high: 'var(--flow-accent, #00ff88)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
     const dots = getLast7Days().map(d => {
       const hist = h.history || [];
       const done = Array.isArray(hist) ? hist.includes(d) : !!hist[d];
@@ -2648,10 +2649,18 @@ function buildPie(canvasId, emptyId, legendId, txs) {
     const mapKey = baseCats.includes(cat) ? cat : 'Otro';
     map[mapKey] = (map[mapKey] || 0) + amt;
   });
-  const labels = Object.keys(map), data = Object.values(map);
+  const entries = Object.entries(map).filter(([, value]) => value > 0);
+  const labels = entries.map(([label]) => label), data = entries.map(([, value]) => value);
   const total = data.reduce((a,b)=>a+b,0);
   const chartKey = canvasId==='piePersonal'?'pieP':'pieA';
   if (S.charts[chartKey]) S.charts[chartKey].destroy();
+  if (total <= 0) {
+    if (emptyEl) emptyEl.style.display='flex';
+    canvas.style.display='none';
+    if (overlay) overlay.style.display='none';
+    if (legendEl) legendEl.innerHTML='<div style="font-size:11px;color:var(--text3);padding:8px">Registra gastos mayores a $0 para ver el gráfico</div>';
+    return;
+  }
   const colors = ['#fbbf24', '#f59e0b', '#d97706', '#92400e', '#78350f'];
   S.charts[chartKey] = new Chart(canvas, {
     type:'doughnut',
@@ -4680,9 +4689,12 @@ function startExecClock() {
     const ss = String(now.getSeconds()).padStart(2,'0');
     const clockEl = document.getElementById('exec-clock');
     if (clockEl) clockEl.textContent = `${hh}:${mm}:${ss}`;
-    const mins = Math.floor((Date.now() - _sessionStartTime) / 60000);
+    const elapsed = Math.floor((Date.now() - _sessionStartTime) / 1000);
+    const eh = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+    const em = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+    const es = String(elapsed % 60).padStart(2,'0');
     const sessEl = document.getElementById('exec-session-time');
-    if (sessEl) sessEl.textContent = mins < 60 ? `${mins} min` : `${Math.floor(mins/60)}h ${mins%60}m`;
+    if (sessEl) sessEl.textContent = `${eh}:${em}:${es}`;
   }, 1000);
 }
 
@@ -6146,7 +6158,8 @@ async function loginSuccess(userObj) {
 
     const needsCalib   = S.lastCalibDate !== today();
     const needsCheckin = !S.dailyCheckIn[today()];
-    if (needsCalib || needsCheckin) {
+    const canCalibrate = !(typeof isOnboardingIncomplete === 'function' && isOnboardingIncomplete());
+    if (canCalibrate && (needsCalib || needsCheckin)) {
       document.getElementById('modal-calibration')?.setAttribute('data-mandatory', 'true');
       openModal('modal-calibration');
     }
@@ -6924,7 +6937,7 @@ function triggerCheckinIfNeeded() {
   renderCheckinDots('dashboard-ci-dots');
   // Dots inside the calibration modal are populated when it opens (via openModal hook)
   // If check-in not done yet AND calibration already done today → open unified modal anyway
-  if (!S.dailyCheckIn[key] && S.lastCalibDate === today()) {
+  if (!S.dailyCheckIn[key] && S.lastCalibDate === today() && !isOnboardingIncomplete()) {
     // Edge case: calibration was done but check-in skipped (e.g. navigated away)
     // Re-open unified modal so user can still mark the streak
     document.getElementById('modal-calibration')?.setAttribute('data-mandatory', 'true');
