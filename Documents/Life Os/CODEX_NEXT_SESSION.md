@@ -18,7 +18,8 @@
 - [x] Batch 9A — P0 Conversión: Blackout + tabs rotos + scroll (Gemini 2.5 Pro · 2026-04-30)
 - [x] Batch 9B — P1 Quick wins: iOS safe-area + Landing CTA + moneda World + Android logout
 - [x] Batch 9C — UX/Gamificación: framing scores + validaciones + identidad visual
-- [ ] Batch 10 — PENDIENTE: revisar reporte post-Batch 9 y determinar correcciones
+- [x] Batch 10 — Fixes onboarding/UI · commit `03fb3c69` · staging validado con QA Playwright (2026-04-30)
+- [ ] Batch 11 — PENDIENTE: correr baseline Gemini post-Batch 10 y determinar nuevos fixes
 
 ## INFRAESTRUCTURA — sesión 11 (2026-05-01)
 

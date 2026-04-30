@@ -303,8 +303,9 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-05-01 (sesión 11)
-- Firebase `centro-ops` completado 100%
+- Fecha: 2026-04-30 (sesión 12)
+- Batch 10 cerrado: commit `03fb3c69` — fixes onboarding/UI, staging validado con QA Playwright
+- Firebase `centro-ops` completado (sesión 11)
 
 ### Cambios sesión 2026-05-01 (sesión 11)
 
@@ -322,16 +323,18 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - Commits: `5564d4e` (código) + `bcfa2bf` (config real) en repo centro-operaciones
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. **Sync runner.js Life OS al VPS** — tiene código Firestore pero no synced:
+1. **Activar GEMINI_API_KEY en el VPS** — bloqueante principal:
+   ```bash
+   # Obtener key en aistudio.google.com/apikey
+   echo 'GEMINI_API_KEY=TU_KEY_AQUI' >> /opt/openclaw/.env
+   ```
+2. **Correr baseline OpenClaw post-Batch 10**:
    ```bash
    cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
-   ```
-2. **Correr pipeline completo** para poblar `lifeos-qa` en Firestore y revisar reporte post-Batch 9:
-   ```bash
    cd /opt/openclaw && node runner.js --deep
    ```
-   - Ver si blackout/tabs/scroll fueron corregidos (Batch 9)
-   - Si hay regresiones → nuevo batch Codex
+   - Primer baseline real post-Batch 10 (onboarding/UI ya corregidos)
+   - Revisar reporte y decidir si hay Batch 11
 3. **Configurar claves externas** (features sesión 7 — pendientes):
    - TMDB API Key → https://www.themoviedb.org/settings/api
    - Spotify App → https://developer.spotify.com/dashboard (Client ID + Secret)
