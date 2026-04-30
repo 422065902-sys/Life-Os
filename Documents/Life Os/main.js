@@ -134,6 +134,12 @@ function _buildSavePayload() {
     physWeight:S.physWeight||0,
     unlockedRooms:S.unlockedRooms||['starter_basic','starter_soft'],
     equippedRoom:S.equippedRoom||'starter_basic',
+    mediaLibrary:S.mediaLibrary||[],
+    vitrinaPrivacy:S.vitrinaPrivacy||{libros:true,cine:true,musica:true},
+    spotifyConnected:S.spotifyConnected||false,
+    spotifyTopTracks:S.spotifyTopTracks||[],
+    tmdbApiKey:S.tmdbApiKey||'',
+    spotifyClientId:S.spotifyClientId||'',
   };
   if (CLOUD_ENABLED && _db) {
     p._updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -330,6 +336,11 @@ const S = {
   bubbleColor: '',               // color de burbuja guardado en nube (Fix 2.1)
   bubbleEmoji: '',               // emoji de burbuja guardado en nube (Fix 2.1)
   friendRequests: [],            // [{id, fromUid, fromNombre, fromPublicId, toUid, sentAt, status:'pending'|'accepted'|'rejected'}]
+  // Pilar 2 — Vitrina Cultural
+  mediaLibrary: [],              // [{id, tipo:'libro'|'pelicula', titulo, autorDirector, coverUrl, mediaId, fecha, nota}]
+  vitrinaPrivacy: { libros:true, cine:true, musica:true }, // true = visible al público
+  spotifyConnected: false,
+  spotifyTopTracks: [],          // [{name, artist, albumArt, spotifyUrl}]
 };
 
 /* ── Boot-sync: sincroniza animación terminal con carga de datos de Firestore ── */
@@ -905,6 +916,121 @@ const ACCENT_PRESETS = [
   {name:'Naranja',v:'#fb923c'},{name:'Rosa',v:'#f472b6'},{name:'Oro',v:'#ffd700'},
   {name:'Coral',v:'#ff6b35'},{name:'Azul',v:'#60a5fa'}
 ];
+
+/* ═══════════════════════════════════════════════════════════════
+   PILAR 3 — ONBOARDING WIZARD PROGRESIVO
+   Steps: 1=nombre  2=email+tel  3=alias+pass  4=identity split-screen
+═══════════════════════════════════════════════════════════════ */
+let _obStep = 1;
+let _obChosenMode = 'xp';
+let _obPreviewActive = false;
+
+function obGoToStep(next) {
+  const prev = _obStep;
+  if (next === prev) return;
+  const prevEl = document.getElementById('ob-step-' + prev);
+  const nextEl = document.getElementById('ob-step-' + next);
+  if (!nextEl) return;
+
+  // Animate out current
+  if (prevEl) {
+    prevEl.classList.remove('ob-active');
+    prevEl.classList.add(next > prev ? 'ob-exit-left' : 'ob-exit-right');
+    setTimeout(() => { prevEl.classList.remove('ob-exit-left','ob-exit-right'); }, 400);
+  }
+
+  // Position next step (from the right if going forward, from left if going back)
+  nextEl.style.transform = next > prev ? 'translateX(60px)' : 'translateX(-60px)';
+  nextEl.style.opacity = '0';
+  nextEl.style.position = 'absolute';
+  // Trigger reflow
+  void nextEl.offsetWidth;
+  nextEl.style.position = '';
+  nextEl.classList.add('ob-active');
+
+  _obStep = next;
+
+  // Update progress dots
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('ob-dot-' + i);
+    if (dot) dot.classList.toggle('ob-dot-active', i === next);
+  }
+}
+
+function obNext() {
+  clearAuthErr();
+  if (_obStep === 1) {
+    const nombre = document.getElementById('reg-nombre')?.value.trim();
+    if (!nombre) { _obShake('reg-nombre'); showAuthErr('⚠️ Ingresa tu nombre'); return; }
+    obGoToStep(2);
+  } else if (_obStep === 2) {
+    const email = document.getElementById('reg-email')?.value.trim();
+    const tel   = document.getElementById('reg-tel')?.value.trim();
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { _obShake('reg-email'); showAuthErr('⚠️ Ingresa un correo válido'); return; }
+    if (!tel)  { _obShake('reg-tel'); showAuthErr('⚠️ Ingresa tu teléfono'); return; }
+    obGoToStep(3);
+  } else if (_obStep === 3) {
+    const alias = document.getElementById('reg-alias')?.value.trim();
+    const pass  = document.getElementById('reg-pass')?.value;
+    if (!alias || alias.length < 3) { _obShake('reg-alias'); showAuthErr('⚠️ El alias debe tener mín. 3 caracteres'); return; }
+    if (!pass || pass.length < 6)   { _obShake('reg-pass'); showAuthErr('⚠️ La contraseña debe tener mín. 6 caracteres'); return; }
+    clearAuthErr();
+    _obShowIdentityScreen();
+  }
+}
+
+function obPrev() {
+  if (_obStep > 1) obGoToStep(_obStep - 1);
+}
+
+function _obShake(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('ob-shake');
+  void el.offsetWidth;
+  el.classList.add('ob-shake');
+  setTimeout(() => el.classList.remove('ob-shake'), 400);
+}
+
+function _obShowIdentityScreen() {
+  const screen = document.getElementById('ob-identity-screen');
+  if (!screen) return;
+  screen.style.display = 'flex';
+  // Preview current default mode
+  _applyVisualMode('xp');
+}
+
+function obPreviewMode(mode) {
+  _obPreviewActive = true;
+  _applyVisualMode(mode);
+}
+
+function obCancelPreview() {
+  _obPreviewActive = false;
+  // Revert to the previously set mode (neutral state)
+  _applyVisualMode(S.visualMode || 'xp');
+}
+
+async function obChooseMode(mode) {
+  _obChosenMode = mode;
+  // Set accent based on chosen mode
+  const accentMap = { xp: '#00e5ff', aura: '#9B8CFF' };
+  const chosenAccent = accentMap[mode] || '#00e5ff';
+  const accentEl = document.getElementById('reg-accent');
+  if (accentEl) accentEl.value = chosenAccent;
+  applyAccent(chosenAccent);
+  _applyVisualMode(mode);
+  // Show loading overlay
+  const loading = document.getElementById('ob-id-loading');
+  if (loading) loading.style.display = 'flex';
+  // Create the account
+  await doRegister();
+}
+
+function clearAuthErr() {
+  const el = document.getElementById('auth-err');
+  if (el) el.classList.remove('show');
+}
 
 function buildAccentPresets() {
   const el = document.getElementById('accent-presets');
@@ -3762,12 +3888,28 @@ function renderBitacoraList() {
     <p style="opacity:.6;font-size:13px">Escribe tu primer pensamiento del día — tu Gemelo aprende de aquí</p>
     <button onclick="document.getElementById('bit-victoria')?.focus()" class="btn btn-a" style="margin-top:12px">+ Primera entrada</button>
   </div>`; return; }
-  el.innerHTML = S.bitacora.slice(0,5).map(b=>`
-    <div style="padding:10px 12px;border-radius:10px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.08);margin-bottom:6px">
+  el.innerHTML = S.bitacora.slice(0,8).map(b => {
+    if (b.tipo === 'libro' || b.tipo === 'pelicula') {
+      const icon = b.tipo === 'libro' ? '📚' : '🎬';
+      const coverHtml = b.coverUrl
+        ? `<img class="bit-entry-cover" src="${escHtml(b.coverUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="bit-entry-cover-ph">${icon}</div>`;
+      return `<div class="bit-entry-rich">
+        ${coverHtml}
+        <div class="bit-entry-meta">
+          <div class="bit-entry-date">${b.fecha}</div>
+          <div class="bit-entry-badge">${icon} ${b.tipo.toUpperCase()}</div>
+          <div class="bit-entry-title">${escHtml(b.titulo||'')}</div>
+          <div class="bit-entry-author">${escHtml(b.autorDirector||'')}</div>
+        </div>
+      </div>`;
+    }
+    return `<div style="padding:10px 12px;border-radius:10px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.08);margin-bottom:6px">
       <div style="font-size:10px;color:var(--text3);font-family:'Orbitron',monospace;margin-bottom:4px">${b.fecha}</div>
       ${b.victoria?`<div style="font-size:12px;margin-bottom:2px"><span style="color:var(--gold)">🏆</span> ${escHtml(b.victoria)}</div>`:''}
       ${b.leccion?`<div style="font-size:12px"><span style="color:var(--accent)">💡</span> ${escHtml(b.leccion)}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function diaDificil() {
@@ -4489,21 +4631,57 @@ function renderPoderSections(activeSection = 'bitacora') {
       key: 'bitacora',
       html: `<div class="card">
         <div class="card-title">📓 DIARIO BITÁCORA</div>
-        <div class="col" style="gap:10px;margin-bottom:14px">
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">🏆 VICTORIA DEL DÍA</div>
-            <textarea class="inp" id="bit-victoria" rows="2" placeholder="¿Cuál fue tu mayor logro hoy?" style="resize:none;line-height:1.5"></textarea>
+
+        <!-- Tipo de entrada -->
+        <div class="bit-type-tabs">
+          <button class="bit-type-tab active" id="bitt-reflexion" onclick="setBitType('reflexion')">✍️ Reflexión</button>
+          <button class="bit-type-tab" id="bitt-libro" onclick="setBitType('libro')">📚 Libro</button>
+          <button class="bit-type-tab" id="bitt-pelicula" onclick="setBitType('pelicula')">🎬 Película</button>
+        </div>
+
+        <!-- Panel: Reflexión (default) -->
+        <div id="bit-panel-reflexion">
+          <div class="col" style="gap:10px;margin-bottom:14px">
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">🏆 VICTORIA DEL DÍA</div>
+              <textarea class="inp" id="bit-victoria" rows="2" placeholder="¿Cuál fue tu mayor logro hoy?" style="resize:none;line-height:1.5"></textarea>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">💡 LECCIÓN APRENDIDA</div>
+              <textarea class="inp" id="bit-leccion" rows="2" placeholder="¿Qué aprendiste o mejorarías?" style="resize:none;line-height:1.5"></textarea>
+            </div>
           </div>
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">💡 LECCIÓN APRENDIDA</div>
-            <textarea class="inp" id="bit-leccion" rows="2" placeholder="¿Qué aprendiste o mejorarías?" style="resize:none;line-height:1.5"></textarea>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <button class="btn btn-a f1" onclick="guardarBitacora();trackPoderUsage('bitacora')">💾 Guardar +20 XP</button>
+            <button class="btn dia-dificil-btn btn f1" onclick="diaDificil()">💜 Día Difícil</button>
           </div>
         </div>
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <button class="btn btn-a f1" onclick="guardarBitacora();trackPoderUsage('bitacora')">💾 Guardar +20 XP</button>
-          <button class="btn dia-dificil-btn btn f1" onclick="diaDificil()">💜 Día Difícil</button>
+
+        <!-- Panel: Libro / Película (oculto por defecto) -->
+        <div id="bit-panel-media" style="display:none">
+          <div class="bit-media-search-wrap">
+            <input class="inp" id="bit-media-input" placeholder="Buscar título…"
+              oninput="_debouncedBitSearch(this.value)"
+              autocomplete="off"/>
+            <div class="bit-media-spinner" id="bit-media-spinner"></div>
+          </div>
+          <div class="bit-media-results" id="bit-media-results"></div>
+          <div class="bit-media-sel" id="bit-media-sel">
+            <img class="bit-media-sel-cover" id="bit-media-sel-img" src="" alt=""/>
+            <div class="bit-media-sel-info">
+              <div class="bit-media-sel-title" id="bit-media-sel-title">—</div>
+              <div class="bit-media-sel-sub" id="bit-media-sel-sub"></div>
+            </div>
+            <span class="bit-media-sel-clear" onclick="clearBitMedia()" title="Quitar selección">✕</span>
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-family:'Orbitron',monospace">📝 NOTA RÁPIDA (opcional)</div>
+            <textarea class="inp" id="bit-media-nota" rows="2" placeholder="¿Qué te pareció? ¿Qué aprendiste?" style="resize:none;line-height:1.5"></textarea>
+          </div>
+          <button class="btn btn-a" style="width:100%" onclick="guardarBitacoraMedia();trackPoderUsage('bitacora')">💾 Guardar en Vitrina +25 XP</button>
         </div>
-        <div id="bitacora-list" style="margin-top:14px;max-height:160px;overflow-y:auto"></div>
+
+        <div id="bitacora-list" style="margin-top:14px;max-height:180px;overflow-y:auto"></div>
       </div>`
     },
     {
@@ -5625,15 +5803,27 @@ function switchAuthTab(tab) {
   if (tr) tr.className = 'auth-tab ' + (tab === 'register' ? 'on' : '');
   const errEl = document.getElementById('auth-err');
   if (errEl) errEl.classList.remove('show');
-  // Ocultar advertencia de contraseña al volver al login
   if (tab === 'login') {
     const w = document.getElementById('pass-warning-reg');
     if (w) w.style.display = 'none';
   }
-  // Resetear scroll del registro al abrirlo + inicializar color picker
-  if (tab === 'register' && registerEl) {
-    registerEl.scrollTop = 0;
-    setTimeout(buildRegAccentPicker, 50);
+  // Reset wizard to step 1 when opening register
+  if (tab === 'register') {
+    _obStep = 1;
+    document.querySelectorAll('.ob-step').forEach(s => {
+      s.classList.remove('ob-active','ob-exit-left','ob-exit-right');
+    });
+    const s1 = document.getElementById('ob-step-1');
+    if (s1) s1.classList.add('ob-active');
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById('ob-dot-' + i);
+      if (dot) dot.classList.toggle('ob-dot-active', i === 1);
+    }
+    const identScreen = document.getElementById('ob-identity-screen');
+    if (identScreen) identScreen.style.display = 'none';
+    const loading = document.getElementById('ob-id-loading');
+    if (loading) loading.style.display = 'none';
+    if (registerEl) registerEl.scrollTop = 0;
   }
 }
 
@@ -5763,24 +5953,25 @@ async function doRegister() {
   if (!/\S+@\S+\.\S+/.test(email)){ showAuthErr('⚠️ Ingresa un correo válido'); return; }
 
   const btn = document.getElementById('btn-register');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando cuenta...'; }
+  // Note: btn is the step-3 "Elegir filosofía" button — we don't disable it here
+  // Loading overlay is shown by obChooseMode()
 
-  // Leer color elegido en el picker de registro
+  // Color chosen by identity screen; default cyan
   const chosenAccent = document.getElementById('reg-accent')?.value || '#00e5ff';
+  const chosenMode   = _obChosenMode || 'xp';
 
   if (CLOUD_ENABLED && _auth) {
     try {
       await _auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       const cred = await _auth.createUserWithEmailAndPassword(email, pass);
-      // Perfil en Firestore — género se guarda solo si el usuario lo eligió
       const profileData = {
         nombre, tel, email,
         plan: 'trial',
         trialStart: Date.now(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         accent: chosenAccent,
+        visualMode: chosenMode,
       };
-      // Género es dato sensible (Art. 9 LFPDPPP) — solo persiste si fue seleccionado
       if (genero) profileData.genero = genero;
       await _profileRef(cred.user.uid).set(profileData);
       // Escribir doc raíz users/{uid} con campos de acceso, trial y Stripe
@@ -5802,7 +5993,11 @@ async function doRegister() {
       applyAccent(chosenAccent);
       // onAuthStateChanged finaliza el login
     } catch(err) {
-      if (btn) { btn.disabled = false; btn.textContent = '🚀 Comenzar mis 30 días gratis'; }
+      // Hide identity screen loading on error — let user retry
+      const loading = document.getElementById('ob-id-loading');
+      if (loading) loading.style.display = 'none';
+      const identScreen = document.getElementById('ob-identity-screen');
+      if (identScreen) identScreen.style.display = 'none';
       const msg = {
         'auth/email-already-in-use':   '⚠️ Este correo ya tiene una cuenta.',
         'auth/invalid-email':           '⚠️ El correo no es válido.',
@@ -5816,7 +6011,8 @@ async function doRegister() {
     const users = JSON.parse(localStorage.getItem('lifeos_users') || '[]');
     if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
       showAuthErr('⚠️ Este correo ya está registrado');
-      if (btn) { btn.disabled = false; btn.textContent = '🚀 Comenzar mis 30 días gratis'; }
+      const identScreen = document.getElementById('ob-identity-screen');
+      if (identScreen) identScreen.style.display = 'none';
       return;
     }
     const user = {
@@ -5824,6 +6020,7 @@ async function doRegister() {
       pass: btoa(pass),
       plan: 'trial',
       trialStart: Date.now(),
+      visualMode: chosenMode,
       ...(genero ? { genero } : {}),
     };
     users.push(user);
@@ -5915,6 +6112,11 @@ async function loginSuccess(userObj) {
           const prof = profSnap.data();
           if (prof.accent && /^#[0-9a-fA-F]{6}$/.test(prof.accent)) {
             applyAccent(prof.accent);
+          }
+          // Restore visual mode saved during onboarding identity choice
+          if (prof.visualMode && (prof.visualMode === 'xp' || prof.visualMode === 'aura')) {
+            S.visualMode = prof.visualMode;
+            _applyVisualMode(prof.visualMode);
           }
           // Sincronizar nombre real al estado global para el saludo y UI
           if (prof.nombre && prof.nombre !== 'Usuario') {
@@ -12641,6 +12843,461 @@ function dismissPaywallLockdown() {
     syncBodyScrollLock();
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PILAR 2A — BITÁCORA CULTURAL (Libros + Películas)
+   Búsqueda: Google Books API (sin key) + TMDB (key configurable)
+═══════════════════════════════════════════════════════════════ */
+
+let _bitType = 'reflexion';
+let _bitMediaSelected = null;
+let _bitSearchTimer = null;
+
+function setBitType(type) {
+  _bitType = type;
+  _bitMediaSelected = null;
+
+  // Toggle tab active state
+  ['reflexion','libro','pelicula'].forEach(t => {
+    const tab = document.getElementById('bitt-' + t);
+    if (tab) tab.classList.toggle('active', t === type);
+  });
+
+  const reflexPanel = document.getElementById('bit-panel-reflexion');
+  const mediaPanel  = document.getElementById('bit-panel-media');
+  if (reflexPanel) reflexPanel.style.display = type === 'reflexion' ? '' : 'none';
+  if (mediaPanel)  mediaPanel.style.display  = type === 'reflexion' ? 'none' : '';
+
+  // Update search placeholder
+  const input = document.getElementById('bit-media-input');
+  if (input) input.placeholder = type === 'libro' ? 'Buscar libro…' : 'Buscar película…';
+
+  // Clear previous state
+  _clearBitMediaUI();
+}
+
+function _debouncedBitSearch(q) {
+  clearTimeout(_bitSearchTimer);
+  if (!q || q.length < 2) { _closeBitResults(); return; }
+  const spinner = document.getElementById('bit-media-spinner');
+  if (spinner) spinner.classList.add('active');
+  _bitSearchTimer = setTimeout(() => _runBitSearch(q), 420);
+}
+
+async function _runBitSearch(q) {
+  const spinner = document.getElementById('bit-media-spinner');
+  try {
+    let items = [];
+    if (_bitType === 'libro') {
+      items = await _searchBooks(q);
+    } else if (_bitType === 'pelicula') {
+      items = await _searchMovies(q);
+    }
+    _renderBitResults(items);
+  } catch(e) {
+    _closeBitResults();
+  } finally {
+    if (spinner) spinner.classList.remove('active');
+  }
+}
+
+async function _searchBooks(q) {
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8&fields=items(id,volumeInfo(title,authors,imageLinks,publishedDate))`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.items || []).map(item => {
+    const info = item.volumeInfo || {};
+    return {
+      mediaId:      item.id,
+      titulo:       info.title || '—',
+      autorDirector: (info.authors || []).join(', '),
+      coverUrl:     info.imageLinks?.thumbnail?.replace('http:','https:') || '',
+      tipo:         'libro',
+    };
+  });
+}
+
+async function _searchMovies(q) {
+  const tmdbKey = S.tmdbApiKey || '';
+  if (!tmdbKey) {
+    // Fallback: use open-access TMDB endpoint without personal data
+    const url = `https://api.themoviedb.org/3/search/movie?api_key=DEMO&query=${encodeURIComponent(q)}&language=es-MX&page=1`;
+    // Without a key this won't work — show a config prompt
+    showToast('⚙️ Configura tu TMDB API Key en Ajustes → APIs para buscar películas');
+    return [];
+  }
+  const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(tmdbKey)}&query=${encodeURIComponent(q)}&language=es-MX&page=1`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.results || []).slice(0,8).map(m => ({
+    mediaId:      String(m.id),
+    titulo:       m.title || m.original_title || '—',
+    autorDirector: m.release_date ? m.release_date.substring(0,4) : '',
+    coverUrl:     m.poster_path ? `https://image.tmdb.org/t/p/w185${m.poster_path}` : '',
+    tipo:         'pelicula',
+  }));
+}
+
+function _renderBitResults(items) {
+  const container = document.getElementById('bit-media-results');
+  if (!container) return;
+  if (!items.length) {
+    container.innerHTML = `<div style="padding:12px;text-align:center;font-size:12px;color:var(--text3)">Sin resultados — intenta otro título</div>`;
+    container.classList.add('open');
+    return;
+  }
+  container.innerHTML = items.map((item, i) => {
+    const imgHtml = item.coverUrl
+      ? `<img class="bit-media-thumb" src="${escHtml(item.coverUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="bit-media-thumb-ph">${item.tipo === 'libro' ? '📚' : '🎬'}</div>`;
+    return `<div class="bit-media-result-row" onclick="_selectBitMedia(${i})">
+      ${imgHtml}
+      <div>
+        <div class="bit-media-res-title">${escHtml(item.titulo)}</div>
+        <div class="bit-media-res-sub">${escHtml(item.autorDirector)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  container.dataset.items = JSON.stringify(items);
+  container.classList.add('open');
+}
+
+function _selectBitMedia(idx) {
+  const container = document.getElementById('bit-media-results');
+  if (!container) return;
+  try {
+    const items = JSON.parse(container.dataset.items || '[]');
+    _bitMediaSelected = items[idx] || null;
+  } catch(e) { return; }
+  if (!_bitMediaSelected) return;
+
+  _closeBitResults();
+
+  // Show selected preview
+  const sel = document.getElementById('bit-media-sel');
+  const img = document.getElementById('bit-media-sel-img');
+  const title = document.getElementById('bit-media-sel-title');
+  const sub   = document.getElementById('bit-media-sel-sub');
+  if (sel) sel.classList.add('visible');
+  if (img) { img.src = _bitMediaSelected.coverUrl || ''; img.style.display = _bitMediaSelected.coverUrl ? '' : 'none'; }
+  if (title) title.textContent = _bitMediaSelected.titulo;
+  if (sub)   sub.textContent   = _bitMediaSelected.autorDirector;
+}
+
+function clearBitMedia() {
+  _bitMediaSelected = null;
+  _clearBitMediaUI();
+}
+
+function _clearBitMediaUI() {
+  _closeBitResults();
+  const sel = document.getElementById('bit-media-sel');
+  if (sel) sel.classList.remove('visible');
+  const input = document.getElementById('bit-media-input');
+  if (input) input.value = '';
+  const nota = document.getElementById('bit-media-nota');
+  if (nota) nota.value = '';
+}
+
+function _closeBitResults() {
+  const container = document.getElementById('bit-media-results');
+  if (container) { container.classList.remove('open'); container.innerHTML = ''; }
+}
+
+async function guardarBitacoraMedia() {
+  if (!_bitMediaSelected) { showToast('⚠️ Selecciona un título primero'); return; }
+  const nota = document.getElementById('bit-media-nota')?.value.trim() || '';
+  const entry = {
+    id:           uid(),
+    fecha:        today(),
+    tipo:         _bitMediaSelected.tipo,
+    mediaId:      _bitMediaSelected.mediaId,
+    titulo:       _bitMediaSelected.titulo,
+    autorDirector:_bitMediaSelected.autorDirector,
+    coverUrl:     _bitMediaSelected.coverUrl,
+    nota,
+  };
+
+  // Push to bitácora (for daily log)
+  S.bitacora.unshift({ ...entry, victoria: `${entry.tipo === 'libro' ? '📚' : '🎬'} ${entry.titulo}`, leccion: nota });
+
+  // Also add/update in media library for the Vitrina
+  if (!S.mediaLibrary) S.mediaLibrary = [];
+  const existing = S.mediaLibrary.findIndex(m => m.mediaId === entry.mediaId && m.tipo === entry.tipo);
+  if (existing >= 0) S.mediaLibrary[existing] = entry;
+  else S.mediaLibrary.unshift(entry);
+
+  gainXP(25);
+  showToast(`${entry.tipo === 'libro' ? '📚' : '🎬'} ${entry.titulo} agregado a tu Vitrina +25 XP`);
+  spawnConfetti();
+
+  clearBitMedia();
+  renderBitacoraList();
+  guardarDatos();
+
+  // Sync to userDirectory so Vitrina is up to date
+  if (CLOUD_ENABLED && _auth?.currentUser) {
+    _syncMediaToDirectory(_auth.currentUser.uid).catch(() => {});
+  }
+}
+
+/* Push selected media items to userDirectory for public profile */
+async function _syncMediaToDirectory(uid) {
+  if (!CLOUD_ENABLED || !_db || !uid) return;
+  try {
+    const privacy = S.vitrinaPrivacy || { libros:true, cine:true, musica:true };
+    const libros = (S.mediaLibrary || [])
+      .filter(m => m.tipo === 'libro')
+      .slice(0,30)
+      .map(m => ({ titulo:m.titulo, autorDirector:m.autorDirector, coverUrl:m.coverUrl, mediaId:m.mediaId, fecha:m.fecha }));
+    const peliculas = (S.mediaLibrary || [])
+      .filter(m => m.tipo === 'pelicula')
+      .slice(0,30)
+      .map(m => ({ titulo:m.titulo, autorDirector:m.autorDirector, coverUrl:m.coverUrl, mediaId:m.mediaId, fecha:m.fecha }));
+
+    await _dirRef(uid).set({
+      vitrinaPrivacy: privacy,
+      ...(privacy.libros   ? { libros }    : { libros: [] }),
+      ...(privacy.cine     ? { peliculas } : { peliculas: [] }),
+      spotifyConnected: S.spotifyConnected || false,
+      ...(privacy.musica && S.spotifyTopTracks?.length
+        ? { spotifyTopTracks: S.spotifyTopTracks.slice(0,10) }
+        : { spotifyTopTracks: [] }
+      ),
+    }, { merge: true });
+  } catch(e) {
+    console.warn('[Life OS] _syncMediaToDirectory error:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PILAR 2B — VITRINA PÚBLICA (Modal)
+═══════════════════════════════════════════════════════════════ */
+
+function openMiVitrina() {
+  _renderVitrina({ uid: _auth?.currentUser?.uid, isMine: true });
+  openModal('modal-vitrina');
+}
+
+async function openPerfilPublico(uid) {
+  _renderVitrina({ uid, isMine: false });
+  openModal('modal-vitrina');
+}
+
+async function _renderVitrina({ uid: targetUid, isMine }) {
+  const titleEl = document.getElementById('vitrina-modal-title');
+  if (titleEl) titleEl.textContent = isMine ? 'MI VITRINA' : 'PERFIL';
+
+  // Show own data immediately from S, then load from Firestore
+  const nombre  = S.userName || 'Usuario';
+  const inicial = nombre.charAt(0).toUpperCase();
+  const level   = S.level || 0;
+  const xp      = S.xp || 0;
+  const streak  = S.checkInStreak || 0;
+  const pubId   = S.publicId || '—';
+
+  document.getElementById('vitrina-avatar').textContent = inicial;
+  document.getElementById('vitrina-name').textContent   = nombre;
+  document.getElementById('vitrina-pubid').textContent  = pubId;
+  document.getElementById('vitrina-xp').textContent     = xp;
+  document.getElementById('vitrina-level').textContent  = level;
+  document.getElementById('vitrina-streak').textContent = streak;
+
+  // Privacy panel: only show on own profile
+  const privPanel = document.getElementById('vitrina-privacy-panel');
+  if (privPanel) privPanel.style.display = isMine ? '' : 'none';
+
+  if (isMine) {
+    _refreshPrivacyToggles();
+    _renderVitrinaCarousels(S.mediaLibrary || [], S.spotifyTopTracks || [], S.vitrinaPrivacy || {});
+  }
+
+  // Load from Firestore if viewing someone else (or refresh own)
+  if (CLOUD_ENABLED && _db && targetUid) {
+    try {
+      const snap = await _dirRef(targetUid).get();
+      if (snap.exists) {
+        const d = snap.data();
+        if (!isMine) {
+          document.getElementById('vitrina-name').textContent   = d.nombre || '—';
+          document.getElementById('vitrina-pubid').textContent  = d.publicId || '—';
+          document.getElementById('vitrina-avatar').textContent = (d.nombre||'U').charAt(0).toUpperCase();
+        }
+        const privacy = d.vitrinaPrivacy || { libros:true, cine:true, musica:true };
+        const lib  = (d.libros || []).map(m => ({ ...m, tipo:'libro' }));
+        const pel  = (d.peliculas || []).map(m => ({ ...m, tipo:'pelicula' }));
+        const allMedia = [...lib, ...pel];
+        _renderVitrinaCarousels(allMedia, d.spotifyTopTracks || [], privacy, d.spotifyConnected);
+      }
+    } catch(e) { /* no crítico */ }
+  }
+}
+
+function _renderVitrinaCarousels(media, tracks, privacy, spotifyConnected) {
+  const libros    = media.filter(m => m.tipo === 'libro');
+  const peliculas = media.filter(m => m.tipo === 'pelicula');
+
+  // Sección Libros
+  const secLibros = document.getElementById('vitrina-sec-libros');
+  const countLib  = document.getElementById('vitrina-count-libros');
+  const carLib    = document.getElementById('carousel-libros');
+  if (secLibros) secLibros.style.display = privacy.libros === false ? 'none' : '';
+  if (countLib)  countLib.textContent = libros.length + ' libros';
+  if (carLib) {
+    carLib.innerHTML = libros.length
+      ? libros.map(m => _mediaCardHtml(m)).join('')
+      : `<div class="vitrina-empty-section"><div class="vitrina-empty-icon">📚</div>Aún no hay libros en tu vitrina.<br>Regístralos desde la Bitácora.</div>`;
+  }
+
+  // Sección Películas
+  const secCine  = document.getElementById('vitrina-sec-cine');
+  const countCin = document.getElementById('vitrina-count-cine');
+  const carCine  = document.getElementById('carousel-cine');
+  if (secCine)  secCine.style.display = privacy.cine === false ? 'none' : '';
+  if (countCin) countCin.textContent = peliculas.length + ' películas';
+  if (carCine) {
+    carCine.innerHTML = peliculas.length
+      ? peliculas.map(m => _mediaCardHtml(m)).join('')
+      : `<div class="vitrina-empty-section"><div class="vitrina-empty-icon">🎬</div>Sin películas aún.<br>Búscalas desde la Bitácora.</div>`;
+  }
+
+  // Sección Música
+  const secMusica = document.getElementById('vitrina-sec-musica');
+  if (secMusica) secMusica.style.display = privacy.musica === false ? 'none' : '';
+  _renderSpotifySection(tracks, spotifyConnected || S.spotifyConnected);
+}
+
+function _mediaCardHtml(m) {
+  const icon = m.tipo === 'libro' ? '📚' : '🎬';
+  const imgHtml = m.coverUrl
+    ? `<img class="media-card-img" src="${escHtml(m.coverUrl)}" alt="${escHtml(m.titulo)}" loading="lazy" onerror="this.style.display='none'">`
+    : `<div class="media-card-ph">${icon}</div>`;
+  return `<div class="media-card">
+    ${imgHtml}
+    <div class="media-card-title">${escHtml(m.titulo)}</div>
+  </div>`;
+}
+
+function _renderSpotifySection(tracks, connected) {
+  const connectWrap = document.getElementById('spotify-connect-wrap');
+  const tracksWrap  = document.getElementById('spotify-tracks-wrap');
+  const badge       = document.getElementById('spotify-connected-badge');
+
+  if (connected && tracks?.length) {
+    if (connectWrap) connectWrap.style.display = 'none';
+    if (badge)       badge.style.display = '';
+    if (tracksWrap) {
+      tracksWrap.style.display = '';
+      tracksWrap.innerHTML = tracks.slice(0,5).map(t => `
+        <div class="music-track-row">
+          ${t.albumArt ? `<img class="music-track-img" src="${escHtml(t.albumArt)}" alt="" loading="lazy">` : `<div class="music-track-img" style="display:flex;align-items:center;justify-content:center;font-size:18px">🎵</div>`}
+          <div class="music-track-info">
+            <div class="music-track-name">${escHtml(t.name)}</div>
+            <div class="music-track-artist">${escHtml(t.artist)}</div>
+          </div>
+        </div>`).join('');
+    }
+  } else {
+    if (connectWrap) connectWrap.style.display = '';
+    if (badge)       badge.style.display = 'none';
+    if (tracksWrap)  tracksWrap.style.display = 'none';
+  }
+}
+
+/* ── Privacy toggles ── */
+function _refreshPrivacyToggles() {
+  const p = S.vitrinaPrivacy || { libros:true, cine:true, musica:true };
+  ['libros','cine','musica'].forEach(cat => {
+    const el = document.getElementById('priv-toggle-' + cat);
+    if (el) el.classList.toggle('on', p[cat] !== false);
+  });
+}
+
+function toggleVitrinaPrivacy(cat) {
+  if (!S.vitrinaPrivacy) S.vitrinaPrivacy = { libros:true, cine:true, musica:true };
+  S.vitrinaPrivacy[cat] = !S.vitrinaPrivacy[cat];
+  _refreshPrivacyToggles();
+  guardarDatos();
+  showToast(S.vitrinaPrivacy[cat] ? `👁 ${cat} ahora es público` : `🔒 ${cat} ahora es privado`);
+  // Sync to Firestore
+  if (CLOUD_ENABLED && _auth?.currentUser) {
+    _syncMediaToDirectory(_auth.currentUser.uid).catch(() => {});
+  }
+}
+
+function shareVitrina() {
+  const pubId = S.publicId || '';
+  const url   = window.location.origin + '/?perfil=' + encodeURIComponent(pubId);
+  if (navigator.share) {
+    navigator.share({ title: 'Mi Vitrina en Life OS', url }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showToast('🔗 Enlace copiado al portapapeles'));
+  } else {
+    showToast('🔗 Tu ID público: ' + pubId);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PILAR 2C — SPOTIFY OAUTH
+   Flow: client redirect → Spotify auth → Cloud Function callback
+   → tokens stored in Firestore → tracks fetched client-side
+═══════════════════════════════════════════════════════════════ */
+
+const SPOTIFY_CLIENT_ID = ''; // Set via S.spotifyClientId from settings
+
+function connectSpotify() {
+  const clientId = S.spotifyClientId || SPOTIFY_CLIENT_ID;
+  if (!clientId) {
+    showToast('⚙️ Configura tu Spotify Client ID en Ajustes → APIs');
+    return;
+  }
+  const redirectUri = encodeURIComponent(window.location.origin + '/spotify-callback');
+  const scopes      = encodeURIComponent('user-top-read user-read-recently-played');
+  const state       = Math.random().toString(36).substring(2);
+  sessionStorage.setItem('spotify_oauth_state', state);
+  const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}`;
+  window.open(authUrl, '_blank', 'width=480,height=640');
+}
+
+/* Called by the Spotify callback page (or from URL params on app load) */
+async function handleSpotifyCallback(code, state) {
+  const savedState = sessionStorage.getItem('spotify_oauth_state');
+  if (state !== savedState) { showToast('❌ Error de autenticación Spotify'); return; }
+  sessionStorage.removeItem('spotify_oauth_state');
+  if (!CLOUD_ENABLED || !_functions) { showToast('❌ Functions no disponibles'); return; }
+  try {
+    showToast('⏳ Conectando con Spotify…');
+    const fn = _functions.httpsCallable('spotifyExchangeToken');
+    const res = await fn({ code, redirectUri: window.location.origin + '/spotify-callback' });
+    if (res.data.success) {
+      S.spotifyConnected = true;
+      S.spotifyTopTracks = res.data.tracks || [];
+      guardarDatos();
+      _renderSpotifySection(S.spotifyTopTracks, true);
+      showToast('🎵 Spotify conectado · Top tracks cargados');
+      if (CLOUD_ENABLED && _auth?.currentUser) {
+        _syncMediaToDirectory(_auth.currentUser.uid).catch(() => {});
+      }
+    }
+  } catch(e) {
+    showToast('❌ Error conectando Spotify: ' + (e.message || 'intenta de nuevo'));
+  }
+}
+
+/* Check on startup if there are Spotify callback params in URL */
+(function _checkSpotifyCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+  const state  = params.get('state');
+  if (code && state && sessionStorage.getItem('spotify_oauth_state')) {
+    // Remove params from URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Wait for app init then handle
+    document.addEventListener('lifeos:ready', () => handleSpotifyCallback(code, state), { once:true });
+  }
+})();
 
 /* ═══════════════════════════════════════════════════════════════
    INIT — Ejecutar checks tras boot

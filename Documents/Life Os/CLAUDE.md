@@ -125,6 +125,63 @@ ls -t /opt/openclaw/repo/lifeos/qa-reports/*.md | head -1 | xargs tail -f
 - ⚠️ Al reiniciar: verificar que GEMINI_API_KEY tenga la key real (no el placeholder "TU_KEY_AQUI")
 - Respaldos históricos en scripts/ (NO eliminar): ORIGINAL-GEMINI.js, BACKUP-GPT4O, BACKUP-GPT55
 
+## NUEVAS FEATURES — SESIÓN 7 (2026-04-29)
+
+### Pilar 3 — Onboarding Progresivo + Split-Screen Identity
+- `#form-register` reemplazado con wizard de 3 pasos: Nombre → Acceso → Identidad
+- Paso 4: `#ob-identity-screen` — full-viewport split XP vs Aura
+- Hover sobre cada lado llama `obPreviewMode(mode)` → live preview del tema
+- Click llama `obChooseMode(mode)` → guarda `visualMode` en Firestore + llama `doRegister()`
+- CSS: `.ob-step`, `.ob-dot`, `.ob-identity-half`, `.ob-side-xp`, `.ob-side-aura`, `.ob-sparkle`
+- `switchAuthTab('register')` ahora resetea el wizard al paso 1
+
+### Pilar 2A — Bitácora Cultural
+- Bitácora ahora tiene 3 tabs: ✍️ Reflexión | 📚 Libro | 🎬 Película
+- Búsqueda libros: Google Books API (sin key, anónima, 1000 req/día por IP)
+- Búsqueda películas: TMDB API — requiere `S.tmdbApiKey` (configurable desde Settings → APIs)
+- Guardar selección: añade a `S.bitacora[]` con metadata rica + a `S.mediaLibrary[]`
+- `S.mediaLibrary[]` es la fuente de datos para la Vitrina
+- `renderBitacoraList()` actualizado: muestra portadas para entradas tipo libro/película
+
+### Pilar 2B — Vitrina Pública (Modal `#modal-vitrina`)
+- Acceso: Settings → "✦ Mi Vitrina" o `openMiVitrina()` desde cualquier módulo
+- Hero: avatar, nombre, publicId, stats (XP, Nivel, Racha)
+- Privacy panel: toggles por categoría (Libros / Cine / Música) — solo visible en perfil propio
+- `toggleVitrinaPrivacy(cat)` — actualiza `S.vitrinaPrivacy` + sync a Firestore
+- Carruseles Netflix-style con `scroll-snap-type: x mandatory`
+- `openPerfilPublico(uid)` — para ver vitrina de otros usuarios (aliados, leaderboard)
+- `shareVitrina()` — copia URL pública o usa Web Share API
+
+### Pilar 2C — Spotify OAuth
+- Botón "Vincular con Spotify" en `#vitrina-sec-musica`
+- `connectSpotify()` → redirect OAuth (requiere `S.spotifyClientId`)
+- Cloud Functions: `spotifyExchangeToken` + `spotifyRefreshToken` en `functions/index.js`
+- Config VPS: `firebase functions:config:set spotify.client_id="..." spotify.client_secret="..."`
+- Tokens guardados en `users/{uid}/data/spotify` (NUNCA en el cliente)
+- Tracks sincronizados a `userDirectory/{uid}.spotifyTopTracks[]`
+
+### Schema Firestore extendido
+```
+S.mediaLibrary[]       → [{id, tipo, titulo, autorDirector, coverUrl, mediaId, fecha, nota}]
+S.vitrinaPrivacy       → {libros:bool, cine:bool, musica:bool}
+S.spotifyConnected     → bool
+S.spotifyTopTracks[]   → [{name, artist, albumArt, spotifyUrl}]
+S.tmdbApiKey           → string (configurable)
+S.spotifyClientId      → string (configurable)
+
+userDirectory/{uid}:
+  + libros[]           → items públicos (vaciado si privacy.libros=false)
+  + peliculas[]        → items públicos
+  + spotifyTopTracks[] → tracks (vaciado si privacy.musica=false)
+  + vitrinaPrivacy     → {libros, cine, musica}
+  + spotifyConnected   → bool
+```
+
+### Keys externas necesarias (staging/prod)
+- TMDB API Key: https://www.themoviedb.org/settings/api
+- Spotify App: https://developer.spotify.com/dashboard → Client ID + Secret
+- Redirecit URI en Spotify App: `https://mylifeos-staging.web.app/spotify-callback`
+
 ## ESTADO ACTUAL
 - ✅ runner.js --deep pipeline completo funcionando
 - ✅ analyze-deep.js: Gemini 2.0 Flash, prompts base ORIGINAL-GEMINI, sin cap screenshots por grupo
@@ -181,24 +238,114 @@ cd /opt/openclaw && node analyze-deep.js
 - Antes de `git push` desde local: siempre `git pull --rebase origin main`
 - Si hay conflicto en analyze-deep.js: la versión local es la correcta (tiene todos los fixes de filtros)
 
+## CENTRO DE OPERACIONES — ECOSISTEMA
+- Ubicación: `c:\Users\wence\Documents\Centro de Operaciones\` — SEPARADO del repo Life OS
+- Repo GitHub: `https://github.com/422065902-sys/centro-operaciones` (rama `main`)
+- Tablero visual: `tablero.html` — abre en browser, datos en localStorage `centro-ops-v1`
+- El tablero es **100% manual** — actualizar al cierre de cada sesión de trabajo
+- Archivos clave: `00-DASHBOARD-ECOSISTEMA.md` (abrir cada lunes), `PROYECTOS/LIFE-OS.md`, `PROYECTOS/OPENCLAW-QA.md`
+- NUNCA mezclar archivos de Centro de Operaciones con el repo de Life OS
+
+### Sistema operativo (archivos 10-16 — sesión 9)
+| Archivo | Función |
+|---|---|
+| `10-INBOX-AGENTES.md` | Propuestas pendientes de autorización |
+| `11-COLA-TAREAS.md` | Tareas aprobadas listas para ejecutar |
+| `12-PROPUESTAS-OPENCLAW.md` | Criterios que usa OpenClaw para proponer |
+| `13-COMANDOS-OPENCLAW.md` | Comandos operativos (ACTIVAR CENTRO, QUÉ SIGUE, etc.) |
+| `14-POLITICA-AUTORIZACION.md` | Niveles 0/1/2 — qué puede hacer solo vs qué requiere permiso |
+| `15-REGISTRO-OPERATIVO.md` | Log cronológico de eventos, decisiones y corridas |
+| `16-GUIA-AHORRO-TOKENS.md` | Reglas para inspección eficiente |
+
+### Flujo operativo
+OpenClaw NO ejecuta automáticamente. Flujo obligatorio:
+`leer contexto → analizar pendientes → crear propuesta en INBOX → esperar autorización → mover a COLA → ejecutar`
+
+## OPENCLAW — INFRAESTRUCTURA MULTI-PROYECTO
+
+OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es exclusivo de Life OS QA — no usarlo para Centro Ops.**
+
+### Runners activos
+
+| Clave | Proyecto | Comando host | Comando Telegram/contenedor | Reportes |
+|---|---|---|---|---|
+| OPENCLAW-LIFEOS-QA | Life OS | `cd /opt/openclaw && node runner.js --deep` | N/A | `/opt/openclaw/repo/lifeos/qa-reports/` |
+| OPENCLAW-CENTRO-OPS | Centro de Ops | `node /opt/openclaw/projects/centro-ops/repo/runner.js` | `node /data/centro-ops/repo/runner.js` | `/opt/openclaw/projects/centro-ops/reports/` |
+
+### Estructura VPS ampliada
+```
+/opt/openclaw/                            ← Life OS QA (legacy, intacto)
+├── .env                                  ← credenciales Life OS
+├── runner.js / analyze.js / analyze-deep.js
+├── repo/lifeos/                          ← git clone Life OS
+└── projects/
+    ├── lifeos/                           ← copia organizada Life OS
+    └── centro-ops/
+        ├── repo/                         ← git clone centro-operaciones
+        └── reports/                      ← reportes Centro Ops (host)
+
+/docker/openclaw-yec7/data/              ← volumen del contenedor
+└── centro-ops/
+    ├── repo/                             ← visible como /data/centro-ops/repo/ dentro del contenedor
+    └── reports/                          ← visible como /data/centro-ops/reports/
+```
+
+### Contenedor OpenClaw
+- Nombre: `openclaw-yec7-openclaw-1`
+- Solo ve `/data/` — no puede acceder a `/opt/openclaw/`
+- OAuth: `openai-codex` configurado — chat web responde con `gpt-5.4`
+
+### Telegram
+- Bot: **OpenClaw Centro Ops**
+- Configurado con: `openclaw channels add --channel telegram --token <TOKEN>`
+- Política: `dmPolicy = allowlist`, usuario autorizado: `tg:8412757068`
+- Estado: **activo y confirmado** (primera corrida COMPLETADA 2026-04-30T01-22-39)
+- ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
+
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-27 (sesión 6)
-- Deploy: staging ✅ https://mylifeos-staging.web.app — NLP fix + FAB system restaurado
-- Scripts IA migrados: Anthropic → Gemini 2.0 Flash (GEMINI_API_KEY en .env del VPS)
+- Fecha: 2026-04-30 (sesión 9)
+- Sin cambios al código de Life OS en esta sesión
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. ⚠️ **Completar GEMINI_API_KEY en VPS** — se guardó el placeholder, reemplazar con key real:
+1. ⚠️ **GEMINI_API_KEY en VPS** — reemplazar placeholder con key real:
    ```bash
    sed -i 's/GEMINI_API_KEY=TU_KEY_AQUI/GEMINI_API_KEY=LA_KEY_REAL/' /opt/openclaw/.env
    ```
-   Key disponible en: https://aistudio.google.com/apikey
-2. **Correr pipeline QA completo**: `cd /opt/openclaw && node runner.js --deep`
-3. **Bugs pendientes para próximo batch Codex**:
+   Key en: https://aistudio.google.com/apikey
+2. **Correr pipeline QA Life OS**: `cd /opt/openclaw && node runner.js --deep`
+3. **Bugs P0 Life OS** — bloquean conversión, siguiente batch Codex:
+   - Onboarding/Blackout/Paywall muestran modal de calibración en vez del contenido correcto
    - Tab Biblioteca muestra contenido de Gemelo (índice de tab incorrecto)
    - Flow/Metas muestra contenido de Flow/Ideas (mismo bug de tabs)
-   - Layout Análisis/Núcleo roto — texto overflow en columna estrecha
    - Shop muestra XP en vez de coins (`S.xp` en lugar de `S.coins`)
-   - Onboarding/Blackout/Paywall muestran modal de calibración en vez del contenido correcto
+   - Layout Análisis/Núcleo roto — texto overflow en columna estrecha
+4. **Configurar claves externas** (features sesión 7 — pendientes):
+   - TMDB API Key → https://www.themoviedb.org/settings/api
+   - Spotify App → https://developer.spotify.com/dashboard (Client ID + Secret)
+   - Redirect URI en Spotify: `https://mylifeos-staging.web.app/spotify-callback`
+5. **Centro Ops — primer `PROPONER PLAN`**: ejecutar desde Claude Code para generar primeras propuestas reales en INBOX
+
+### Cambios sesión 2026-04-30 (sesión 9)
+
+#### OpenClaw — asistente operativo + infraestructura multi-proyecto
+- Sistema operativo creado: archivos 10-INBOX, 11-COLA, 12-PROPUESTAS, 13-COMANDOS, 14-POLITICA, 15-REGISTRO, 16-GUIA
+- Runner Centro Ops creado: `runner.js` — lee archivos clave, verifica estructura, genera reporte Markdown sin modificar nada
+- Repo Centro Ops en GitHub: `https://github.com/422065902-sys/centro-operaciones`
+- VPS: repo clonado en `/opt/openclaw/projects/centro-ops/repo/` y en `/docker/openclaw-yec7/data/centro-ops/repo/`
+- Contenedor OpenClaw configurado con OAuth `openai-codex` — chat web responde gpt-5.4
+- Telegram bot `OpenClaw Centro Ops` activo — allowlist `tg:8412757068`
+- Primera corrida OPENCLAW-CENTRO-OPS vía Telegram COMPLETADA: `CENTRO_OPS_2026-04-30T01-22-39.md`
+- Rutas documentadas: host usa `/opt/openclaw/projects/centro-ops/`, agente Telegram usa `/data/centro-ops/`
+- Sin cambios al código Life OS
+
+### Cambios sesión 2026-04-29 (sesión 8)
+
+#### Centro de Operaciones creado
+- Tablero interactivo: `c:\Users\wence\Documents\Centro de Operaciones\tablero.html`
+- localStorage `centro-ops-v1` — CRUD completo: proyectos, backlog, sprint, herramientas, métricas, novedades, activos, decisiones
+- 36 archivos MD del ecosistema: RUTA-CRITICA, DASHBOARD, MAPA-PROYECTOS, NOVEDADES-IA, EXPERIMENTOS-IA, AGENTES-FUTUROS, MAPA-ACTIVOS, PROYECTOS/x3, PLAYBOOKS/x6, BACKLOGS/x5
+- Tablero actualización: manual por ahora — discutida opción de "Import desde QA report" para siguiente sesión
+- Sin cambios al código Life OS
 
 ### Cambios sesión 2026-04-27 (sesión 6)
 

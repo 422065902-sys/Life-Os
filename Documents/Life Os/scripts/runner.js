@@ -265,17 +265,29 @@ async function takeShotWithScroll(name, moduleLabel) {
         'Revisar margin-top, padding o posicionamiento del .page.active');
     }
 
-    // Screenshot 2 — scroll 500px para capturar contenido below-fold
-    await evalJS(() => {
+    // Screenshots de scroll completo — captura todo el módulo hasta el fondo
+    const scrollHeight = await evalJS(() => {
       const c = document.getElementById('content');
-      if (c) c.scrollTop = 500;
-      else window.scrollTo(0, 500);
+      return c ? c.scrollHeight : document.documentElement.scrollHeight;
     });
-    await page.waitForTimeout(200);
-    await page.screenshot({
-      path: path.join(SHOTS_DIR, `${name}_scroll.jpg`),
-      type: 'jpeg', quality: 55, fullPage: false
-    });
+    const VIEWPORT_H = 800;
+    const STEP = 650; // overlap intencional para no perder contenido entre shots
+    const MAX_EXTRA = 6; // máximo 6 screenshots adicionales por módulo
+    const totalExtra = Math.min(Math.ceil((scrollHeight - VIEWPORT_H) / STEP), MAX_EXTRA);
+
+    for (let i = 0; i < totalExtra; i++) {
+      const scrollPos = STEP * (i + 1);
+      await evalJS((y) => {
+        const c = document.getElementById('content');
+        if (c) c.scrollTop = y;
+        else window.scrollTo(0, y);
+      }, scrollPos);
+      await page.waitForTimeout(200);
+      await page.screenshot({
+        path: path.join(SHOTS_DIR, `${name}_scroll${i + 1}.jpg`),
+        type: 'jpeg', quality: 55, fullPage: false
+      });
+    }
 
     // Volver al top para que el siguiente test empiece limpio
     await evalJS(() => {

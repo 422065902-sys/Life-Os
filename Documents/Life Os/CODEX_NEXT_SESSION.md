@@ -15,6 +15,9 @@
 - [x] Batch 6 — Push notifications + Blackout emocional + Racha danger + Hero banner
 - [x] Batch 7 — Gemelo activación + Onboarding narrativo + Bottom nav dinámico
 - [x] Batch 8 — Grupos truncados (Cuerpo · Mente · World · Settings · Mobile)
+- [ ] Batch 9A — P0 Conversión: Blackout + tabs rotos + scroll (Gemini 2.5 Pro · 2026-04-30)
+- [ ] Batch 9B — P1 Quick wins: iOS safe-area + Landing CTA + moneda World + Android logout
+- [ ] Batch 9C — UX/Gamificación: framing scores + validaciones + identidad visual
 
 ---
 
@@ -1395,5 +1398,499 @@ MOB-2 (Batch 3) hizo `text-overflow:ellipsis` pero el contenido puede necesitar 
 - Batch 6: `Feat: push notifications + blackout emocional + racha danger badge + hero banner live data`
 - Batch 7: `Feat: gemelo CTA activación + onboarding friction fix + bottom nav dinámico`
 - Batch 8: `Feat: Flow completo + Cuerpo empty states + Mente empty states + World/Settings/Mobile polish`
+
+---
+
+## BATCH 9A — P0 Conversión bloqueada
+
+> Fuente: OpenClaw DEEP_2026-04-29.md · 68 propuestas HIGH · Gemini 2.5 Pro
+> Estas correcciones bloquean usuarios nuevos. Ejecutar ANTES que cualquier otro batch.
+
+---
+
+### [B9A-1] Blackout emocional bloquea el Onboarding
+
+**Síntoma:** Usuarios nuevos sin historial de XP ven el modal de calibración emocional en vez del wizard de onboarding. El flujo de registro queda atrapado.
+
+En `main.js`, dentro de la función de routing principal (buscar `_routeManager`, `checkAppState` o `initApp` según versión):
+
+**Antes de llamar a `_checkCoreStatus()` o `showBlackoutModal()`, verificar si el onboarding está incompleto:**
+```js
+// Guardar donde estaba la llamada a _checkCoreStatus() o showBlackoutModal()
+// Agregar guard ANTES:
+const onboardingStep = getOnboardingStep(); // o S.onboardingStep || 0
+if (!onboardingStep || onboardingStep < 3) {
+  // Usuario en onboarding — no disparar blackout
+  return;
+}
+// ... continuar con _checkCoreStatus() normalmente
+```
+
+Buscar `showBlackoutModal` en `main.js` — cada call site debe tener este guard. También buscar `_checkEmotionalState`, `triggerBlackout`, `blackoutCheck` — aplicar el mismo patrón.
+
+---
+
+### [B9A-2] Blackout emocional bloquea el Paywall
+
+**Síntoma:** Usuarios que no son `is_pro` ven el modal de blackout antes del paywall. El CTA de upgrade queda inaccesible.
+
+En `main.js`, en la función que verifica si mostrar el paywall (buscar `showPaywall`, `_showUpgradeModal`, `checkProStatus`):
+
+**Agregar guard de blackout DESPUÉS de verificar pro:**
+```js
+async function checkProAndRoute() {
+  const isPro = S.isPro || S.is_pro;
+  if (!isPro) {
+    showPaywallModal();   // mostrar paywall PRIMERO
+    return;               // salir ANTES de cualquier check de blackout
+  }
+  // solo usuarios pro llegan acá → ya pueden ver blackout si aplica
+  await _checkCoreStatus();
+}
+```
+
+Alternativamente: en `showBlackoutModal()` al inicio de la función:
+```js
+function showBlackoutModal() {
+  if (!(S.isPro || S.is_pro)) return; // no mostrar a free users
+  // ... resto del modal
+}
+```
+
+---
+
+### [B9A-3] Botón CTA dentro del Blackout no navega correctamente
+
+**Síntoma:** El botón de acción del modal de blackout ("Registrar emoción" / "Ir al Flow") navega a una pantalla genérica en vez de contextualizarse.
+
+En `main.js`, en la función que construye el HTML del modal blackout (buscar `blackout-cta`, `blackout-action-btn` o similar):
+
+```js
+function buildBlackoutCTA() {
+  const hasHabits = S.habits && S.habits.filter(h => h.active).length > 0;
+  const hasMetas = S.metas && S.metas.length > 0;
+
+  if (!hasHabits) {
+    return `<button class="btn-primary blackout-cta" onclick="showCreateHabitModal()">
+      Crear mi primer hábito
+    </button>`;
+  }
+  if (!hasMetas) {
+    return `<button class="btn-primary blackout-cta" onclick="navigate('flow'); switchFlowTab('metas')">
+      Definir una meta
+    </button>`;
+  }
+  return `<button class="btn-primary blackout-cta" onclick="navigate('flow')">
+    Ir al Flow
+  </button>`;
+}
+```
+
+Reemplazar el CTA estático por `buildBlackoutCTA()` en el template del modal.
+
+---
+
+### [B9A-4] Tab Flow/Metas muestra contenido de Flow/Ideas
+
+**Síntoma:** Al hacer click en la tab "Metas" dentro del módulo Flow, se renderiza el contenido de "Ideas" en su lugar. Bug de índice de tab.
+
+En `main.js`, buscar la función `switchFlowTab` o el event listener del módulo Flow:
+
+```js
+// Verificar que el mapping es correcto:
+const FLOW_TABS = ['habitos', 'agenda', 'metas', 'ideas', 'heatmap'];
+// Si el orden en el DOM es diferente al orden del array, corregir el array
+// O verificar que cada tab button tiene data-tab correcto:
+// <button data-tab="metas">Metas</button>  ← debe ser el literal string 'metas'
+
+function switchFlowTab(tab) {
+  document.querySelectorAll('[data-flow-panel]').forEach(p => {
+    p.style.display = 'none';
+    p.setAttribute('aria-hidden', 'true');
+  });
+  const target = document.querySelector(`[data-flow-panel="${tab}"]`);
+  if (target) {
+    target.style.display = 'block';
+    target.removeAttribute('aria-hidden');
+  }
+  // Actualizar estado activo de los botones
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+```
+
+Verificar en el HTML de `main.js` que los paneles tienen `data-flow-panel="metas"` y `data-flow-panel="ideas"` con los strings correctos (no índices numéricos).
+
+---
+
+### [B9A-5] Tab Mente/Biblioteca muestra contenido de Gemelo
+
+**Síntoma:** Click en tab "Biblioteca" dentro del módulo Mente renderiza el panel de Gemelo. Bug de índice idéntico al anterior pero en módulo Mente.
+
+En `main.js`, buscar `switchMenteTab` o el handler del módulo Mente:
+
+```js
+function switchMenteTab(tab) {
+  // Ocultar TODOS los paneles de Mente
+  document.querySelectorAll('[data-mente-panel]').forEach(p => {
+    p.style.display = 'none';
+    p.setAttribute('aria-hidden', 'true');
+  });
+  // Mostrar solo el panel correcto
+  const target = document.querySelector(`[data-mente-panel="${tab}"]`);
+  if (target) {
+    target.style.display = 'block';
+    target.removeAttribute('aria-hidden');
+  }
+  // Tabs activos
+  document.querySelectorAll('#mente-tabs [data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+```
+
+Verificar que los 4 paneles existen en el DOM:
+- `data-mente-panel="bitacora"`
+- `data-mente-panel="aliados"`
+- `data-mente-panel="biblioteca"`
+- `data-mente-panel="gemelo"`
+
+Si alguno falta, agregarlo con `display:none` por defecto.
+
+---
+
+### [B9A-6] Scroll roto en módulos Análisis / Núcleo / World
+
+**Síntoma:** El contenido de los módulos Stats/Análisis, Cuerpo/Núcleo y World desborda el viewport pero no es scrollable. El usuario no puede ver secciones inferiores.
+
+En `styles.css`, buscar los selectores con `overflow: hidden` en las páginas afectadas y cambiar a `overflow-y: auto`:
+
+```css
+/* Análisis */
+#page-stats,
+#panel-analisis {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Núcleo / Cuerpo */
+#page-cuerpo,
+#panel-salud,
+#panel-fisico {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* World */
+#page-world {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+```
+
+Verificar también que el contenedor padre `#content` o `.app-content` no tenga `overflow: hidden` que bloquee el scroll de hijos.
+
+---
+
+## BATCH 9B — P1 Quick wins
+
+> Correcciones de alta visibilidad, bajo riesgo. Ejecutar después de 9A.
+
+---
+
+### [B9B-1] Landing CTA — color inconsistente con la identidad
+
+**Síntoma:** El botón CTA principal del landing page ("Empieza gratis") tiene un color que no coincide con el cyan de la marca. Se pierde la coherencia visual en el primer punto de contacto.
+
+En `styles.css`, buscar los estilos del landing (sección `.lp-` o `#landing-page`):
+
+```css
+/* Agregar/actualizar variable y override del CTA */
+.lp-hero .btn-primary,
+.lp-cta .btn-primary,
+.landing-cta-btn {
+  background: linear-gradient(135deg, #00e5ff, #0891b2);
+  color: #000;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 229, 255, 0.35);
+}
+
+.lp-hero .btn-primary:hover,
+.lp-cta .btn-primary:hover,
+.landing-cta-btn:hover {
+  box-shadow: 0 6px 28px rgba(0, 229, 255, 0.55);
+  transform: translateY(-1px);
+}
+```
+
+---
+
+### [B9B-2] World onboarding — copy "Monedas de Fuerza" es término obsoleto
+
+**Síntoma:** El texto de onboarding del módulo World menciona "Monedas de Fuerza" — término que ya no existe. La tienda muestra XP/Aura según el modo visual, lo cual es CORRECTO. Solo el copy de onboarding está desactualizado.
+
+⚠️ **IMPORTANTE:** La tienda mostrando XP (o Aura en modo Aura) es el comportamiento correcto. NO cambiar la lógica de la tienda.
+
+En `main.js`, buscar `renderWorldOnboarding`, `_worldOnboarding`, o el template que contiene "Monedas de Fuerza":
+
+```js
+// Reemplazar cualquier ocurrencia de:
+// "Monedas de Fuerza", "monedas de fuerza", "Coins", "coins"
+// por el copy actualizado:
+
+// Buscar y reemplazar en el template de onboarding World:
+// ANTES:
+// "Gana Monedas de Fuerza completando..."
+// DESPUÉS:
+// "Usa el XP que ganas en toda la app para..."
+
+// O si hay una variable de terminología:
+const WORLD_CURRENCY_COPY = S.visualMode === 'aura'
+  ? 'Aura que generas'
+  : 'XP que acumulas';
+// Usar WORLD_CURRENCY_COPY en el template
+```
+
+Buscar con grep: `grep -n "Monedas\|monedas\|Fuerza" main.js` — corregir SOLO las ocurrencias en templates de onboarding World. No tocar la lógica de `openShop()` o `renderShop()`.
+
+---
+
+### [B9B-3] Android — botón logout no visible en Settings
+
+**Síntoma:** En Android (o en ciertos tamaños de pantalla), el botón de cerrar sesión no aparece en Settings. El usuario queda atrapado en la cuenta.
+
+En `main.js`, buscar cualquier condición que oculte el logout button:
+```js
+// Buscar: display:none, hidden, visibility:hidden aplicado a #logout-btn, .btn-logout, [data-action="logout"]
+// Si hay una condición como:
+if (isMobile || platform === 'android') {
+  logoutBtn.style.display = 'none'; // QUITAR esta condición
+}
+```
+
+En `styles.css`, verificar que no haya:
+```css
+/* QUITAR o corregir si existe: */
+@media (max-width: 768px) {
+  .btn-logout, #logout-btn { display: none; }
+}
+```
+
+El botón de logout debe ser siempre visible en Settings independientemente del dispositivo.
+
+---
+
+### [B9B-4] Análisis/Núcleo — texto vertical ilegible
+
+**Síntoma:** En el módulo de Análisis aparece texto con `writing-mode: vertical-rl` que lo hace ilegible. Es probablemente un label de eje de chart o una etiqueta de sección.
+
+En `main.js`, buscar en el template de `renderStatsModule()`, `renderAnalisisTab()` o similar:
+
+```js
+// Buscar y eliminar o corregir el div con writing-mode vertical:
+// ANTES (eliminar o comentar):
+// `<div style="writing-mode:vertical-rl; transform:rotate(180deg)">Dimensión</div>`
+
+// DESPUÉS (horizontal, legible):
+// `<div class="chart-axis-label">Dimensión</div>`
+```
+
+En `styles.css`:
+```css
+.chart-axis-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  margin-bottom: 4px;
+  /* NO usar writing-mode vertical */
+}
+```
+
+---
+
+### [B9B-5] iOS — safe-area padding en bottom nav (refuerzo)
+
+**Síntoma:** En iPhone con barra de gestos home, el bottom nav queda parcialmente tapado. El B8-MOB3 lo marcó como verificar — confirmar que el fix está aplicado y agregar también al input area del FAB.
+
+En `styles.css`, verificar y reforzar:
+
+```css
+#bottom-nav,
+.bottom-nav,
+.bottom-navigation {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+/* También el FAB y el área de input flotante */
+.fab-container,
+#fab-console,
+.fab-panel {
+  bottom: calc(env(safe-area-inset-bottom) + 70px);
+}
+```
+
+---
+
+## BATCH 9C — UX / Gamificación
+
+> Mejoras de percepción y feedback. Ejecutar después de 9A y 9B.
+
+---
+
+### [B9C-1] Stats — tab activo color incorrecto (purple en vez de indigo)
+
+**Síntoma:** La tab activa en el módulo Stats/Análisis muestra un purple genérico en lugar del color de acento del módulo (indigo/violet).
+
+En `styles.css`:
+
+```css
+/* Agregar/corregir variable de color Stats */
+:root {
+  --accent-stats: #6366f1;   /* indigo-500 */
+}
+
+/* Tab activa del módulo Stats */
+#page-stats .tab.active,
+#page-stats .tabs .tab.active,
+[data-module="stats"] .tab.active {
+  background-color: var(--accent-stats);
+  color: #fff;
+  border-color: var(--accent-stats);
+}
+
+#page-stats .tab-indicator,
+[data-module="stats"] .tab-indicator {
+  background-color: var(--accent-stats);
+}
+```
+
+---
+
+### [B9C-2] Score Cuerpo muestra "1/100" — framing desmotivador
+
+**Síntoma:** Usuarios nuevos sin datos físicos ven un score de "1/100" en el módulo Cuerpo. Esto es factualmente correcto pero psicológicamente destructivo — mata la retención en el primer uso.
+
+En `main.js`, buscar `calcBodyScore`, `computePhysicalScore` o donde se calcule el score de Cuerpo:
+
+```js
+function calcBodyScore() {
+  const rawScore = _computePhysicalRaw(); // cálculo existente
+  // Floor mínimo de 50 para usuarios sin datos — "potencial sin explorar"
+  const displayScore = Math.max(rawScore, 50);
+  return displayScore;
+}
+```
+
+Además, cambiar el label cuando el score es bajo (< 60):
+
+```js
+function getBodyScoreLabel(score) {
+  if (score < 60) return 'POTENCIAL FÍSICO';   // framing positivo
+  if (score < 75) return 'EN DESARROLLO';
+  if (score < 90) return 'NIVEL SÓLIDO';
+  return 'ÉLITE FÍSICA';
+}
+```
+
+Buscar donde se renderiza el score de cuerpo y aplicar `getBodyScoreLabel(score)` como subtítulo.
+
+---
+
+### [B9C-3] "Batería 0%" — framing desmotivador para usuarios nuevos
+
+**Síntoma:** El stat de "Batería" en el dashboard o módulo Hábitos muestra "0%" para usuarios sin hábitos. Framing que incentiva el abandono en vez de la acción.
+
+En `main.js`, buscar `updateDashboardUI`, `renderBattery` o donde se muestre el porcentaje de batería:
+
+```js
+function getBatteryDisplay(batteryPct, habitCount) {
+  if (habitCount === 0) {
+    return { value: '—', label: '⚡ Listo para empezar', class: 'battery-empty-state' };
+  }
+  if (batteryPct === 0) {
+    return { value: '0%', label: '⚡ Recárgala hoy', class: 'battery-depleted' };
+  }
+  return { value: `${batteryPct}%`, label: 'Batería', class: '' };
+}
+```
+
+Reemplazar la renderización estática de `battery: 0%` por `getBatteryDisplay(pct, habitCount)`.
+
+---
+
+### [B9C-4] Crear hábito sin nombre — no hay validación visible
+
+**Síntoma:** Si el usuario hace tap en "Crear hábito" con el campo de nombre vacío, el formulario se cierra o falla silenciosamente. No hay feedback visible.
+
+En `main.js`, buscar `createHabit`, `saveHabit` o el handler del form de nuevo hábito:
+
+```js
+function saveNewHabit() {
+  const habitName = document.querySelector('#habit-name-input')?.value?.trim();
+
+  if (!habitName) {
+    // Shake + toast
+    document.querySelector('#habit-name-input')?.classList.add('input-error');
+    showToast('Dale un nombre a tu hábito 🎯', 'warning');
+    setTimeout(() => {
+      document.querySelector('#habit-name-input')?.classList.remove('input-error');
+    }, 600);
+    return;  // NO continuar
+  }
+
+  // ... resto del save
+}
+```
+
+En `styles.css`:
+```css
+.input-error {
+  border-color: #f87171 !important;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+```
+
+---
+
+### [B9C-5] "Hábitos hoy: 0/49" — contador incluye hábitos de otros días
+
+**Síntoma:** El stat "Hábitos hoy" en el dashboard cuenta todos los hábitos activos (49) en vez de solo los programados para el día actual. Un usuario que solo tiene hábitos de lunes/miércoles ve "0/49" el martes.
+
+En `main.js`, buscar donde se calcula el contador de hábitos del día (en `renderHabits`, `updateDashboardUI` o `_updateHabitStats`):
+
+```js
+function getTodayHabits(habits) {
+  const today = new Date().getDay(); // 0=Dom, 1=Lun, ... 6=Sab
+  const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  const todayKey = DAY_KEYS[today];
+
+  return habits.filter(h => {
+    if (!h.active) return false;
+    // Si no tiene scheduledDays definido → considerar diario
+    if (!h.scheduledDays || h.scheduledDays.length === 0) return true;
+    return h.scheduledDays.includes(todayKey) || h.scheduledDays.includes(today);
+  });
+}
+
+// Usar getTodayHabits en el stat:
+const todayHabits = getTodayHabits(S.habits || []);
+const doneToday = todayHabits.filter(h => isHabitDoneToday(h)).length;
+// Mostrar: `${doneToday}/${todayHabits.length}` en vez de `${doneToday}/${S.habits.length}`
+```
+
+---
+
+**Commit messages para Batch 9:**
+- Batch 9A: `Fix P0: blackout guard onboarding/paywall + tabs Flow/Mente + scroll overflow módulos`
+- Batch 9B: `Fix P1: landing CTA color + World copy monedas + logout Android + vertical text + safe-area`
+- Batch 9C: `UX: stats tab color + body score floor + battery framing + habit validation + today filter`
 
 **NO hacer commit ni deploy — Claude se encarga.**

@@ -996,3 +996,84 @@ exports.eveningWindDown = functions.pubsub
     }
     return null;
   });
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MÓDULO 4 — SPOTIFY OAUTH INTEGRATION
+   Callable: spotifyExchangeToken({ code, redirectUri })
+   Config requerida:
+     firebase functions:config:set spotify.client_id="..." spotify.client_secret="..."
+═══════════════════════════════════════════════════════════════ */
+
+const spotifyClientId     = () => functions.config().spotify?.client_id     || process.env.SPOTIFY_CLIENT_ID     || '';
+const spotifyClientSecret = () => functions.config().spotify?.client_secret  || process.env.SPOTIFY_CLIENT_SECRET  || '';
+
+exports.spotifyExchangeToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesión.');
+
+  const { code, redirectUri } = data;
+  if (!code || !redirectUri) throw new functions.https.HttpsError('invalid-argument', 'Se requieren code y redirectUri.');
+
+  const cid = spotifyClientId();
+  const csec = spotifyClientSecret();
+  if (!cid || !csec) throw new functions.https.HttpsError('failed-precondition', 'Spotify no configurado en el servidor.');
+
+  const fetch = (await import('node-fetch')).default;
+
+  const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(cid + ':' + csec).toString('base64'),
+    },
+    body: new URLSearchParams({ grant_type:'authorization_code', code, redirect_uri:redirectUri }).toString(),
+  });
+
+  if (!tokenRes.ok) throw new functions.https.HttpsError('internal', 'Spotify token error: ' + await tokenRes.text());
+  const tokens = await tokenRes.json();
+  const { access_token, refresh_token, expires_in } = tokens;
+
+  const uid = context.auth.uid;
+  await db.collection('users').doc(uid).collection('data').doc('spotify').set({
+    access_token, refresh_token,
+    expires_at: Date.now() + (expires_in * 1000),
+    connected_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const topRes = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=short_term', {
+    headers: { 'Authorization': 'Bearer ' + access_token },
+  });
+  let tracks = [];
+  if (topRes.ok) {
+    const td = await topRes.json();
+    tracks = (td.items || []).map(t => ({
+      name:       t.name,
+      artist:     (t.artists || []).map(a => a.name).join(', '),
+      albumArt:   t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || '',
+      spotifyUrl: t.external_urls?.spotify || '',
+    }));
+  }
+  return { success:true, tracks };
+});
+
+exports.spotifyRefreshToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Auth required.');
+  const uid = context.auth.uid;
+  const snap = await db.collection('users').doc(uid).collection('data').doc('spotify').get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'Spotify not connected.');
+  const { refresh_token } = snap.data();
+  const cid = spotifyClientId(); const csec = spotifyClientSecret();
+  const fetch = (await import('node-fetch')).default;
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Authorization':'Basic '+Buffer.from(cid+':'+csec).toString('base64') },
+    body: new URLSearchParams({ grant_type:'refresh_token', refresh_token }).toString(),
+  });
+  if (!res.ok) throw new functions.https.HttpsError('internal', 'Spotify refresh error.');
+  const t = await res.json();
+  await db.collection('users').doc(uid).collection('data').doc('spotify').update({ access_token:t.access_token, expires_at:Date.now()+(t.expires_in*1000) });
+  const topRes = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=short_term', { headers:{ 'Authorization':'Bearer '+t.access_token } });
+  let tracks = [];
+  if (topRes.ok) { const td = await topRes.json(); tracks = (td.items||[]).map(tk=>({ name:tk.name, artist:(tk.artists||[]).map(a=>a.name).join(', '), albumArt:tk.album?.images?.[2]?.url||'', spotifyUrl:tk.external_urls?.spotify||'' })); }
+  return { success:true, tracks };
+});

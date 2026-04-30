@@ -479,94 +479,90 @@
         </button>
       </div><!-- /form-login -->
 
-      <!-- ── REGISTRO (scroll independiente) ── -->
+      <!-- ── REGISTRO — Wizard progresivo ── -->
       <div id="form-register" style="display:none">
-        <!-- Banner 30 días gratis -->
-        <div style="text-align:center;margin-bottom:16px;padding:10px 14px;background:linear-gradient(135deg,rgba(168,85,247,.1),rgba(0,229,255,.06));border-radius:10px;border:1px solid rgba(168,85,247,.25)">
-          <div style="font-size:12px;font-weight:700;color:#a855f7;font-family:'Orbitron',monospace;margin-bottom:2px">🔮 30 DÍAS GRATIS</div>
+
+        <!-- Inputs ocultos que doRegister() necesita leer -->
+        <input type="hidden" id="reg-genero" value=""/>
+        <input type="hidden" id="reg-accent" value="#00e5ff"/>
+
+        <!-- Banner 30 días -->
+        <div style="text-align:center;margin-bottom:18px;padding:8px 12px;background:linear-gradient(135deg,rgba(168,85,247,.1),rgba(0,229,255,.06));border-radius:10px;border:1px solid rgba(168,85,247,.25)">
+          <div style="font-size:11px;font-weight:700;color:#a855f7;font-family:'Orbitron',monospace;margin-bottom:2px">🔮 30 DÍAS GRATIS</div>
           <div style="font-size:11px;color:var(--text3)">Acceso total · Sin tarjeta de crédito</div>
         </div>
 
-        <!-- Campos del formulario -->
-        <div class="col" style="gap:12px;margin-bottom:16px">
-          <input class="inp" id="reg-nombre" placeholder="Nombre completo *" autocomplete="name"/>
-          <input class="inp" id="reg-tel"    type="tel"   placeholder="Teléfono / WhatsApp *" autocomplete="tel"/>
-          <input class="inp" id="reg-email"  type="email" placeholder="Tu mejor correo *"  autocomplete="email"/>
-          <div>
-            <input class="inp" id="reg-alias" placeholder="Alias público * (ej: WM_OS)" autocomplete="off"
-              maxlength="16" oninput="this.value=this.value.replace(/[^a-zA-Z0-9._]/g,'')"/>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace">
-              3–16 caracteres · letras, números, punto y guion bajo · aparece en el Leaderboard
+        <!-- Progress dots -->
+        <div class="ob-progress">
+          <div class="ob-dot ob-dot-active" id="ob-dot-1"></div>
+          <div class="ob-dot" id="ob-dot-2"></div>
+          <div class="ob-dot" id="ob-dot-3"></div>
+        </div>
+
+        <!-- Wizard wrapper -->
+        <div class="ob-wizard-wrap" id="ob-wizard-wrap">
+
+          <!-- STEP 1: Nombre -->
+          <div class="ob-step ob-active" id="ob-step-1">
+            <div class="ob-step-title">¿Cómo te llamas?</div>
+            <div class="ob-step-sub">Este será tu nombre dentro de Life OS</div>
+            <div class="ob-step-fields">
+              <input class="inp" id="reg-nombre" placeholder="Nombre completo *" autocomplete="name"
+                onkeydown="if(event.key==='Enter')obNext()"/>
+            </div>
+            <button class="btn btn-a" style="width:100%;padding:12px;font-size:14px" onclick="obNext()">Continuar →</button>
+          </div>
+
+          <!-- STEP 2: Correo + Teléfono -->
+          <div class="ob-step" id="ob-step-2">
+            <div class="ob-step-title">Tu acceso</div>
+            <div class="ob-step-sub">Con estos datos entras desde cualquier dispositivo</div>
+            <div class="ob-step-fields">
+              <input class="inp" id="reg-email" type="email" placeholder="Tu mejor correo *" autocomplete="email"
+                onkeydown="if(event.key==='Enter')obNext()"/>
+              <input class="inp" id="reg-tel" type="tel" placeholder="Teléfono / WhatsApp *" autocomplete="tel"
+                onkeydown="if(event.key==='Enter')obNext()"/>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-g" style="flex:1;padding:12px" onclick="obPrev()">← Atrás</button>
+              <button class="btn btn-a" style="flex:2;padding:12px" onclick="obNext()">Continuar →</button>
             </div>
           </div>
 
-          <!-- ── GÉNERO — Art. 9 LFPDPPP ── -->
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em">
-              Identidad de género <span style="font-size:10px">(opcional · solo estadísticas agregadas)</span>
+          <!-- STEP 3: Alias + Contraseña + Consentimiento -->
+          <div class="ob-step" id="ob-step-3">
+            <div class="ob-step-title">Tu identidad</div>
+            <div class="ob-step-sub">Alias público en el Leaderboard · 3–16 caracteres</div>
+            <div class="ob-step-fields">
+              <input class="inp" id="reg-alias" placeholder="Alias público * (ej: WM_OS)" autocomplete="off"
+                maxlength="16" oninput="this.value=this.value.replace(/[^a-zA-Z0-9._]/g,'')"/>
+              <div style="position:relative">
+                <input class="inp" id="reg-pass" type="password"
+                  placeholder="Contraseña (mín. 6 caracteres)" autocomplete="new-password"
+                  style="padding-right:44px" oninput="_checkPassWarning()"
+                  onkeydown="if(event.key==='Enter')obNext()"/>
+                <span onclick="togglePassVis('reg-pass')"
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:var(--text3)"
+                  title="Ver/ocultar">👁</span>
+              </div>
+              <div id="pass-warning-reg" style="display:none;padding:10px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;font-size:12px;color:#fbbf24;line-height:1.6">
+                ⚠️ <strong>Guarda bien tu contraseña.</strong> La recuperación de cuenta está en desarrollo.
+              </div>
+              <div style="font-size:11px;color:var(--text3);line-height:1.6;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--border)">
+                Al continuar aceptas los
+                <span onclick="openLegalModal('terms')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Términos</span>
+                y el
+                <span onclick="openLegalModal('privacy')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Aviso de Privacidad</span>
+                de Life OS (LFPDPPP).
+              </div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap" id="reg-genero-btns">
-              <button type="button" class="genero-btn" data-val="masculino"  onclick="selectGenero(this)">♂ Masculino</button>
-              <button type="button" class="genero-btn" data-val="femenino"   onclick="selectGenero(this)">♀ Femenino</button>
-              <button type="button" class="genero-btn" data-val="no-binario" onclick="selectGenero(this)">⚧ No binario / Identidad diversa</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-g" style="flex:1;padding:12px" onclick="obPrev()">← Atrás</button>
+              <button class="btn btn-a" id="btn-register" style="flex:2;padding:12px;font-size:14px" onclick="obNext()">Elegir filosofía ✦</button>
             </div>
-            <input type="hidden" id="reg-genero" value=""/>
           </div>
 
-          <!-- Contraseña -->
-          <div style="position:relative">
-            <input class="inp" id="reg-pass" type="password"
-              placeholder="Contraseña (mín. 6 caracteres)"
-              autocomplete="new-password"
-              style="padding-right:44px"
-              oninput="_checkPassWarning()"/>
-            <span onclick="togglePassVis('reg-pass')"
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:var(--text3)"
-              title="Ver/ocultar">👁</span>
-          </div>
-        </div>
-
-        <!-- ── COLOR DE ACENTO — Personalización inicial ── -->
-        <div style="margin-bottom:4px">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em">
-            🎨 Elige el color de tu Life OS
-          </div>
-          <div id="reg-accent-dots" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"></div>
-          <input type="hidden" id="reg-accent" value="#00e5ff"/>
-        </div>
-
-        <!-- ── CONSENTIMIENTO LEGAL — Opt-In obligatorio ── -->
-        <div class="consent-wrap" id="consent-wrap-register">
-          <input type="checkbox" id="consent-register" onchange="toggleConsentBtn('register')"/>
-          <label class="consent-label" for="consent-register">
-            He leído y acepto los
-            <a href="javascript:void(0)"
-               onclick="event.stopPropagation();openLegalModal('terms');"
-               tabindex="0">Términos y Condiciones</a>
-            y el
-            <a href="javascript:void(0)"
-               onclick="event.stopPropagation();openLegalModal('privacy');"
-               tabindex="0">Aviso de Privacidad</a>
-            de Life OS, incluyendo el tratamiento de mis datos personales.
-          </label>
-        </div>
-
-        <!-- ── ADVERTENCIA DE CONTRASEÑA ── -->
-        <div id="pass-warning-reg" style="
-          display:none;margin-bottom:12px;
-          padding:10px 14px;
-          background:rgba(251,191,36,.08);
-          border:1px solid rgba(251,191,36,.35);
-          border-radius:10px;font-size:12px;
-          color:#fbbf24;line-height:1.6;">
-          ⚠️ <strong>Por favor, memoriza o guarda bien tu contraseña en un lugar seguro.</strong><br>
-          La función de recuperación de cuenta actualmente se encuentra en desarrollo.
-        </div>
-
-        <button class="btn btn-a" id="btn-register" onclick="doRegister()" disabled
-          style="width:100%;padding:12px;font-size:14px;margin-bottom:10px;opacity:.45;cursor:not-allowed">
-          🚀 Comenzar mis 30 días gratis
-        </button>
+        </div><!-- /ob-wizard-wrap -->
         <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--text3)">
           ¿Ya tienes cuenta?
           <span onclick="switchAuthTab('login')" style="color:var(--accent);cursor:pointer;font-weight:700">Inicia sesión</span>
@@ -594,6 +590,63 @@
 
   </div><!-- /auth-box -->
 </div><!-- /auth-screen -->
+
+<!-- ══ IDENTITY SPLIT-SCREEN (Pilar 3 — paso final de registro) ══ -->
+<div id="ob-identity-screen" style="display:none">
+
+  <!-- XP Side -->
+  <div class="ob-identity-half ob-side-xp" id="ob-side-xp"
+    onclick="obChooseMode('xp')"
+    onmouseenter="obPreviewMode('xp')"
+    onmouseleave="obCancelPreview()">
+    <div class="ob-id-glow"></div>
+    <span class="ob-id-icon">⚡</span>
+    <div class="ob-id-title">MODO XP</div>
+    <div class="ob-id-sub">Dominio · Rendimiento · Poder</div>
+    <div class="ob-id-tags">
+      <div class="ob-id-tag">⚡ Sube de nivel cada día</div>
+      <div class="ob-id-tag">🏆 Leaderboard competitivo</div>
+      <div class="ob-id-tag">🎯 Sistema de misiones y rachas</div>
+      <div class="ob-id-tag">💻 Estética oscura, neón</div>
+    </div>
+    <button class="ob-id-btn">ELEGIR MODO XP</button>
+  </div>
+
+  <!-- Divider -->
+  <div class="ob-id-divider">
+    <div class="ob-id-divider-vs">VS</div>
+  </div>
+
+  <!-- Aura Side -->
+  <div class="ob-identity-half ob-side-aura" id="ob-side-aura"
+    onclick="obChooseMode('aura')"
+    onmouseenter="obPreviewMode('aura')"
+    onmouseleave="obCancelPreview()">
+    <div class="ob-id-glow"></div>
+    <!-- Sparkles flotantes -->
+    <span class="ob-sparkle" style="--sd:5s;--sd2:.3s;--sx:12px;--sy:-18px;top:18%;left:20%;font-size:14px">✦</span>
+    <span class="ob-sparkle" style="--sd:4s;--sd2:1s;--sx:-8px;--sy:-22px;top:30%;right:22%;font-size:10px">✧</span>
+    <span class="ob-sparkle" style="--sd:6s;--sd2:.6s;--sx:16px;--sy:-14px;bottom:28%;left:18%;font-size:12px">✦</span>
+    <span class="ob-sparkle" style="--sd:3.5s;--sd2:1.8s;--sx:-12px;--sy:-10px;bottom:18%;right:20%;font-size:8px">✧</span>
+    <span class="ob-id-icon">✦</span>
+    <div class="ob-id-title">MODO AURA</div>
+    <div class="ob-id-sub">Armonía · Equilibrio · Presencia</div>
+    <div class="ob-id-tags">
+      <div class="ob-id-tag">✦ Acumula Aura en vez de XP</div>
+      <div class="ob-id-tag">🌿 Estética cálida, pasteles</div>
+      <div class="ob-id-tag">🧘 Enfoque en bienestar integral</div>
+      <div class="ob-id-tag">💜 Terminología consciente</div>
+    </div>
+    <button class="ob-id-btn">ELEGIR MODO AURA</button>
+  </div>
+
+  <!-- Loading overlay (se muestra al crear cuenta) -->
+  <div class="ob-id-loading" id="ob-id-loading" style="display:none">
+    <div class="ob-id-loading-spinner"></div>
+    <div class="ob-id-loading-text">Iniciando tu Life OS…</div>
+  </div>
+
+</div><!-- /ob-identity-screen -->
 
 <!-- ══ TOAST NOTIFICATIONS ══ -->
 <div id="toast"><span class="f-display" id="toast-text" style="font-size:13px;font-weight:700"></span></div>
@@ -2061,7 +2114,10 @@
             </div>
             <div id="settings-plan-badge" style="margin-top:6px;display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-family:'Orbitron',monospace;font-weight:700;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)">MODO PRUEBA</div>
           </div>
-          <button onclick="doLogout()" class="btn" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:9px 18px">🚪 Cerrar Sesión</button>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <button onclick="doLogout()" class="btn" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:9px 18px">🚪 Cerrar Sesión</button>
+            <button onclick="openMiVitrina()" class="btn btn-a" style="padding:7px 14px;font-size:12px">✦ Mi Vitrina</button>
+          </div>
         </div>
       </div>
       <!-- Theme & Color: wide 6 cols -->
@@ -2798,6 +2854,113 @@
     </div>
   </div>
 </div>
+
+<!-- ══ MODAL: MI VITRINA (Perfil Social — Pilar 2B) ══ -->
+<div class="modal" id="modal-vitrina">
+  <div class="modal-box pop-in" id="modal-vitrina-box" style="max-width:520px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column">
+
+    <!-- Header fijo -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-family:'Orbitron',monospace;font-size:13px;font-weight:900;color:var(--accent);letter-spacing:.06em" id="vitrina-modal-title">MI VITRINA</div>
+      <button onclick="closeModal('modal-vitrina')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px">✕</button>
+    </div>
+
+    <!-- Cuerpo scrolleable -->
+    <div style="overflow-y:auto;flex:1" id="vitrina-body">
+
+      <!-- Hero -->
+      <div class="vitrina-hero">
+        <div class="vitrina-avatar" id="vitrina-avatar">?</div>
+        <div>
+          <div class="vitrina-name" id="vitrina-name">—</div>
+          <div class="vitrina-pubid" id="vitrina-pubid">—</div>
+        </div>
+        <div class="vitrina-stats">
+          <div class="vitrina-stat">
+            <div class="vitrina-stat-val" id="vitrina-xp">0</div>
+            <div class="vitrina-stat-lbl" data-term="xp-label">XP</div>
+          </div>
+          <div class="vitrina-stat">
+            <div class="vitrina-stat-val" id="vitrina-level">0</div>
+            <div class="vitrina-stat-lbl">NIVEL</div>
+          </div>
+          <div class="vitrina-stat">
+            <div class="vitrina-stat-val" id="vitrina-streak">0</div>
+            <div class="vitrina-stat-lbl">RACHA</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel de privacidad (solo visible en mi propio perfil) -->
+      <div class="vitrina-privacy-panel" id="vitrina-privacy-panel">
+        <div class="vitrina-privacy-title">🔒 PRIVACIDAD DE MI VITRINA</div>
+        <div class="vitrina-privacy-row">
+          <span class="vitrina-privacy-label">📚 Biblioteca / Libros</span>
+          <div class="toggle-track" id="priv-toggle-libros" onclick="toggleVitrinaPrivacy('libros')" title="Visible al público"></div>
+        </div>
+        <div class="vitrina-privacy-row">
+          <span class="vitrina-privacy-label">🎬 Cine / Películas</span>
+          <div class="toggle-track" id="priv-toggle-cine" onclick="toggleVitrinaPrivacy('cine')" title="Visible al público"></div>
+        </div>
+        <div class="vitrina-privacy-row">
+          <span class="vitrina-privacy-label">🎵 Música / Spotify</span>
+          <div class="toggle-track" id="priv-toggle-musica" onclick="toggleVitrinaPrivacy('musica')" title="Visible al público"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5">
+          Cuando desactivas una sección, nadie puede verla ni consultarla desde Firestore.
+        </div>
+      </div>
+
+      <!-- Sección Biblioteca (Libros) -->
+      <div class="vitrina-section" id="vitrina-sec-libros">
+        <div class="vitrina-section-hdr">
+          <div class="vitrina-section-title">📚 Biblioteca</div>
+          <div class="vitrina-section-count" id="vitrina-count-libros">0 libros</div>
+        </div>
+        <div class="media-carousel" id="carousel-libros"></div>
+      </div>
+
+      <!-- Sección Cine (Películas) -->
+      <div class="vitrina-section" id="vitrina-sec-cine">
+        <div class="vitrina-section-hdr">
+          <div class="vitrina-section-title">🎬 Cine</div>
+          <div class="vitrina-section-count" id="vitrina-count-cine">0 películas</div>
+        </div>
+        <div class="media-carousel" id="carousel-cine"></div>
+      </div>
+
+      <!-- Sección Música / Spotify -->
+      <div class="vitrina-section" id="vitrina-sec-musica">
+        <div class="vitrina-section-hdr">
+          <div class="vitrina-section-title">🎵 Música</div>
+          <span id="spotify-connected-badge" style="display:none" class="spotify-connected">Conectado ✓</span>
+        </div>
+        <div style="padding:0 16px" id="vitrina-musica-content">
+          <!-- Conectar Spotify -->
+          <div id="spotify-connect-wrap">
+            <button class="spotify-btn" onclick="connectSpotify()">
+              <span class="spotify-icon">🎧</span>
+              <div>
+                <div class="spotify-btn-label">Vincular con Spotify</div>
+                <div class="spotify-btn-sub">Tus top tracks aparecerán aquí automáticamente</div>
+              </div>
+            </button>
+          </div>
+          <!-- Tracks (se muestra cuando está conectado) -->
+          <div id="spotify-tracks-wrap" style="display:none;margin-top:10px"></div>
+        </div>
+      </div>
+
+    </div><!-- /vitrina-body -->
+
+    <!-- Footer -->
+    <div class="vitrina-footer">
+      <button class="btn btn-g" style="flex:1;padding:10px;font-size:12px" onclick="closeModal('modal-vitrina')">Cerrar</button>
+      <button class="btn btn-a" style="flex:1;padding:10px;font-size:12px" onclick="shareVitrina()">🔗 Compartir perfil</button>
+    </div>
+
+  </div>
+</div><!-- /modal-vitrina -->
 
 <!-- ── MODAL: AGREGAR LIBRO ── -->
 <div class="modal" id="modal-libro">
