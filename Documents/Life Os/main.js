@@ -6149,6 +6149,10 @@ async function loginSuccess(userObj) {
   const bootEl = document.getElementById('boot-screen');
   if (bootEl) bootEl.style.display = '';
 
+  // Hard fallback: garantiza que body.booting se remueva 10s después del login
+  // sin importar si la animación de boot se traba o Firestore no responde
+  setTimeout(() => { document.body.classList.remove('booting'); }, 10000);
+
   // ── Arrancar boot sequence AHORA, en paralelo con la carga de la nube ──
   // runBootSequence registra el callback pero no lo dispara hasta que AMBOS
   // flags estén en true: animación terminada Y datos listos (_markBootDataReady).
