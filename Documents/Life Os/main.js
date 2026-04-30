@@ -762,14 +762,64 @@ function renderContextBanner(moduleId, emoji, title, body) {
 function renderDashboardContextBanner() {
   if (localStorage.getItem('ctx_dismissed_dashboard')) return '';
   const streak = S.checkInStreak || 0;
-  const habDone = (S.habits || []).filter(h => !h.deleted && h.completedToday).length;
-  const habTotal = (S.habits || []).filter(h => !h.deleted).length;
+  const todayHabits = getTodayHabits(S.habits || []);
+  const habDone = todayHabits.filter(h => isHabitDoneToday(h)).length;
+  const habTotal = todayHabits.length;
   const label = streak > 0 ? `🔥 Día ${streak} de racha` : '⚡ Comienza tu racha hoy';
   return `<div class="context-banner" data-context-card="dashboard" style="min-height:unset;padding:10px 16px;gap:12px;align-items:center">
     <span style="font-size:1.1rem">${label}</span>
     <span style="opacity:.6;font-size:12px">${habDone}/${habTotal} hábitos hoy</span>
     <button class="btn-entendido" data-dismiss style="margin-left:auto">✕</button>
   </div>`;
+}
+
+function getTodayHabits(habits) {
+  const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const DAY_ALIASES = [
+    ['sun', 'dom', 'domingo'],
+    ['mon', 'lun', 'lunes'],
+    ['tue', 'mar', 'martes'],
+    ['wed', 'mie', 'mié', 'miercoles', 'miércoles', 'x'],
+    ['thu', 'jue', 'jueves'],
+    ['fri', 'vie', 'viernes'],
+    ['sat', 'sab', 'sáb', 'sabado', 'sábado'],
+  ];
+  const todayIdx = new Date().getDay();
+  const todayKey = DAY_KEYS[todayIdx];
+  const todayAliases = DAY_ALIASES[todayIdx];
+  return (habits || []).filter(h => {
+    if (!h || h.deleted || h.active === false) return false;
+    const scheduled = h.scheduledDays || h.days || h.weekDays || h.dias || h.repeatDays;
+    if (!Array.isArray(scheduled) || scheduled.length === 0) return true;
+    return scheduled.some(d => {
+      if (typeof d === 'number') return d === todayIdx;
+      const v = String(d).toLowerCase();
+      return v === todayKey || todayAliases.includes(v) || todayAliases.includes(v.slice(0, 3)) || v === String(todayIdx);
+    });
+  });
+}
+
+function isHabitDoneToday(habit) {
+  return !!habit?.completedToday || habit?.lastCompletedDate === today() || (Array.isArray(habit?.history) && habit.history.includes(today()));
+}
+
+function getBatteryDisplay(batteryPct, habitCount) {
+  if (habitCount === 0) return { value: '-', label: 'Listo para empezar', class: 'battery-empty-state' };
+  if (batteryPct === 0) return { value: '0%', label: 'Recargala hoy', class: 'battery-depleted' };
+  return { value: `${batteryPct}%`, label: 'Bateria', class: '' };
+}
+
+function calcBodyScore() {
+  const vals = Object.values(S.muscleMap || {}).map(Number).filter(Number.isFinite);
+  const rawScore = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+  return Math.max(rawScore, 50);
+}
+
+function getBodyScoreLabel(score) {
+  if (score < 60) return 'POTENCIAL FISICO';
+  if (score < 75) return 'EN DESARROLLO';
+  if (score < 90) return 'NIVEL SOLIDO';
+  return 'ELITE FISICA';
 }
 
 function _contextBannerMeta(moduleId) {
@@ -1313,8 +1363,9 @@ function getRadarData(mode) {
   const totalOut = (S.transactions||[]).filter(t=>t.type==='salida').reduce((a,t)=>a+t.amount,0);
   const finanzas = totalIn+totalOut > 0 ? Math.min(100, Math.round((totalIn/(totalIn+totalOut))*100)) : 50;
   // Hábitos: completion % of today
-  const habTotal = (S.habits||[]).length || 1;
-  const habDone  = (S.habits||[]).filter(h=>h.completedToday).length;
+  const todayHabits = getTodayHabits(S.habits || []);
+  const habTotal = todayHabits.length || 1;
+  const habDone  = todayHabits.filter(h=>isHabitDoneToday(h)).length;
   const habitos  = Math.round((habDone/habTotal)*100);
   // Trabajo: productividad
   const trabajo  = S.productividad || 50;
@@ -1652,11 +1703,19 @@ function displayHabitName(name) {
 }
 
 function addHabit() {
-  const raw = document.getElementById('new-habit').value.trim(); if (!raw) return;
+  const input = document.getElementById('new-habit');
+  const raw = input?.value.trim();
+  if (!raw) {
+    input?.classList.add('input-error');
+    showToast('Dale un nombre a tu habito', 'warning');
+    setTimeout(() => input?.classList.remove('input-error'), 600);
+    input?.focus();
+    return;
+  }
   const emoji = habitEmoji(raw);
   const name  = emoji + ' ' + raw;
   S.habits.push({ id:uid(), name, streak:0, completedToday:false, lastCompletedDate:'' });
-  document.getElementById('new-habit').value='';
+  input.value='';
   renderHabits();
   guardarDatos();
 }
@@ -1675,11 +1734,12 @@ function renderHabits() {
   const el = document.getElementById('habit-list');
   if (!el) return;
   const active = (S.habits || []).filter(h => !h.deleted);
+  const todayHabits = getTodayHabits(active);
   const maxStreak = active.reduce((a, h) => Math.max(a, h.streak), 0);
-  const doneToday = active.filter(h => h.completedToday).length;
+  const doneToday = todayHabits.filter(h => isHabitDoneToday(h)).length;
   document.getElementById('h-streak')     && (document.getElementById('h-streak').textContent     = maxStreak + ' días');
   document.getElementById('h-count')      && (document.getElementById('h-count').textContent      = active.length);
-  document.getElementById('h-done-today') && (document.getElementById('h-done-today').textContent = doneToday + '/' + active.length);
+  document.getElementById('h-done-today') && (document.getElementById('h-done-today').textContent = doneToday + '/' + todayHabits.length);
   document.querySelector('#h-streak + .flow-stat-sub')?.remove();
   document.getElementById('h-streak')?.insertAdjacentHTML('afterend',
     `<span class="flow-stat-sub">🏆 Mejor: ${S.bestStreak || maxStreak || 0} días</span>`);
@@ -3269,6 +3329,16 @@ function updateSettingsDisplay() {
   // — Avatar
   const _avatarEl = document.getElementById('settings-avatar');
   if (_avatarEl) _avatarEl.textContent = _realName.charAt(0).toUpperCase();
+  const _logoutBtn = Array.from(document.querySelectorAll('#page-settings button, [data-module="settings"] button'))
+    .find(btn => (btn.getAttribute('onclick') || '').includes('doLogout'));
+  if (_logoutBtn) {
+    _logoutBtn.classList.add('btn-logout');
+    _logoutBtn.id = _logoutBtn.id || 'logout-btn';
+    _logoutBtn.hidden = false;
+    _logoutBtn.style.removeProperty('display');
+    _logoutBtn.style.visibility = 'visible';
+    _logoutBtn.style.opacity = '1';
+  }
 }
 
 /* ─── _updateSaasSubscriptionUI ────────────────────────────────────
@@ -5683,8 +5753,10 @@ function _applyData(d) {
   // Restaurar score de cuerpo
   const bioScoreEl = document.getElementById('bio-score-val');
   if (bioScoreEl) {
-    const vals = Object.values(S.muscleMap || {});
-    bioScoreEl.textContent = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) + '/100' : '—';
+    const score = calcBodyScore();
+    bioScoreEl.textContent = score + '/100';
+    const scoreSub = bioScoreEl.parentElement?.querySelector('.stat-sub');
+    if (scoreSub) scoreSub.textContent = getBodyScoreLabel(score);
   }
   if (!S.aliados || !Array.isArray(S.aliados)) S.aliados = [];
   if (!S.aliadosUids || !Array.isArray(S.aliadosUids)) S.aliadosUids = [];
@@ -6633,6 +6705,10 @@ function updateDashboardTaskCount() {
 function updateFisicoWidget() {
   const valEl = document.getElementById('db-fisico-val'); if (!valEl) return;
   const subEl = document.getElementById('db-fisico-sub');
+  const score = calcBodyScore();
+  valEl.textContent = score + '/100';
+  if (subEl) subEl.textContent = getBodyScoreLabel(score);
+  return;
   const vals = Object.values(S.muscleMap || {});
   if (!vals.length) {
     valEl.textContent = '—';
@@ -6822,7 +6898,8 @@ function syncCalibrationAndCheckin() {
   window._suppressNucleoToast = false;
   if (S._weeklyBonusGiven) {
     // Calcular si el núcleo sigue al 100% para confirmar el mensaje
-    const totalH = (S.habits||[]).length, doneH = (S.habits||[]).filter(h=>h.completedToday).length;
+    const todayHabits = getTodayHabits(S.habits || []);
+    const totalH = todayHabits.length, doneH = todayHabits.filter(h=>isHabitDoneToday(h)).length;
     const todayStr = today();
     const todayT = (S.tasks||[]).filter(t=>!t.date||t.date===todayStr);
     const doneT = todayT.filter(t=>t.done).length;
@@ -7502,10 +7579,12 @@ function renderMorningBriefing() {
     ? `${briefingStat('Finanzas', txCount + ' hoy', Math.min(100, txCount * 25))} Saldo: <strong>${bal}</strong>`
     : `${briefingStat('Finanzas', 'estable', 40)} Saldo: <strong>${bal}</strong>`;
 
-  const totalH = (S.habits || []).filter(h => !h.deleted).length;
-  const doneH = (S.habits || []).filter(h => !h.deleted && h.completedToday).length;
-  const battPct = totalH > 0 ? Math.round((doneH / totalH) * 100) : 100;
-  const battLine = `${briefingStat('Hábitos', doneH + '/' + totalH, battPct)} Batería al <strong>${battPct}%</strong>.`;
+  const todayHabits = getTodayHabits(S.habits || []);
+  const totalH = todayHabits.length;
+  const doneH = todayHabits.filter(h => isHabitDoneToday(h)).length;
+  const battPct = totalH > 0 ? Math.round((doneH / totalH) * 100) : 0;
+  const batteryDisplay = getBatteryDisplay(battPct, totalH);
+  const battLine = briefingStat('Habitos', doneH + '/' + totalH, battPct) + ' ' + batteryDisplay.label + ': <strong>' + batteryDisplay.value + '</strong>.';
 
   const todayStr = today();
   const pendingTasks = (S.tasks || []).filter(t => !t.done && !t.deleted && (!t.date || t.date === todayStr));
@@ -7598,7 +7677,31 @@ function getBatteryState(pct) {
 /* ═══════════════════════════════════════════════════════════════
    HÁBITOS — funciones auxiliares de batería
 ═══════════════════════════════════════════════════════════════ */
+function isOnboardingIncomplete() {
+  return !(S.onboardingDone || (S.tasks && S.tasks.length > 0));
+}
+
+function canShowBlackoutOverlay() {
+  return !isOnboardingIncomplete() && (S.plan === 'pro' || S.isPro || S.is_pro);
+}
+
+function buildBlackoutCTA() {
+  const hasHabits = (S.habits || []).some(h => !h.deleted && h.active !== false);
+  const hasGoals = (S.goals || []).some(g => !g.deleted);
+
+  if (!hasHabits) {
+    return `<button class="btn btn-a blackout-cta" onclick="setBlackoutOverlay(false);navigate('productividad');switchInnerTab('productividad','habits')">Crear mi primer habito</button>`;
+  }
+  if (!hasGoals) {
+    return `<button class="btn btn-a blackout-cta" onclick="setBlackoutOverlay(false);navigate('productividad');switchInnerTab('productividad','goals')">Definir una meta</button>`;
+  }
+  return `<button class="btn btn-a blackout-cta" onclick="setBlackoutOverlay(false);navigate('productividad')">Ir al Flow</button>`;
+}
+
 function setBlackoutOverlay(active) {
+  if (active && !canShowBlackoutOverlay()) {
+    active = false;
+  }
   let overlay = document.getElementById('blackout-overlay');
   if (active) {
     if (!overlay) {
@@ -7610,7 +7713,7 @@ function setBlackoutOverlay(active) {
           <h2 class="blackout-title">${document.body.dataset.mode === 'aura' ? 'TU FLUJO SE HA INTERRUMPIDO' : 'SYSTEM BLACKOUT'}</h2>
           <p class="blackout-sub">Tu Núcleo está en 0%. Completa un hábito o tarea para reactivar.</p>
           <div class="blackout-ember-container" id="blackout-embers"></div>
-          <button class="btn btn-a blackout-cta" onclick="navigate('productividad');setBlackoutOverlay(false)">Recuperar ahora →</button>
+          ${buildBlackoutCTA()}
         </div>`;
       document.body.appendChild(overlay);
       const embers = overlay.querySelector('#blackout-embers');
@@ -7642,9 +7745,9 @@ function setBlackoutOverlay(active) {
 }
 
 function updateGlobalCore() {
-  const activeHabits = (S.habits || []).filter(h => !h.deleted);
+  const activeHabits = getTodayHabits(S.habits || []);
   const totalH   = activeHabits.length;
-  const doneH    = activeHabits.filter(h => h.completedToday).length;
+  const doneH    = activeHabits.filter(h => isHabitDoneToday(h)).length;
   const todayStr = today();
   const todayTasks = (S.tasks || []).filter(t => !t.deleted && (!t.date || t.date === todayStr));
   const doneT    = todayTasks.filter(t => t.done).length;
@@ -7827,7 +7930,7 @@ function updateGlobalCore() {
 
   // ── SYSTEM BLACKOUT ──────────────────────────────
   const enRecuperacionCheck = S.modoRecuperacion && S.modoRecuperacionFecha === today();
-  const shouldBlackout = state === 'blackout' && !enRecuperacionCheck;
+  const shouldBlackout = state === 'blackout' && !enRecuperacionCheck && canShowBlackoutOverlay();
   if (shouldBlackout) {
     setBlackoutOverlay(true);
     if (!document.body.classList.contains('blackout')) {
@@ -8544,8 +8647,9 @@ function getRadarData(mode) {
   const totalIn  = (S.transactions||[]).filter(t=>t.type==='entrada').reduce((a,t)=>a+t.amount,0);
   const totalOut = (S.transactions||[]).filter(t=>t.type==='salida').reduce((a,t)=>a+t.amount,0);
   const finanzas = totalIn+totalOut > 0 ? Math.min(100, Math.round((totalIn/(totalIn+totalOut))*100)) : 50;
-  const habTotal = (S.habits||[]).length || 1;
-  const habDone  = (S.habits||[]).filter(h=>h.completedToday).length;
+  const todayHabits = getTodayHabits(S.habits || []);
+  const habTotal = todayHabits.length || 1;
+  const habDone  = todayHabits.filter(h=>isHabitDoneToday(h)).length;
   const habitos  = Math.round((habDone/habTotal)*100);
   const trabajo  = S.productividad || 50;
   // Social: check-in streak + participación activa en planes sociales
@@ -9692,17 +9796,21 @@ function revertIdea(id) {
 }
 
 function switchInnerTab(pageId, tabId) {
+  const requestedTabId = tabId;
   if (pageId === 'productividad' && tabId === 'metas') tabId = 'goals';
+  if (pageId === 'productividad' && tabId === 'habitos') tabId = 'habits';
   if (pageId === 'mente' && tabId === 'poder') tabId = 'bitacora';
+  if (pageId === 'mente' && tabId === 'gemelo') tabId = 'brain';
   if (pageId === 'mente') _ensureMenteTabs();
   _innerTabState[pageId] = tabId;
+  const activeIds = [tabId, requestedTabId].filter(Boolean);
   const panelTabId = (pageId === 'mente' && ['bitacora','aliados','biblioteca'].includes(tabId)) ? 'poder' : tabId;
   // Update tab buttons
   const tabsEl = document.getElementById('inner-tabs-' + pageId);
   if (tabsEl) {
     tabsEl.querySelectorAll('.inner-tab').forEach(btn => {
       const onClick = btn.getAttribute('onclick') || '';
-      const isActive = onClick.includes("'" + tabId + "'") || btn.dataset.tab === tabId;
+      const isActive = activeIds.includes(btn.dataset.tab) || activeIds.some(id => onClick.includes("'" + id + "'"));
       btn.classList.toggle('active', isActive);
     });
   }
@@ -9717,6 +9825,16 @@ function switchInnerTab(pageId, tabId) {
   }
   // Fire init for the revealed tab
   _fireTabInit(pageId, tabId);
+}
+
+function switchFlowTab(tab) {
+  const aliases = { metas: 'goals', habitos: 'habits' };
+  switchInnerTab('productividad', aliases[tab] || tab || 'habits');
+}
+
+function switchMenteTab(tab) {
+  const aliases = { poder: 'bitacora', gemelo: 'brain' };
+  switchInnerTab('mente', aliases[tab] || tab || 'bitacora');
 }
 
 function _ensureMenteTabs() {
@@ -11091,7 +11209,7 @@ const _ONB_DATA = {
   mente:         { em1:'🧠', em2:'💡', title:'MENTE & PODER', sub:'Tu Gemelo Potenciado observa tus datos 30 días y genera un análisis narrativo personalizado de quién eres. Las herramientas de enfoque profundo (Pomodoro y Focus Chamber) te ayudan a entrar en estado de flujo sin distracciones.', color:'#a855f7', grad:'linear-gradient(135deg,#0d0520 0%,rgba(168,85,247,.22) 100%)', tut:[{t:'Activa el Gemelo Potenciado'},{t:'Inicia una sesión Pomodoro'},{t:'Completa sin salir → +XP mental'}], res:'✦ Gemelo activo' },
   calendar:      { em1:'📅', em2:'⏰', title:'CALENDARIO', sub:'Agrega eventos en texto libre y el sistema les asigna un emoji automático según lo que escribas — comida, gym, dentista, café. Con Planes Sociales puedes crear retos compartidos con aliados: el plan solo se completa cuando ambos hacen check-in y los dos ganan XP.', color:'#a855f7', grad:'linear-gradient(135deg,#0d0520 0%,rgba(168,85,247,.2) 100%)', tut:[{t:'Selecciona un día en el calendario'},{t:'Escribe un evento en texto libre'},{t:'Crea un Plan Social con un aliado'}], res:'📅 Evento agregado' },
   stats:         { em1:'📊', em2:'📈', title:'ANÁLISIS', sub:'Visualiza tus métricas reales: XP diario en gráficos, heatmap anual de actividad y el Radar de 6 dimensiones. El <strong>Núcleo Global</strong> multiplica tu XP según qué tan activo estés — llega al estado Completo para ganar <strong>×2 XP</strong> en todo.', color:'#60a5fa', grad:'linear-gradient(135deg,#050e1c 0%,rgba(96,165,250,.2) 100%)', tut:[{t:'Revisa el Núcleo Global'},{t:'Observa tu multiplicador actual'},{t:'Gira la Ruleta del Multiplicador'}], res:'📊 Datos cargados' },
-  world:         { em1:'🌍', em2:'🗺️', title:'LIFE OS WORLD', sub:'Un mapa de ciudad pixel art donde cada edificio es un módulo y tu avatar se mueve hacia el que más usas. Entra a tu apartamento y decóralo con Monedas de Fuerza — una moneda especial que solo ganas cuando bates un récord personal de peso en el gym.', color:'#60a5fa', grad:'linear-gradient(135deg,#020c18 0%,rgba(96,165,250,.18) 100%)', tut:[{t:'Explora el mapa de la ciudad'},{t:'Entra a tu apartamento'},{t:'Visita la Tienda y decora tu espacio'}], res:'🌍 Mundo activo' },
+  world:         { em1:'🌍', em2:'🗺️', title:'LIFE OS WORLD', sub:'Un mapa de ciudad pixel art donde cada edificio es un módulo y tu avatar se mueve hacia el que más usas. Entra a tu apartamento y decoralo usando el XP que ganas en toda la app: convierte tu progreso real en muebles, estilo y mejoras para tu espacio.', color:'#60a5fa', grad:'linear-gradient(135deg,#020c18 0%,rgba(96,165,250,.18) 100%)', tut:[{t:'Explora el mapa de la ciudad'},{t:'Entra a tu apartamento'},{t:'Visita la Tienda y decora tu espacio'}], res:'🌍 Mundo activo' },
   settings:      { em1:'⚙️', em2:'🎨', title:'AJUSTES', sub:'Cambia entre modo oscuro/claro y elige entre 8 colores de acento o escribe cualquier código hex — los cambios se aplican a toda la app al instante. Revisa tu cuenta, copia tu User ID para soporte, y si necesitas empezar de cero el Reinicio de Datos te pide escribir "ELIMINAR" para confirmar.', color:'#94a3b8', grad:'linear-gradient(135deg,#0a0e16 0%,rgba(148,163,184,.15) 100%)', tut:[{t:'Elige tu color de acento favorito'},{t:'Copia tu User ID (por si necesitas soporte)'},{t:'Activa modo claro si lo prefieres'}], res:'✨ Configuración guardada' },
   // ── Inner tabs (sub-cards) ──
   habits:        { em1:'🔥', em2:'⚡', title:'HÁBITOS', sub:'Crea los comportamientos que quieres repetir cada día. Cada vez que completas un hábito ganas XP y alargas tu racha individual — si un día fallas, solo se rompe la racha de ese hábito, no la de toda la app.', color:'#ff6b35', grad:'linear-gradient(135deg,#1a0800 0%,rgba(255,107,53,.2) 100%)', tut:[{t:'Crea tu primer hábito'},{t:'Márcalo completado hoy'},{t:'Repite mañana para empezar la racha'}], res:'🔥 Hábito activo', isTab:true },
@@ -11353,8 +11471,8 @@ function _gemPrecision() {
 function _checkSurvival() {
   const g = _gState();
   if (g.state !== 'activated') return false;
-  const habits = S.habits||[];
-  const ratio = habits.length > 0 ? habits.filter(h=>h.completedToday).length/habits.length : 1;
+  const habits = getTodayHabits(S.habits || []);
+  const ratio = habits.length > 0 ? habits.filter(h=>isHabitDoneToday(h)).length/habits.length : 1;
   const weekXP = Object.entries(S.xpHistory||{}).slice(-7).reduce((s,[,v])=>s+v,0);
   return ratio < 0.2 && weekXP < 60;
 }
@@ -11905,8 +12023,8 @@ function toggleSurvivalTask(idx) {
 
 function exitSurvival() {
   // Force re-evaluate
-  const habits = S.habits||[];
-  const ratio = habits.length > 0 ? habits.filter(h=>h.completedToday).length/habits.length : 1;
+  const habits = getTodayHabits(S.habits || []);
+  const ratio = habits.length > 0 ? habits.filter(h=>isHabitDoneToday(h)).length/habits.length : 1;
   // Override: if user says they're ok, show analysis again
   renderGemelo();
   showToast('✦ Modo supervivencia desactivado');
