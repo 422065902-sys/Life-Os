@@ -303,21 +303,35 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-05-01 (sesión 10)
-- Codex Batches 9A + 9B + 9C ejecutados y commiteados (`23445c10`)
-- runner.js con scroll completo synced al VPS
+- Fecha: 2026-05-01 (sesión 11)
+- Firebase `centro-ops` completado 100%
+
+### Cambios sesión 2026-05-01 (sesión 11)
+
+#### Firebase centro-ops — Firestore + Hosting
+- Proyecto Firebase Spark creado: `centro-ops-ecosistema`
+- Firestore habilitado (Native mode, nam5) — colección `status/`
+- Service account en VPS: `/opt/openclaw/projects/centro-ops/firebase-sa.json`
+- `.env` del VPS tiene: `FIREBASE_CENTRO_OPS_SA` + `FIREBASE_CENTRO_OPS_PROJECT_ID`
+- `firebase-admin` instalado en `/opt/openclaw/node_modules/`
+- `runner.js` (centro-ops): escribe `status/centro-ops` a Firestore al terminar
+- `runner.js` (Life OS): escribe `status/lifeos-qa` a Firestore al terminar (pendiente sync al VPS)
+- `tablero.html`: card "Live Status" con `onSnapshot` en tiempo real — aparece con punto verde
+- Firestore rules: `status/*` allow read: true, write: false
+- **Tablero desplegado**: https://centro-ops-ecosistema.web.app
+- Commits: `5564d4e` (código) + `bcfa2bf` (config real) en repo centro-operaciones
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. **Revisar reporte QA post-Batch 9** — pipeline corriendo al cerrar sesión (`node runner.js --deep`)
-   - Ver si blackout/tabs/scroll fueron corregidos correctamente
+1. **Sync runner.js Life OS al VPS** — tiene código Firestore pero no synced:
+   ```bash
+   cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js
+   ```
+2. **Correr pipeline completo** para poblar `lifeos-qa` en Firestore y revisar reporte post-Batch 9:
+   ```bash
+   cd /opt/openclaw && node runner.js --deep
+   ```
+   - Ver si blackout/tabs/scroll fueron corregidos (Batch 9)
    - Si hay regresiones → nuevo batch Codex
-2. **Firebase `centro-ops`** — tarea principal próxima sesión:
-   - Crear proyecto Spark (gratis) en Firebase Console
-   - Habilitar Firestore + Hosting
-   - Bajar service account JSON → subir al VPS
-   - Cada runner escribe `status.json` a Firestore al terminar
-   - `tablero.html` lee de Firestore en tiempo real (reemplaza localStorage)
-   - Deploy tablero a Firebase Hosting → URL pública
 3. **Configurar claves externas** (features sesión 7 — pendientes):
    - TMDB API Key → https://www.themoviedb.org/settings/api
    - Spotify App → https://developer.spotify.com/dashboard (Client ID + Secret)
