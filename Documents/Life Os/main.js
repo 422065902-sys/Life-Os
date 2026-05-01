@@ -211,10 +211,10 @@ function _setAuraAccentVars() {
   const r = parseInt(hex.slice(0,2), 16);
   const g = parseInt(hex.slice(2,4), 16);
   const b = parseInt(hex.slice(4,6), 16);
-  // Primary: mild pastel — 90% user color + 10% white
-  const pr = Math.min(255, Math.round(r * 0.9 + 255 * 0.1));
-  const pg = Math.min(255, Math.round(g * 0.9 + 255 * 0.1));
-  const pb = Math.min(255, Math.round(b * 0.9 + 255 * 0.1));
+  // Primary: soft pastel — 65% user color + 35% white for airy Aura feel
+  const pr = Math.min(255, Math.round(r * 0.65 + 255 * 0.35));
+  const pg = Math.min(255, Math.round(g * 0.65 + 255 * 0.35));
+  const pb = Math.min(255, Math.round(b * 0.65 + 255 * 0.35));
   // Secondary: shift toward cool/airy — blend with sky blue for gradients
   const sr = Math.min(255, Math.round(pr * 0.6 + 114 * 0.4));
   const sg = Math.min(255, Math.round(pg * 0.6 + 184 * 0.4));
@@ -966,6 +966,11 @@ const ACCENT_PRESETS = [
   {name:'Naranja',v:'#fb923c'},{name:'Rosa',v:'#f472b6'},{name:'Oro',v:'#ffd700'},
   {name:'Coral',v:'#ff6b35'},{name:'Azul',v:'#60a5fa'}
 ];
+const AURA_PRESETS = [
+  {name:'Lavanda',v:'#C4AFFF'},{name:'Niebla Azul',v:'#93C5FD'},{name:'Rosa Cálido',v:'#F9A8D4'},
+  {name:'Durazno',v:'#FDBA74'},{name:'Menta',v:'#86EFAC'},{name:'Lila',v:'#D8B4FE'},
+  {name:'Cielo',v:'#BAE6FD'},{name:'Oro Suave',v:'#FDE68A'}
+];
 
 /* ═══════════════════════════════════════════════════════════════
    PILAR 3 — ONBOARDING WIZARD PROGRESIVO
@@ -1085,7 +1090,8 @@ function clearAuthErr() {
 function buildAccentPresets() {
   const el = document.getElementById('accent-presets');
   if (!el) return;
-  el.innerHTML = ACCENT_PRESETS.map(p => `
+  const presets = S.visualMode === 'aura' ? AURA_PRESETS : ACCENT_PRESETS;
+  el.innerHTML = presets.map(p => `
     <div class="acc-dot ${S.accent===p.v?'sel':''}" style="background:${p.v}" title="${p.name}" onclick="applyAccent('${p.v}')"></div>`).join('');
 }
 

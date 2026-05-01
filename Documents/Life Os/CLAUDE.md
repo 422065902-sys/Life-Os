@@ -226,9 +226,9 @@ userDirectory/{uid}:
 - ✅ Gemini model configurable via .env: GEMINI_MODEL_DEEP (deep) / GEMINI_MODEL (light)
 - ✅ Baseline QA post-Batch 10: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
 - ✅ Batch P0 completado — activación + medición · commit `0d821188` · QA: 178 ✅ / 0 ❌ / 92%
-- ✅ Batch 12 completado — A1–A5 bugs críticos, B1–B2 features, C1–C3 visual, D1 financiero
+- ✅ Batch 12 completado — A1–A5 bugs críticos, B1–B2 features, C1–C3 visual, D1 financiero · commit `013b756a`
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
-- ⚠️ Pendiente: deploy a staging + QA para validar Batch 12
+- ⚠️ CRÍTICO: VPS sin sincronizar — staging NO refleja Batch 12 — sync + deploy requerido al inicio de próxima sesión
 
 ## FLUJO RECOMENDADO
 ```bash
@@ -316,18 +316,59 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-05-01 (sesión 17)
-- **Batch 12 completado** — los 11 ítems (A1–A5, B1–B2, C1–C3, D1) implementados y verificados
-- Baseline revisado: QA 2026-04-30_17-28 → 178 ✅ / 0 ❌ / 92% de éxito
-- Cambios pendientes de commit: main.js + index.html + styles.css + CLAUDE.md
+- Fecha: 2026-05-01 (sesión 18)
+- **Batch 12 en GitHub** — commit `013b756a` — código correcto en origin/main
+- **VPS NO sincronizado** — staging sigue con código anterior al Batch 12
+- **El deploy que hizo el usuario** fue con código viejo (VPS sin git pull) → staging no muestra Batch 12
+- **Usuario entregó revisión funcional completa (19 puntos)** — mapeo hecho: 9 puntos ya cubiertos en Batch 12, resto es Batch 13
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. **Commit + push** — `git push origin main` para sincronizar VPS
-2. **Sync VPS + deploy staging** — sync y `firebase deploy --only hosting:staging --project staging`
+1. **Sync VPS + deploy staging** — CRÍTICO — comando completo:
+   ```bash
+   cd /opt/openclaw/repo/lifeos && git pull origin main && \
+     cp "Documents/Life Os/scripts/runner.js" /opt/openclaw/runner.js && \
+     cp "Documents/Life Os/scripts/analyze.js" /opt/openclaw/analyze.js && \
+     cp "Documents/Life Os/scripts/analyze-deep.js" /opt/openclaw/analyze-deep.js && \
+     cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && \
+     GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" \
+     firebase deploy --only hosting:staging --project staging
+   ```
+2. **Verificar Batch 12 en staging** — confirmar visualmente los 9 ítems
 3. **Correr QA** — `cd /opt/openclaw && node runner.js --deep`
-4. **Deploy a producción** si QA pasa — `firebase deploy --only hosting:production --project production`
-5. **Fix visual landing** — gradiente animado en nav + botones (misma clase CSS que título hero)
-6. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true
+4. **Planear Batch 13** con revisión del usuario — ver sección abajo
+5. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true
+
+### Batch 13 — Revisión funcional usuario (19 puntos)
+**Items ya hechos en Batch 12 (solo verificar en staging):**
+- Agenda vencidas → "Pendientes atrasadas" (A1)
+- Financiero: overlay debajo dona + sin XP (A2, D1)
+- Estado Pro: oculta banner si ya es Pro (A3)
+- World Apartamento: misma lógica que burbuja (A4)
+- Hábitos: selector días L/M/X/J/V/S/D (B1)
+- Enfoque mental: donut + barras lado a lado (C1)
+- Racha semanal: círculos más juntos (C2)
+- Leaderboard: datos reales Firestore (A5)
+
+**Items nuevos para Batch 13 (prioridad alta):**
+- Colores Modo Aura más diferenciados — paleta pastel/emocional, color seleccionado visible
+- Radar rendimiento — altura equilibrada (igual que racha+enfoque combinadas)
+- Núcleo Personal vs Núcleo Global — lógica correcta (Personal=solo usuario, Global=todos los usuarios → Nexus)
+- Sistema de Aliados — auditar flujo completo: buscar/enviar/aceptar/rechazar/ver perfil
+
+**Items nuevos para Batch 13 (prioridad media):**
+- Tarjeta tareas gamificada — propuesta de mejora visual
+- Biblioteca vs Diario Bitácora — separar responsabilidades (Biblioteca=colección, Diario=experiencia)
+- Aprende e Infórmate — contenido personalizado según estado del usuario
+
+**Items futuros (documentar, no implementar aún):**
+- Mapa muscular realista (SVG mejorado, zonas musculares claras)
+- Rutinas recomendadas por zona menos trabajada
+- Calorías opcionales (activar/desactivar)
+- Libro: modo lectura tipo pomodoro, checkpoints, sesiones
+- Series: tab separado o dentro de Películas
+- Notificaciones recreativas inteligentes
+- Dashboard inteligente por comportamiento
+- Spotify OAuth real
 
 ### Resumen CODEX_BATCH_12.md
 **Batch 12A (bugs críticos):**
