@@ -710,7 +710,7 @@ function navigate(id) {
   worldTrackNavigation(id);
   if (id==='financial')     { updatePieCharts(); renderTransactions(); renderDebts(); renderCards(); }
   if (id==='agencies')      { renderAgencyTable(); }
-  if (id==='settings')      { updateSettingsDisplay(); }
+  if (id==='settings')      { updateSettingsDisplay(); _updateSaasSubscriptionUI(); }
   if (id==='aprende')       { initAprende(); }
   // Merged pages — init active tab on navigation
   if (id==='productividad') { _initInnerTab('productividad'); }
@@ -1736,7 +1736,12 @@ function addHabit() {
   }
   const emoji = habitEmoji(raw);
   const name  = emoji + ' ' + raw;
-  const h = { id:uid(), name, streak:0, completedToday:false, lastCompletedDate:'' };
+  const dayCheckboxes = document.querySelectorAll('#new-habit-days input[type="checkbox"]');
+  const selectedDays = dayCheckboxes.length > 0
+    ? Array.from(dayCheckboxes).filter(cb => cb.checked).map(cb => Number(cb.value))
+    : [];
+  const h = { id:uid(), name, streak:0, completedToday:false, lastCompletedDate:'',
+    ...(selectedDays.length > 0 && selectedDays.length < 7 ? { days: selectedDays } : {}) };
   S.habits.push(h);
   track('habit_created', { category: h.category || 'general' });
   input.value='';
@@ -1794,10 +1799,13 @@ function renderHabits() {
     ensureHabitBattery(h);
     const bState = getBatteryState(h.battery);
     const bColor = { high: 'var(--flow-accent, #00ff88)', med: '#fb923c', low: 'var(--red)', dead: 'rgba(248,113,113,.4)' }[bState];
+    const habitDays = h.days || [];
     const dots = getLast7Days().map(d => {
+      const dayOfWeek = new Date(d + 'T12:00:00').getDay();
+      const isActiveDay = habitDays.length === 0 || habitDays.includes(dayOfWeek);
       const hist = h.history || [];
-      const done = Array.isArray(hist) ? hist.includes(d) : !!hist[d];
-      return `<span class="h-dot ${done ? 'done' : ''}"></span>`;
+      const done = isActiveDay && (Array.isArray(hist) ? hist.includes(d) : !!hist[d]);
+      return `<span class="h-dot ${done ? 'done' : ''} ${!isActiveDay ? 'inactive' : ''}"></span>`;
     }).join('');
     return `
     <div class="habit-item ${h.completedToday ? 'done-h' : ''}" data-battery="${bState}">
@@ -1904,6 +1912,11 @@ function openEditHabit(id) {
   S.editingHabit = id;
   const h = S.habits.find(x=>x.id===id);
   document.getElementById('eh-name').value = h?.name||'';
+  const savedDays = h?.days || [];
+  [0,1,2,3,4,5,6].forEach(d => {
+    const cb = document.getElementById(`eh-day-${d}`);
+    if (cb) cb.checked = savedDays.length === 0 || savedDays.includes(d);
+  });
   openModal('modal-edit-habit');
 }
 
@@ -1914,6 +1927,12 @@ function saveHabitEdit() {
   const stripped = raw.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '');
   const emoji = habitEmoji(stripped);
   h.name = emoji + ' ' + stripped;
+  const dCbs = document.querySelectorAll('#eh-days input[type="checkbox"]');
+  if (dCbs.length > 0) {
+    const sel = Array.from(dCbs).filter(cb => cb.checked).map(cb => Number(cb.value));
+    if (sel.length > 0 && sel.length < 7) h.days = sel;
+    else delete h.days;
+  }
   closeModal('modal-edit-habit');
   renderHabits();
   guardarDatos();
@@ -2577,10 +2596,8 @@ async function addTransaction() {
   closeModal('modal-tx');
   updateFinancialDisplay();
 
-  gainXP(15);
-  showToast('+15 XP · Registro financiero');
-  S.visualMode === 'aura' ? spawnAuraOrbs() : spawnConfetti();
-  _logActivity('finance', 15, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
+  showToast('Transaccion registrada');
+  _logActivity('finance', 0, (tx.type === 'entrada' ? 'Ingreso' : 'Gasto') + ': ' + (tx.desc || tx.category || 'transacción'));
   guardarDatos(); // localStorage + monolith doc (fallback)
 
   // ── Cloud-First: escritura directa a sub-colección (sin debounce) ──
@@ -2698,14 +2715,14 @@ function renderFinancialHealth() {
   const income = (S.transactions || []).filter(t => !t.deleted && t.type === 'entrada').reduce((a,t)=>a + Number(t.amount || 0), 0);
   const expense = (S.transactions || []).filter(t => !t.deleted && t.type === 'salida').reduce((a,t)=>a + Number(t.amount || 0), 0);
   const ratio = income > 0 ? Math.max(0, Math.min(100, Math.round(((income - expense) / income) * 100))) : (expense > 0 ? 20 : 55);
-  const label = ratio >= 70 ? 'Guardián de Riqueza' : ratio >= 40 ? 'Maestro del Ahorro' : 'Explorador Frugal';
+  const label = ratio >= 70 ? 'Balance positivo' : ratio >= 40 ? 'Balance estable' : 'Balance bajo';
   card.innerHTML = `
     <div class="card-title">SALUD FINANCIERA</div>
     <div class="finance-health-label">${label}</div>
     <div class="finance-health-bar"><div style="width:${ratio}%"></div></div>
     <div class="finance-health-meta">
-      <span>${ratio}% salud</span>
-      <span>🔥 Racha: ${getFinanceStreak()} días con registro</span>
+      <span>${ratio}% balance</span>
+      <span>${getFinanceStreak()} dias con registro</span>
     </div>
   `;
 }
@@ -2772,14 +2789,30 @@ function buildPie(canvasId, emptyId, legendId, txs) {
       </div>`).join('');
   }
   const otherPct = total > 0 ? (map.Otro || 0) / total * 100 : 0;
-  if (!overlay && otherPct > 20 && canvas.parentElement) {
+  if (!overlay && canvas.parentElement) {
     overlay = document.createElement('div');
     overlay.className = 'pie-other-overlay';
-    canvas.parentElement.appendChild(overlay);
+    canvas.insertAdjacentElement('afterend', overlay);
   }
   if (overlay) {
     overlay.textContent = 'Categoriza tus gastos para ver insights reales';
-    overlay.style.display = otherPct > 20 ? 'flex' : 'none';
+    overlay.style.cssText = `
+      display:${otherPct > 20 ? 'block' : 'none'};
+      position:static;
+      inset:auto;
+      min-height:0;
+      font-size:10px;
+      color:var(--text3);
+      text-align:center;
+      padding:6px 8px;
+      margin-top:6px;
+      background:rgba(251,191,36,.07);
+      border:1px solid rgba(251,191,36,.15);
+      border-radius:8px;
+      font-weight:700;
+      line-height:1.35;
+      backdrop-filter:none;
+    `;
   }
 }
 function renderTransactions() {
@@ -3185,16 +3218,17 @@ function renderUpcomingList() {
   // Show: overdue (up to 3) + upcoming 30 days
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()+30);
   const cutStr=cutoff.toISOString().split('T')[0];
-  const filtered=items.filter(i=>i.date<=cutStr);
-  if(!filtered.length){
+  const upcoming=items.filter(i=>i.date>=todayStr&&i.date<=cutStr);
+  const overdue=items.filter(i=>i.date<todayStr).slice(0,3);
+  if(!upcoming.length&&!overdue.length){
     el.innerHTML='<div style="text-align:center;padding:16px;font-size:13px;color:var(--text3)">No hay actividades próximas</div>';
     return;
   }
-  el.innerHTML=filtered.map(i=>{
+  let html='';
+  html+=upcoming.map(i=>{
     const isToday=i.date===todayStr;
-    const isOverdue=i.date<todayStr;
-    const cls=isOverdue?'upcoming-overdue':isToday?'upcoming-today':'';
-    const dateLabel=isToday?'Hoy':isOverdue?`Vencida ${i.date}`:i.date;
+    const cls=isToday?'upcoming-today':'';
+    const dateLabel=isToday?'Hoy':i.date;
     const timeLabel=i.time?` · ${i.time}`:'';
     return `<div class="upcoming-item ${cls}">
       <span style="font-size:16px">${i.emoji}</span>
@@ -3204,6 +3238,17 @@ function renderUpcomingList() {
       </div>
     </div>`;
   }).join('');
+  if(overdue.length){
+    html+=`<div style="font-size:10px;color:var(--red);font-weight:700;padding:10px 0 6px;opacity:.75">PENDIENTES ATRASADAS</div>`;
+    html+=overdue.map(i=>`<div class="upcoming-item upcoming-overdue">
+      <span style="font-size:16px">${i.emoji}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:line-through;opacity:.65">${i.label}</div>
+        <div class="upcoming-date">Vencio ${i.date}${i.time?` - ${i.time}`:''}</div>
+      </div>
+    </div>`).join('');
+  }
+  el.innerHTML=html;
 }
 
 function selectCalDay(key) {
@@ -3455,11 +3500,13 @@ function _updateSaasSubscriptionUI() {
   const proActiveCard  = document.getElementById('saas-pro-active-card');
   const planBadge      = document.getElementById('saas-plan-badge');
   const trialDaysEl    = document.getElementById('saas-trial-days');
+  const settingsProSection = document.getElementById('settings-pro-section');
 
   if (S.plan === 'pro') {
     // Usuario Pro: ocultar planes de pago, mostrar tarjeta de estado activo
     if (plansSection)  plansSection.style.display  = 'none';
     if (proActiveCard) proActiveCard.style.display = 'block';
+    if (settingsProSection) settingsProSection.style.display = 'none';
     if (planBadge) {
       planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:#4ade80">SUSCRIPCIÓN ACTIVA</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Life OS Pro</div>`;
@@ -3468,6 +3515,7 @@ function _updateSaasSubscriptionUI() {
     // Usuario en prueba o expirado: mostrar planes de pago
     if (plansSection)  plansSection.style.display  = '';
     if (proActiveCard) proActiveCard.style.display = 'none';
+    if (settingsProSection) settingsProSection.style.display = '';
     // Actualizar días restantes en el badge de la tab saas
     if (trialDaysEl && !S.trialExpired) {
       const diasTranscurridos = S.createdAt
@@ -5740,19 +5788,47 @@ function renderStatsModule() {
   }
 }
 
-const LEADERBOARD_DATA = [
-  {alias:'WM_OS',nivel:4,xp:920,racha:7},{alias:'AlphaX',nivel:3,xp:870,racha:5},
-  {alias:'DriveOS',nivel:3,xp:810,racha:4},{alias:'NovaMind',nivel:3,xp:760,racha:6},
-  {alias:'Korax77',nivel:2,xp:680,racha:3},{alias:'ZenFlow',nivel:2,xp:620,racha:5},
-  {alias:'RebelOS',nivel:2,xp:550,racha:2},{alias:'LvlUp_K',nivel:1,xp:490,racha:4},
-  {alias:'SageX',nivel:1,xp:430,racha:1},{alias:'GrindOS',nivel:1,xp:380,racha:3},
-];
+const LEADERBOARD_DATA = [];
+
+async function loadLeaderboardFromFirestore() {
+  const db = window._db || _db;
+  if (!window.firebase?.firestore || !db) return;
+  if (window._lbLoading) return;
+  window._lbLoading = true;
+  try {
+    const snap = await db.collection('userDirectory')
+      .orderBy('xp', 'desc')
+      .limit(20)
+      .get();
+    if (snap.empty) return;
+    const rows = [];
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      if (doc.id === S.userId) return;
+      rows.push({
+        alias: d.publicName || d.alias || d.nombre?.split(' ')[0] || 'Aliado',
+        nivel: d.level || d.nivel || 1,
+        xp: d.xpWeekly || d.xp || 0,
+        racha: d.checkInStreak || d.racha || 0,
+      });
+    });
+    if (rows.length > 0) {
+      window._lbData = rows;
+      renderLeaderboard();
+      renderWorldLeaderboard();
+    }
+  } catch(e) {
+    console.warn('[LB] No se pudo cargar leaderboard:', e);
+  } finally {
+    window._lbLoading = false;
+  }
+}
 
 function renderLeaderboard() {
   // Inyectar al usuario actual en top
   const miXP = S.xp % 1000;
   const todos = [{alias:'Tú ★',nivel:S.level,xp:miXP,racha:S.checkInStreak,esUsuario:true},
-    ...LEADERBOARD_DATA].sort((a,b)=>b.xp-a.xp).slice(0,10);
+    ...(window._lbData || LEADERBOARD_DATA)].sort((a,b)=>b.xp-a.xp).slice(0,10);
   const tbody = document.getElementById('lb-tbody'); if(!tbody) return;
   tbody.innerHTML = todos.map((r,i)=>`
     <tr style="${r.esUsuario?'background:rgba(0,229,255,.06)':''}">
@@ -5778,7 +5854,7 @@ function renderWorldLeaderboard() {
     box = document.getElementById('world-leaderboard-mini');
   }
   const miXP = S.xp % 1000;
-  const rows = [{alias:'Tú ★',nivel:S.level,xp:miXP,racha:S.checkInStreak,esUsuario:true}, ...LEADERBOARD_DATA]
+  const rows = [{alias:'Tú ★',nivel:S.level,xp:miXP,racha:S.checkInStreak,esUsuario:true}, ...(window._lbData || LEADERBOARD_DATA)]
     .sort((a,b)=>b.xp-a.xp)
     .slice(0, 5);
   box.querySelector('.world-lb-list').innerHTML = rows.map((r,i) => `
@@ -6429,6 +6505,7 @@ async function loginSuccess(userObj) {
 
       // 5. Perfil público en userDirectory (crear/actualizar)
       syncUserDirectory({ ...userObj, id: myUid }).catch(() => {});
+      loadLeaderboardFromFirestore().catch(() => {});
       // Telemetría: apertura de app
       registrarEvento('app_open', { hora: new Date().getHours() });
 
@@ -9366,8 +9443,10 @@ function renderWorldTabs(activeTab = 'mapa') {
 function renderWorldSection(tab = 'mapa') {
   S.worldTab = tab;
   renderWorldTabs(tab);
+  loadLeaderboardFromFirestore();
   if (tab === 'apartamento') {
-    _transitionToScene('apt');
+    if (document.getElementById('apt-scene')?.classList.contains('active')) return;
+    aptShowConfirm();
     return;
   }
   if (tab === 'tienda') {
@@ -10146,7 +10225,8 @@ function _fireTabInit(pageId, tabId) {
     const _uid = _auth?.currentUser?.uid;
     if (_uid) renderXPChart(_uid);
   }
-  if (tabId === 'saas')     { renderLeaderboard(); renderWrapped(); updateGlobalCore(); _updateSaasSubscriptionUI(); }
+  if (tabId === 'saas')     { renderLeaderboard(); loadLeaderboardFromFirestore(); renderWrapped(); updateGlobalCore(); _updateSaasSubscriptionUI(); }
+  if (pageId === 'settings') { _updateSaasSubscriptionUI(); }
   // Onboarding sub-card for inner tabs
   setTimeout(() => showSubCard(tabId), 300);
 }
@@ -11565,6 +11645,12 @@ function showSubCard(tabId) {
   const panel = document.getElementById('panel-' + tabId); if (!panel) return;
   if (panel.querySelector('.onb-card')) return;
   const card = _buildOnbCard(tabId, true); if (!card) return;
+  if (tabId === 'analisis') {
+    card.classList.add('bento-full');
+    card.classList.remove('bento-tall');
+    card.style.height = 'auto';
+    card.style.minHeight = '0';
+  }
   const header = panel.querySelector('.page-header');
   if (header && header.nextSibling) panel.insertBefore(card, header.nextSibling);
   else panel.prepend(card);

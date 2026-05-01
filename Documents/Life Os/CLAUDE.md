@@ -58,11 +58,16 @@ cd /opt/openclaw/repo/lifeos && git pull origin main && cp "Documents/Life Os/sc
 
 ### Deploy a staging (Firebase Hosting)
 ```bash
-cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" firebase deploy --only hosting:staging --project mylifeos-staging
+# Staging (default seguro — .firebaserc default = staging desde 2026-04-30)
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" firebase deploy --only hosting:staging --project staging
+
+# Producción (requiere flag explícito — R1 aplica)
+cd "/opt/openclaw/repo/lifeos/Documents/Life Os" && GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" firebase deploy --only hosting:production --project production
 ```
 - ⚠️ Siempre usar `GOOGLE_APPLICATION_CREDENTIALS` con `firebase-adc.json` — `firebase login` falla en el VPS (headless, no-localhost tampoco funciona)
 - firebase.json DEBE estar en `Documents/Life Os/` — el deploy falla si se corre desde la raíz del repo
 - `--token` deprecado en firebase-tools 15.x
+- `.firebaserc` default = staging. `firebase deploy` sin flags → staging. Prod siempre requiere `--project production`
 
 ### Correr OpenClaw
 ```bash
@@ -220,8 +225,10 @@ userDirectory/{uid}:
 - ✅ Centro Ops tablero Live Status: Firestore onSnapshot en tiempo real — funciona en Chrome/HTTPS
 - ✅ Gemini model configurable via .env: GEMINI_MODEL_DEEP (deep) / GEMINI_MODEL (light)
 - ✅ Baseline QA post-Batch 10: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
-- ✅ Batch 11 definido en CODEX_NEXT_SESSION.md — 3 grupos: Conversión · Confianza · Retención
+- ✅ Batch P0 completado — activación + medición · commit `0d821188` · QA: 178 ✅ / 0 ❌ / 92%
+- ✅ Batch 12 completado — A1–A5 bugs críticos, B1–B2 features, C1–C3 visual, D1 financiero
 - ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
+- ⚠️ Pendiente: deploy a staging + QA para validar Batch 12
 
 ## FLUJO RECOMENDADO
 ```bash
@@ -309,21 +316,39 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-04-30 (sesión 14)
-- Gemini model deprecado corregido: `gemini-2.0-flash-001` → `gemini-2.5-pro` (deep) / `gemini-2.5-flash` (light)
-- Modelo configurable via `.env`: `GEMINI_MODEL_DEEP` y `GEMINI_MODEL` — commits `b7022d49` + `a98495ae`
-- Centro Ops tablero Live Status activado: `firestore.rules` creado + `firebase deploy` → onSnapshot en tiempo real
-- Baseline QA post-Batch 10 corrido: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
-- Batch 11 definido en CODEX_NEXT_SESSION.md — 3 grupos: Conversión · Confianza · Retención
+- Fecha: 2026-05-01 (sesión 17)
+- **Batch 12 completado** — los 11 ítems (A1–A5, B1–B2, C1–C3, D1) implementados y verificados
+- Baseline revisado: QA 2026-04-30_17-28 → 178 ✅ / 0 ❌ / 92% de éxito
+- Cambios pendientes de commit: main.js + index.html + styles.css + CLAUDE.md
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
-1. **Ejecutar Batch 11** — está listo en CODEX_NEXT_SESSION.md con código exacto para Codex
-   - Grupo A: Landing mobile hero + touch targets + copy (esfuerzo mínimo, impacto máximo)
-   - Grupo B: Validaciones + routing Biblioteca + Stats layout + typo racha
-   - Grupo C: XP burst hábitos + dashboard tareas hoy + calibración gamificada
-2. **Deploy a staging** después de Batch 11 y correr `node runner.js --deep` para validar
-3. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true (usuario para mockup iPhone)
-4. **Actualizar tablero Centro Ops** — quitar GEMINI_API_KEY del BLOQUEANTE ACTIVO (resuelto)
+1. **Commit + push** — `git push origin main` para sincronizar VPS
+2. **Sync VPS + deploy staging** — sync y `firebase deploy --only hosting:staging --project staging`
+3. **Correr QA** — `cd /opt/openclaw && node runner.js --deep`
+4. **Deploy a producción** si QA pasa — `firebase deploy --only hosting:production --project production`
+5. **Fix visual landing** — gradiente animado en nav + botones (misma clase CSS que título hero)
+6. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true
+
+### Resumen CODEX_BATCH_12.md
+**Batch 12A (bugs críticos):**
+- A1: Agenda — actividades vencidas ya no aparecen en "Próximas" (van abajo como "Pendientes atrasadas")
+- A2: Financiero — overlay "Categoriza tus gastos" movido debajo de la dona (no encima)
+- A3: Pro status — `settings-pro-section` ahora se oculta para usuarios Pro (nunca se manejaba)
+- A4: World — tab Apartamento llama `aptShowConfirm()` igual que la burbuja de la ciudad
+- A5: Leaderboard — carga desde Firestore `userDirectory`, fallback a `LEADERBOARD_DATA`
+
+**Batch 12B (features):**
+- B1: Hábitos — selector de días L/M/X/J/V/S/D al crear y editar; días inactivos dimmed en dots
+- B2: Análisis — bento grid fix (tarjeta onboarding no estirada)
+
+**Batch 12C/D (visual + financiero):**
+- C1: Enfoque mental — donut y barras lado a lado
+- C2: Racha semanal — círculos más juntos
+- C3: Modo Aura — color del sistema actualiza `--aura-accent`
+- D1: Financiero — eliminar `gainXP()` del módulo (no gamificar dinero)
+
+**Pendientes para Batch 13** (documentados en CODEX_BATCH_12.md, no incluidos):
+Núcleo Global/Personal · Biblioteca vs Diario · Libro modo lectura · Series · Mapa muscular · Rutinas recomendadas · Calorías opcionales · Aprende personalizado · Aliados auditoría · Dashboard inteligente real · Spotify OAuth · demo@mylifeos.lat
 
 ### Cambios sesión 2026-04-30 (sesión 14)
 

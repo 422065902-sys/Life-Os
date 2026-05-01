@@ -111,7 +111,7 @@
             Juega en serio.<br><span class="lp-gradient-text">Domina tu vida.</span>
           </h1>
           <p class="lp-hero-sub lp-anim lp-anim-3">
-            Life OS gamifica tus hábitos, finanzas, salud y mente. Gana XP real cada día. Sube de nivel. Conviértete en tu mejor versión.
+            Life OS convierte tus hábitos, finanzas y metas en un RPG épico. Gana XP, sube de nivel con tu Gemelo IA y compite con amigos en un mundo que evoluciona contigo.
           </p>
           <div class="lp-hero-cta lp-anim lp-anim-4">
             <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">🚀 Empezar gratis</button>
@@ -804,7 +804,7 @@
           </div>
           <button id="checkin-btn" onclick="openModal('modal-calibration')" class="btn btn-g btn-sm" style="font-size:11px">+ Check-in</button>
         </div>
-        <div id="dashboard-ci-dots" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"></div>
+        <div id="dashboard-ci-dots" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
       </div>
 
       <!-- PILAR 3: .card-large — Radar (2 col × 2 filas) -->
@@ -823,7 +823,7 @@
       <!-- PILAR 3: .card-large — Enfoque Mental (2 col × 2 filas) -->
       <div class="card card-large">
         <div class="card-title">ENFOQUE MENTAL</div>
-        <div class="card-inner-center">
+        <div class="card-inner-center mental-focus-layout">
           <svg width="130" height="130" viewBox="0 0 130 130" style="flex-shrink:0">
             <circle cx="65" cy="65" r="54" fill="none" stroke="rgba(0,229,255,.1)" stroke-width="11"/>
             <circle cx="65" cy="65" r="54" fill="none" stroke="var(--accent)" stroke-width="11"
@@ -984,7 +984,17 @@
         <div class="card-title">NUEVO HÁBITO</div>
         <div class="row" style="gap:10px">
           <input class="inp f1" id="new-habit" placeholder="Ej: Meditar 10 minutos"/>
-          <button class="btn btn-a" onclick="addHabit()">+ Agregar</button>
+          <button class="btn btn-a" id="new-habit-add-btn" onclick="addHabit()" disabled>+ Agregar</button>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap" id="new-habit-days">
+          <span style="font-size:10px;color:var(--text3);margin-right:2px;align-self:center">Dias:</span>
+          <label class="habit-day-btn"><input type="checkbox" value="1" checked> L</label>
+          <label class="habit-day-btn"><input type="checkbox" value="2" checked> M</label>
+          <label class="habit-day-btn"><input type="checkbox" value="3" checked> X</label>
+          <label class="habit-day-btn"><input type="checkbox" value="4" checked> J</label>
+          <label class="habit-day-btn"><input type="checkbox" value="5" checked> V</label>
+          <label class="habit-day-btn"><input type="checkbox" value="6"> S</label>
+          <label class="habit-day-btn"><input type="checkbox" value="0"> D</label>
         </div>
       </div>
       <div class="card bento-medium bento-tall" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
@@ -1822,6 +1832,21 @@
         <div id="xp-chart-empty" style="display:none;text-align:center;padding:24px;font-size:12px;color:var(--text3)">
           Sin actividad registrada aún. Completa hábitos y tareas para ver tu progreso aquí.
         </div>
+      </div>
+
+      <div class="card bento-wide">
+        <div class="card-title">Racha heatmap</div>
+        <div id="stats-streak-heatmap" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+      </div>
+
+      <div class="card bento-wide">
+        <div class="card-title">XP por módulo (pie)</div>
+        <div id="stats-xp-modules" style="display:grid;gap:8px"></div>
+      </div>
+
+      <div class="card bento-full">
+        <div class="card-title">Logros Recientes</div>
+        <div id="stats-recent-achievements" style="display:grid;gap:8px"></div>
       </div>
 
       <!-- Físico vs Mental: full -->
@@ -3338,7 +3363,7 @@
     </div>
     <!-- Single CTA -->
     <button class="btn btn-a" onclick="syncCalibrationAndCheckin()" style="width:100%;padding:13px;font-size:14px">
-      ✅ Sincronizar y comenzar el día
+      ¡ACTIVAR MI DÍA!
     </button>
   </div>
 </div>
@@ -3544,6 +3569,16 @@
 <div class="modal" id="modal-edit-habit">
   <div class="modal-box"><div class="card-title">EDITAR HÁBITO</div>
   <input class="inp mb14" id="eh-name" placeholder="Nombre del hábito"/>
+  <div style="margin:10px 0;display:flex;gap:6px;flex-wrap:wrap" id="eh-days">
+    <span style="font-size:10px;color:var(--text3);align-self:center">Dias:</span>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-1" value="1"> L</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-2" value="2"> M</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-3" value="3"> X</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-4" value="4"> J</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-5" value="5"> V</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-6" value="6"> S</label>
+    <label class="habit-day-btn"><input type="checkbox" id="eh-day-0" value="0"> D</label>
+  </div>
   <div class="row" style="gap:10px">
     <button class="btn btn-a" onclick="saveHabitEdit()">Guardar</button>
     <button class="btn btn-g" onclick="closeModal('modal-edit-habit')">Cancelar</button>
