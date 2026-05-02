@@ -102,7 +102,7 @@ function _buildSavePayload() {
     tasks:S.tasks, habits:S.habits, routines:S.routines,
     transactions:S.transactions, debts:S.debts, cards:S.cards,
     goals:S.goals, completedGoals:S.completedGoals, calEvents:S.calEvents,
-    gymDays:S.gymDays,
+    gymDays:S.gymDays, workoutHistory:S.workoutHistory||[],
     dailyCheckIn:S.dailyCheckIn, checkInStreak:S.checkInStreak,
     healthStats:S.healthStats, saludXP:S.saludXP,
     biblioteca:S.biblioteca, xpMental:S.xpMental,
@@ -206,6 +206,30 @@ function _auraRgba(alpha) {
   return `rgba(${rgb},${alpha})`;
 }
 
+function _setScopedThemeVar(name, value, includeBody = true) {
+  document.documentElement.style.setProperty(name, value);
+  if (includeBody && document.body) document.body.style.setProperty(name, value);
+}
+
+function _clearBodyThemeVars() {
+  if (!document.body) return;
+  [
+    '--aura-accent',
+    '--aura-accent2',
+    '--aura-rgb',
+    '--accent',
+    '--accent-rgb',
+    '--accent-dark',
+    '--accent-dim',
+    '--accent-glow',
+    '--module-accent',
+    '--module-rgb',
+    '--stats-accent',
+    '--accent-stats',
+    '--stats-rgb',
+  ].forEach(name => document.body.style.removeProperty(name));
+}
+
 function _setAuraAccentVars() {
   const hex = (S.accent || '#9B8CFF').replace('#', '');
   const r = parseInt(hex.slice(0,2), 16);
@@ -220,14 +244,26 @@ function _setAuraAccentVars() {
   const sg = Math.min(255, Math.round(pg * 0.6 + 184 * 0.4));
   const sb = Math.min(255, Math.round(pb * 0.6 + 255 * 0.4));
   const h = n => n.toString(16).padStart(2,'0');
-  const root = document.documentElement;
-  root.style.setProperty('--aura-accent', `#${h(pr)}${h(pg)}${h(pb)}`);
-  root.style.setProperty('--aura-accent2', `#${h(sr)}${h(sg)}${h(sb)}`);
-  root.style.setProperty('--aura-rgb', `${pr},${pg},${pb}`);
+  const primary = `#${h(pr)}${h(pg)}${h(pb)}`;
+  const secondary = `#${h(sr)}${h(sg)}${h(sb)}`;
+  const rgb = `${pr},${pg},${pb}`;
+  _setScopedThemeVar('--aura-accent', primary);
+  _setScopedThemeVar('--aura-accent2', secondary);
+  _setScopedThemeVar('--aura-rgb', rgb);
+  _setScopedThemeVar('--accent', primary);
+  _setScopedThemeVar('--accent-rgb', rgb);
+  _setScopedThemeVar('--accent-dark', primary);
+  _setScopedThemeVar('--accent-dim', `rgba(${rgb},.15)`);
+  _setScopedThemeVar('--accent-glow', `0 0 24px rgba(${rgb},.45)`);
+  _setScopedThemeVar('--module-accent', primary);
+  _setScopedThemeVar('--module-rgb', rgb);
+  _setScopedThemeVar('--stats-accent', primary);
+  _setScopedThemeVar('--accent-stats', primary);
+  _setScopedThemeVar('--stats-rgb', rgb);
   // Also update IDENTITY.aura particle colors to match
   IDENTITY.aura.particleColors = [
-    `#${h(pr)}${h(pg)}${h(pb)}`,
-    `#${h(sr)}${h(sg)}${h(sb)}`,
+    primary,
+    secondary,
     '#7FE0C9','#B9E7FF','#C9D2EA','#E8DFFF'
   ];
 }
@@ -272,7 +308,7 @@ const S = {
   tasks: [], habits: [], routines: [],
   transactions: [], debts: [], cards: [],
   goals: [], completedGoals: [], calEvents: {},
-  gymDays: {},
+  gymDays: {}, workoutHistory: [],
   currentPage: 'dashboard',
   editingTask: null, editingHabit: null,
   editingTx: null, editingGoal: null,
@@ -914,12 +950,174 @@ const TERM_DICT = {
   }
 };
 
+/* ─── i18n — Language Toggle ─── */
+window.APP_LANG = localStorage.getItem('lifeos_lang') || 'en';
+
+const TRANSLATIONS_EN = {
+  // Dashboard header
+  'SISTEMA ACTIVO':'SYSTEM ONLINE',
+  // Satellite message components (partial match)
+  'Flujo financiero estable. Saldo:':'Cash flow steady. Balance:',
+  'Batería de hábitos al':'Habit battery at',
+  'completados hoy':'done today',
+  'Sin tareas pendientes. ¡Enfocado y libre!':'No pending tasks. Clear and focused!',
+  // Dashboard stat cards
+  'ESTADO FÍSICO':'PHYSICAL STATUS',
+  'SALDO PERSONAL':'PERSONAL BALANCE',
+  'NIVEL ACTUAL':'CURRENT LEVEL',
+  "TAREAS DE HOY":"TODAY'S TASKS",
+  'RACHA SEMANAL':'WEEKLY STREAK',
+  'Comienza a entrenar':'Time to train',
+  'MXN disponible':'MXN available',
+  'Completadas hoy':'Completed today',
+  // TERM_DICT XP values
+  '⭐ Nivel Actual':'⭐ Current Level',
+  'XP en nivel actual':'XP this level',
+  'Nivel Actual':'Current Level',
+  'XP Total':'Total XP',
+  '🔥 Racha Activa':'🔥 Active Streak',
+  // TERM_DICT Aura values
+  '✦ Esencia Actual':'✦ Current Essence',
+  'Flujo de energía':'Energy flow',
+  'Esencia Actual':'Current Essence',
+  'Aura Total':'Total Aura',
+  '🌊 Flujo Continuo':'🌊 Steady Flow',
+  // Navigation / modules
+  'Mente & Poder':'Mind & Power',
+  'Cuerpo':'Body',
+  'Mundo':'World',
+  'Finanzas':'Finance',
+  'Configuración':'Settings',
+  'Análisis':'Analytics',
+  'Aprende':'Learn',
+  'Hábitos':'Habits',
+  // Radar / charts
+  'RADAR DE RENDIMIENTO':'PERFORMANCE RADAR',
+  'Radar de Rendimiento':'Performance Radar',
+  'Diario':'Daily',
+  'Mensual':'Monthly',
+  'Semanal':'Weekly',
+  // Gemelo
+  'Gemelo Potenciado':'AI Twin',
+  'Gemelo IA':'AI Twin',
+  'Ver →':'View →',
+  // Common actions
+  'Guardar':'Save',
+  'Cancelar':'Cancel',
+  'Editar':'Edit',
+  'Eliminar':'Delete',
+  'Agregar':'Add',
+  'Cerrar':'Close',
+  'Volver':'Back',
+  'Ver más':'See more',
+  'Hecho':'Done',
+  'Hoy':'Today',
+  // Landing
+  'Juega en serio. Domina tu vida.':'Play to win. Own your life.',
+  'Empieza gratis':'Start free',
+  'Iniciar Sesión':'Log In',
+  'Crear Cuenta':'Sign Up',
+  '¿Cómo te llamas?':"What's your name?",
+  'Tu acceso':'Your access',
+  'Tu identidad':'Your identity',
+  'Continuar →':'Continue →',
+  '← Atrás':'← Back',
+  // Status & empty states
+  'Activo':'Active',
+  'Inactivo':'Inactive',
+  'Completado':'Completed',
+  'Pendiente':'Pending',
+  'Cargando...':'Loading...',
+  'No hay tareas. ¡Agrega una!':'No tasks yet. Add one!',
+  'Sin transacciones':'No transactions yet',
+  'No hay hábitos activos':'No active habits yet',
+  'No hay registros':'No entries yet',
+  'Sin datos':'No data yet',
+  // Theme
+  '🌙 Modo Oscuro':'🌙 Dark Mode',
+  '☀️ Modo Claro':'☀️ Light Mode',
+  // Financial
+  'Ingresos':'Income',
+  'Gastos':'Expenses',
+  'Ahorro':'Savings',
+  'Presupuesto':'Budget',
+  // Physical
+  'Entrenamiento':'Workout',
+  'Ejercicio':'Exercise',
+  'Salud':'Health',
+  // Time
+  'días':'days',
+  'día':'day',
+  // Misc
+  'Tus módulos más usados':'Your most-used modules',
+};
+
+const _EN_ENTRIES = Object.entries(TRANSLATIONS_EN).sort((a,b) => b[0].length - a[0].length);
+
+function applyLang(lang) {
+  if (lang === 'es') return;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      const tag = n.parentNode?.tagName;
+      return (tag === 'SCRIPT' || tag === 'STYLE') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  for (const node of nodes) {
+    let txt = node.textContent;
+    if (!txt.trim()) continue;
+    for (const [es, en] of _EN_ENTRIES) {
+      if (txt.includes(es)) txt = txt.split(es).join(en);
+    }
+    if (txt !== node.textContent) node.textContent = txt;
+  }
+}
+
+let _langTimer = null, _langObserver = null;
+function _startLangObserver() {
+  if (_langObserver) return;
+  _langObserver = new MutationObserver(() => {
+    if (window.APP_LANG !== 'en') return;
+    clearTimeout(_langTimer);
+    _langTimer = setTimeout(() => applyLang('en'), 120);
+  });
+  _langObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function toggleLang() {
+  window.APP_LANG = window.APP_LANG === 'es' ? 'en' : 'es';
+  localStorage.setItem('lifeos_lang', window.APP_LANG);
+  const label = window.APP_LANG === 'es' ? 'EN' : 'ES';
+  ['lang-btn','lp-lang-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
+  const mockup = document.getElementById('landing-mockup-img');
+  if (window.APP_LANG === 'en') {
+    if (mockup) mockup.src = 'images/mockup-en.png';
+    renderDashboardHeader();
+    applyLang('en');
+  } else {
+    location.reload();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  _startLangObserver();
+  if (window.APP_LANG === 'en') {
+    ['lang-btn','lp-lang-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = 'ES'; });
+    setTimeout(() => applyLang('en'), 100);
+  }
+});
+
 function _applyVisualMode(mode) {
   document.body.dataset.mode = mode || 'xp';
   // Sync Aura accent vars with user's chosen color
   if (mode === 'aura') _setAuraAccentVars();
   if (mode === 'aura') setTimeout(()=>initRadarChart(), 0);
-  else window.LifeOSAuraChart?.destroy();
+  else {
+    _clearBodyThemeVars();
+    window.LifeOSAuraChart?.destroy();
+  }
   // data-term DOM terminology update
   const dict = TERM_DICT[mode] || TERM_DICT.xp;
   document.querySelectorAll('[data-term]').forEach(el => {
@@ -980,6 +1178,20 @@ let _obStep = 1;
 let _obChosenMode = 'xp';
 let _obPreviewActive = false;
 
+function _obClearInlineState(el) {
+  if (!el) return;
+  el.style.opacity = '';
+  el.style.transform = '';
+  el.style.position = '';
+}
+
+function _obResetWizardScroll() {
+  const registerEl = document.getElementById('form-register');
+  const wizardEl = document.getElementById('ob-wizard-wrap');
+  if (registerEl) registerEl.scrollLeft = 0;
+  if (wizardEl) wizardEl.scrollLeft = 0;
+}
+
 function obGoToStep(next) {
   const prev = _obStep;
   if (next === prev) return;
@@ -987,21 +1199,28 @@ function obGoToStep(next) {
   const nextEl = document.getElementById('ob-step-' + next);
   if (!nextEl) return;
 
+  document.querySelectorAll('.ob-step').forEach(step => {
+    if (step !== prevEl && step !== nextEl) {
+      step.classList.remove('ob-active','ob-exit-left','ob-exit-right');
+      _obClearInlineState(step);
+    }
+  });
+
   // Animate out current
   if (prevEl) {
     prevEl.classList.remove('ob-active');
     prevEl.classList.add(next > prev ? 'ob-exit-left' : 'ob-exit-right');
-    setTimeout(() => { prevEl.classList.remove('ob-exit-left','ob-exit-right'); }, 400);
+    setTimeout(() => {
+      prevEl.classList.remove('ob-exit-left','ob-exit-right');
+      _obClearInlineState(prevEl);
+    }, 400);
   }
 
-  // Position next step (from the right if going forward, from left if going back)
-  nextEl.style.transform = next > prev ? 'translateX(60px)' : 'translateX(-60px)';
-  nextEl.style.opacity = '0';
-  nextEl.style.position = 'absolute';
-  // Trigger reflow
+  nextEl.classList.remove('ob-exit-left','ob-exit-right');
+  _obClearInlineState(nextEl);
   void nextEl.offsetWidth;
-  nextEl.style.position = '';
   nextEl.classList.add('ob-active');
+  _obResetWizardScroll();
 
   _obStep = next;
 
@@ -1075,10 +1294,21 @@ async function obChooseMode(mode) {
   if (accentEl) accentEl.value = chosenAccent;
   applyAccent(chosenAccent);
   _applyVisualMode(mode);
-  // Show loading overlay
+  buildRegAccentPicker();
+  const colorScreen = document.getElementById('ob-color-screen');
+  if (colorScreen) colorScreen.style.display = 'flex';
+}
+
+function obBackToMode() {
+  const colorScreen = document.getElementById('ob-color-screen');
+  if (colorScreen) colorScreen.style.display = 'none';
+  const loading = document.getElementById('ob-id-loading');
+  if (loading) loading.style.display = 'none';
+}
+
+async function obFinishRegistration() {
   const loading = document.getElementById('ob-id-loading');
   if (loading) loading.style.display = 'flex';
-  // Create the account
   await doRegister();
 }
 
@@ -1099,7 +1329,8 @@ function buildAccentPresets() {
 function buildRegAccentPicker() {
   const el = document.getElementById('reg-accent-dots'); if (!el) return;
   const cur = document.getElementById('reg-accent')?.value || '#00e5ff';
-  el.innerHTML = ACCENT_PRESETS.map(p => `
+  const presets = _obChosenMode === 'aura' ? AURA_PRESETS : ACCENT_PRESETS;
+  el.innerHTML = presets.map(p => `
     <div class="acc-dot ${cur===p.v?'sel':''}" style="background:${p.v}" title="${p.name}" onclick="selectRegAccent('${p.v}')"></div>`).join('');
 }
 
@@ -1169,14 +1400,20 @@ function applyAccent(c) {
   document.documentElement.style.setProperty('--accent-dark', `rgb(${dk(r)},${dk(g)},${dk(b)})`);
   document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},.15)`);
   document.documentElement.style.setProperty('--accent-glow', `0 0 20px rgba(${r},${g},${b},.4)`);
+  document.documentElement.style.setProperty('--module-accent', cEfectivo);
+  document.documentElement.style.setProperty('--module-rgb', `${r},${g},${b}`);
+  document.documentElement.style.setProperty('--stats-accent', cEfectivo);
+  document.documentElement.style.setProperty('--accent-stats', cEfectivo);
+  document.documentElement.style.setProperty('--stats-rgb', `${r},${g},${b}`);
   if (document.body.dataset.mode === 'aura') {
-    document.documentElement.style.setProperty('--aura-accent', cEfectivo);
+    _setScopedThemeVar('--aura-accent', cEfectivo);
+    _setScopedThemeVar('--aura-rgb', `${r},${g},${b}`);
   }
   buildAccentPresets();
   document.getElementById('custom-hex') && (document.getElementById('custom-hex').value = c);
   document.getElementById('custom-color') && (document.getElementById('custom-color').value = c);
-  // In Aura mode: re-derive Aura palette from new accent
-  if (S.visualMode === 'aura') _setAuraAccentVars();
+  // In Aura preview or Aura mode: re-derive the pastel palette from the new accent.
+  if (S.visualMode === 'aura' || document.body.dataset.mode === 'aura' || _obChosenMode === 'aura') _setAuraAccentVars();
   setTimeout(()=>{ initRadarChart(); initVolumeChart(); updatePieCharts(); syncHeatmapColors(); }, 100);
   guardarDatos();
   // Persistir color ORIGINAL (no el ajustado) en Firebase profile
@@ -1464,6 +1701,8 @@ function initRadarChart() {
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       animation: { duration: 700, easing: 'easeInOutQuart' },
       scales:{ r:{
         grid:{color: S.visualMode==='aura' ? _auraRgba(.12) : 'rgba(0,229,255,.12)'},
@@ -1635,10 +1874,15 @@ function openEditTask(id) {
 
 function saveTaskEdit() {
   const t = S.tasks.find(x=>x.id===S.editingTask); if (!t) return;
-  t.name = document.getElementById('et-name').value||t.name;
-  t.desc = document.getElementById('et-desc').value;
-  t.date = document.getElementById('et-date').value;
+  t.title = document.getElementById('et-name').value||t.title||t.name;
+  t.name = t.title;
+  t.description = document.getElementById('et-desc').value;
+  t.desc = t.description;
+  t.dueDate = document.getElementById('et-date').value;
+  t.date = t.dueDate;
   t.time = document.getElementById('et-time').value;
+  t.status = isTaskOverdue(t) ? 'overdue' : 'pending';
+  t.priority = getTaskPriority(t) >= 3 ? 'critical' : 'normal';
   guardarDatos();
   closeModal('modal-edit-task');
   renderTasks();
@@ -1786,9 +2030,11 @@ function renderHabits() {
   const todayHabits = getTodayHabits(active);
   const maxStreak = active.reduce((a, h) => Math.max(a, h.streak), 0);
   const doneToday = todayHabits.filter(h => isHabitDoneToday(h)).length;
+  const pendingToday = Math.max(0, todayHabits.length - doneToday);
   document.getElementById('h-streak')     && (document.getElementById('h-streak').textContent     = maxStreak + ' días');
   document.getElementById('h-count')      && (document.getElementById('h-count').textContent      = active.length);
   document.getElementById('h-done-today') && (document.getElementById('h-done-today').textContent = doneToday + '/' + todayHabits.length);
+  document.getElementById('h-pending-today') && (document.getElementById('h-pending-today').textContent = pendingToday);
   document.querySelector('#h-streak + .flow-stat-sub')?.remove();
   document.getElementById('h-streak')?.insertAdjacentHTML('afterend',
     `<span class="flow-stat-sub">🏆 Mejor: ${S.bestStreak || maxStreak || 0} días</span>`);
@@ -2329,7 +2575,8 @@ function editWeightPrompt() {
 ═══════════════════════════════════════════ */
 function addRoutine() {
   const name = document.getElementById('new-routine-name').value.trim(); if (!name) return;
-  S.routines.push({ id:uid(), name, active:true, exercises:[] });
+  const muscles = detectarMusculos(name).map(m => m.key);
+  S.routines.push({ id:uid(), name, active:true, muscles, duration:35, level:'Personal', exercises:[] });
   document.getElementById('new-routine-name').value='';
   guardarDatos();
   renderRoutines();
@@ -2374,13 +2621,17 @@ function addExercise(routineId) {
   const name = inp.value.trim(); if (!name) return;
   const r = S.routines.find(x=>x.id===routineId); if (!r) return;
   r.exercises.push({ id:uid(), name, sets:[] });
+  r.muscles = _routineMuscles(r);
   inp.value='';
+  guardarDatos();
   renderRoutines();
 }
 
 function removeExercise(rId, exId) {
   const r = S.routines.find(x=>x.id===rId); if (!r) return;
   r.exercises = r.exercises.filter(e=>e.id!==exId);
+  r.muscles = _routineMuscles(r);
+  guardarDatos();
   renderRoutines();
 }
 
@@ -2798,7 +3049,7 @@ function buildPie(canvasId, emptyId, legendId, txs) {
   if (!overlay && canvas.parentElement) {
     overlay = document.createElement('div');
     overlay.className = 'pie-other-overlay';
-    canvas.insertAdjacentElement('afterend', overlay);
+    canvas.parentElement.insertAdjacentElement('afterend', overlay);
   }
   if (overlay) {
     overlay.textContent = 'Categoriza tus gastos para ver insights reales';
@@ -3221,12 +3472,11 @@ function renderUpcomingList() {
   });
   // Sort by date asc, then time
   items.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  // Show: overdue (up to 3) + upcoming 30 days
+  // Show only today/future items. Overdue tasks belong in pending, not upcoming.
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()+30);
   const cutStr=cutoff.toISOString().split('T')[0];
   const upcoming=items.filter(i=>i.date>=todayStr&&i.date<=cutStr);
-  const overdue=items.filter(i=>i.date<todayStr).slice(0,3);
-  if(!upcoming.length&&!overdue.length){
+  if(!upcoming.length){
     el.innerHTML='<div style="text-align:center;padding:16px;font-size:13px;color:var(--text3)">No hay actividades próximas</div>';
     return;
   }
@@ -3244,16 +3494,6 @@ function renderUpcomingList() {
       </div>
     </div>`;
   }).join('');
-  if(overdue.length){
-    html+=`<div style="font-size:10px;color:var(--red);font-weight:700;padding:10px 0 6px;opacity:.75">PENDIENTES ATRASADAS</div>`;
-    html+=overdue.map(i=>`<div class="upcoming-item upcoming-overdue">
-      <span style="font-size:16px">${i.emoji}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:line-through;opacity:.65">${i.label}</div>
-        <div class="upcoming-date">Vencio ${i.date}${i.time?` - ${i.time}`:''}</div>
-      </div>
-    </div>`).join('');
-  }
   el.innerHTML=html;
 }
 
@@ -3506,37 +3746,50 @@ function _updateSaasSubscriptionUI() {
   const proActiveCard  = document.getElementById('saas-pro-active-card');
   const planBadge      = document.getElementById('saas-plan-badge');
   const trialDaysEl    = document.getElementById('saas-trial-days');
+  const settingsTrialDaysEl = document.getElementById('settings-trial-days');
   const settingsProSection = document.getElementById('settings-pro-section');
+  const activarBtns = document.querySelectorAll('[onclick*="modal-pago"], [onclick*="openStripe"], #btn-activar-pro');
+  const isPro = S.is_pro === true || S.plan === 'pro';
+  const isTrial = !isPro && (S.plan === 'trial' || S.trialActive === true || !S.trialExpired);
 
-  if (S.plan === 'pro') {
-    // Usuario Pro: ocultar planes de pago, mostrar tarjeta de estado activo
+  if (isPro) {
     if (plansSection)  plansSection.style.display  = 'none';
-    if (proActiveCard) proActiveCard.style.display = 'block';
+    if (proActiveCard) proActiveCard.style.display = 'none';
     if (settingsProSection) settingsProSection.style.display = 'none';
+    activarBtns.forEach(btn => { btn.style.display = 'none'; });
     if (planBadge) {
-      planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:#4ade80">SUSCRIPCIÓN ACTIVA</div>
+      planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:#4ade80">SUSCRIPCION ACTIVA</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Life OS Pro</div>`;
     }
-  } else {
-    // Usuario en prueba o expirado: mostrar planes de pago
-    if (plansSection)  plansSection.style.display  = '';
-    if (proActiveCard) proActiveCard.style.display = 'none';
-    if (settingsProSection) settingsProSection.style.display = '';
-    // Actualizar días restantes en el badge de la tab saas
-    if (trialDaysEl && !S.trialExpired) {
-      const diasTranscurridos = S.createdAt
-        ? Math.floor((Date.now() - new Date(S.createdAt)) / 86400000)
-        : 0;
-      const diasRestantes = Math.max(0, 30 - diasTranscurridos);
-      trialDaysEl.textContent = diasRestantes + ' día' + (diasRestantes !== 1 ? 's' : '') + ' restante' + (diasRestantes !== 1 ? 's' : '');
-    } else if (trialDaysEl && S.trialExpired) {
+    return;
+  }
+
+  if (plansSection)  plansSection.style.display  = '';
+  if (proActiveCard) proActiveCard.style.display = 'none';
+  if (settingsProSection) settingsProSection.style.display = '';
+  activarBtns.forEach(btn => { btn.style.display = ''; });
+
+  if (isTrial && !S.trialExpired) {
+    const diasTranscurridos = S.createdAt
+      ? Math.floor((Date.now() - new Date(S.createdAt)) / 86400000)
+      : 0;
+    const diasRestantes = Math.max(0, 30 - diasTranscurridos);
+    const copy = diasRestantes + ' dia' + (diasRestantes !== 1 ? 's' : '') + ' restante' + (diasRestantes !== 1 ? 's' : '');
+    if (trialDaysEl) trialDaysEl.textContent = copy;
+    if (settingsTrialDaysEl) settingsTrialDaysEl.textContent = copy;
+  } else if (S.trialExpired) {
+    if (trialDaysEl) {
       trialDaysEl.textContent = 'Prueba expirada';
       trialDaysEl.style.color = 'var(--red)';
     }
-    if (planBadge && S.trialExpired) {
-      planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:var(--red)">PRUEBA EXPIRADA</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Activa tu plan Pro</div>`;
+    if (settingsTrialDaysEl) {
+      settingsTrialDaysEl.textContent = 'Prueba expirada';
+      settingsTrialDaysEl.style.color = 'var(--red)';
     }
+  }
+  if (planBadge && S.trialExpired) {
+    planBadge.innerHTML = `<div class="f-display" style="font-size:13px;font-weight:900;color:var(--red)">PRUEBA EXPIRADA</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Activa tu plan Pro</div>`;
   }
 }
 
@@ -3573,6 +3826,7 @@ function handleReset() {
     S.aliados     = [];
     S.aliadosUids = [];
     S.gymDays = {};
+    S.workoutHistory = [];
     S.calEvents = {};
     S.saldos = [];
     window._extraSaldos = [];
@@ -4036,6 +4290,7 @@ function renderBiblioteca() {
   const badge = document.getElementById('xp-mental-badge');
   if (badge) badge.textContent = 'XP Mental: ' + S.xpMental;
   const active = (S.biblioteca||[]).filter(b => !b.deleted);
+  el.classList.toggle('biblioteca-grid', active.length > 0);
   if (!active.length) {
     el.innerHTML = `<div class="biblioteca-empty">
       <div style="font-size:2rem">📚</div>
@@ -5388,6 +5643,17 @@ function confirmarEntreno() {
   });
   S.muscleLastUpdate = Date.now();
   S.gymDays[t] = countHoy + 1;
+  if (!Array.isArray(S.workoutHistory)) S.workoutHistory = [];
+  S.workoutHistory.unshift({
+    id: uid(),
+    date: t,
+    ts: Date.now(),
+    source: 'registro-libre',
+    routine: 'Registro libre',
+    muscles: detected.map(m => m.key),
+    note: val
+  });
+  S.workoutHistory = S.workoutHistory.slice(0, 90);
 
   gainXP(25);
   spawnConfetti();
@@ -5399,6 +5665,7 @@ function confirmarEntreno() {
   buildFreqHeatmap();
   updateBioMainBtn();
   renderMuscleMapAnalisis();
+  renderRoutines();
   guardarDatos();
 
   // Persistir sesión de texto en Firestore para historial de volumen
@@ -5606,16 +5873,35 @@ function finishGymSession() {
   const totalSets = sess.exercises.reduce((a, e) => a + e.completedSets.length, 0);
 
   if (totalSets > 0) {
+    const workedMuscles = new Set();
     // Actualizar mapa muscular
     sess.exercises.forEach(ex => {
       const musculos = detectarMusculos(ex.name);
       musculos.forEach(m => {
+        workedMuscles.add(m.key);
         if (S.muscleMap[m.key] !== undefined)
           S.muscleMap[m.key] = Math.min(100, S.muscleMap[m.key] + Math.round(ex.completedSets.length * 5));
       });
     });
     S.muscleLastUpdate = Date.now();
     if (countHoy < 2) S.gymDays[t] = countHoy + 1;
+    const routineDone = S.routines.find(r => r.id === sess.routineId);
+    if (routineDone) {
+      routineDone.lastDone = t;
+      routineDone.lastDoneAt = Date.now();
+    }
+    if (!Array.isArray(S.workoutHistory)) S.workoutHistory = [];
+    S.workoutHistory.unshift({
+      id: uid(),
+      date: t,
+      ts: Date.now(),
+      source: 'rutina',
+      routineId: sess.routineId,
+      routine: routineDone?.name || 'Rutina',
+      muscles: [...workedMuscles],
+      totalSets
+    });
+    S.workoutHistory = S.workoutHistory.slice(0, 90);
 
     gainXP(25);
     spawnConfetti();
@@ -5625,6 +5911,7 @@ function finishGymSession() {
     buildFreqHeatmap();
     updateBioMainBtn();
     renderMuscleMapAnalisis();
+    renderRoutines();
     guardarDatos();
 
     // Persistir entrenamiento completo en Firestore para historial de volumen
@@ -6015,6 +6302,7 @@ function _applyData(d) {
   }
   if (!S.aliados || !Array.isArray(S.aliados)) S.aliados = [];
   if (!S.aliadosUids || !Array.isArray(S.aliadosUids)) S.aliadosUids = [];
+  if (!S.workoutHistory || !Array.isArray(S.workoutHistory)) S.workoutHistory = [];
   // Support flat-field format saved by _buildSavePayload (Firestore forbids nested arrays)
   if (S.agencyTab0 !== undefined || S.agencyTab1 !== undefined || S.agencyTab2 !== undefined) {
     S.agencyTabs = [S.agencyTab0||[], S.agencyTab1||[], S.agencyTab2||[]];
@@ -6139,6 +6427,7 @@ function switchAuthTab(tab) {
     _obStep = 1;
     document.querySelectorAll('.ob-step').forEach(s => {
       s.classList.remove('ob-active','ob-exit-left','ob-exit-right');
+      _obClearInlineState(s);
     });
     const s1 = document.getElementById('ob-step-1');
     if (s1) s1.classList.add('ob-active');
@@ -6148,9 +6437,12 @@ function switchAuthTab(tab) {
     }
     const identScreen = document.getElementById('ob-identity-screen');
     if (identScreen) identScreen.style.display = 'none';
+    const colorScreen = document.getElementById('ob-color-screen');
+    if (colorScreen) colorScreen.style.display = 'none';
     const loading = document.getElementById('ob-id-loading');
     if (loading) loading.style.display = 'none';
     if (registerEl) registerEl.scrollTop = 0;
+    _obResetWizardScroll();
   }
 }
 
@@ -6326,6 +6618,8 @@ async function doRegister() {
       if (loading) loading.style.display = 'none';
       const identScreen = document.getElementById('ob-identity-screen');
       if (identScreen) identScreen.style.display = 'none';
+      const colorScreen = document.getElementById('ob-color-screen');
+      if (colorScreen) colorScreen.style.display = 'none';
       const msg = {
         'auth/email-already-in-use':   '⚠️ Este correo ya tiene una cuenta.',
         'auth/invalid-email':           '⚠️ El correo no es válido.',
@@ -6341,6 +6635,8 @@ async function doRegister() {
       showAuthErr('⚠️ Este correo ya está registrado');
       const identScreen = document.getElementById('ob-identity-screen');
       if (identScreen) identScreen.style.display = 'none';
+      const colorScreen = document.getElementById('ob-color-screen');
+      if (colorScreen) colorScreen.style.display = 'none';
       return;
     }
     const user = {
@@ -6810,6 +7106,210 @@ function renderRutinasFrecuentes() {
     </button>`).join('');
 }
 
+const ROUTINE_MUSCLE_LABELS = {
+  pecho: 'Pecho', espalda: 'Espalda', piernas: 'Piernas', hombros: 'Hombros',
+  biceps: 'Biceps', triceps: 'Triceps', abdomen: 'Abdomen', gluteos: 'Gluteos'
+};
+
+const ROUTINE_PRESETS = [
+  { id:'preset-pecho-base', name:'Pecho Base', muscles:['pecho','triceps'], duration:35, level:'Base', exercises:['Press pecho', 'Flexiones pecho', 'Aperturas pecho', 'Fondos triceps'] },
+  { id:'preset-pecho-fuerza', name:'Pecho Fuerza', muscles:['pecho','hombros','triceps'], duration:45, level:'Intermedio', exercises:['Press banca pecho', 'Press inclinado pecho', 'Press militar hombros', 'Extension triceps'] },
+  { id:'preset-espalda-base', name:'Espalda Base', muscles:['espalda','biceps'], duration:35, level:'Base', exercises:['Remo espalda', 'Jalon dorsal espalda', 'Pullover espalda', 'Curl biceps'] },
+  { id:'preset-espalda-fuerza', name:'Espalda Fuerza', muscles:['espalda','biceps'], duration:45, level:'Intermedio', exercises:['Dominadas espalda', 'Remo con barra espalda', 'Peso muerto espalda', 'Curl martillo biceps'] },
+  { id:'preset-pierna-gluteo', name:'Pierna y Gluteo', muscles:['piernas','gluteos'], duration:45, level:'Base', exercises:['Sentadilla piernas', 'Hip thrust gluteos', 'Peso muerto rumano piernas', 'Zancadas piernas'] },
+  { id:'preset-pierna-fuerza', name:'Pierna Fuerza', muscles:['piernas','gluteos'], duration:55, level:'Intermedio', exercises:['Prensa piernas', 'Sentadilla piernas', 'Femoral piernas', 'Elevacion pantorrilla piernas'] },
+  { id:'preset-hombros-base', name:'Hombros Base', muscles:['hombros','triceps'], duration:30, level:'Base', exercises:['Press militar hombros', 'Elevaciones laterales hombros', 'Face pull hombros', 'Extension triceps'] },
+  { id:'preset-biceps-base', name:'Biceps Enfoque', muscles:['biceps','espalda'], duration:30, level:'Base', exercises:['Curl biceps', 'Curl martillo biceps', 'Remo supino espalda', 'Curl concentrado biceps'] },
+  { id:'preset-triceps-base', name:'Triceps Enfoque', muscles:['triceps','pecho'], duration:30, level:'Base', exercises:['Fondos triceps', 'Extension triceps', 'Press cerrado triceps', 'Flexiones pecho'] },
+  { id:'preset-core-base', name:'Abdomen Core', muscles:['abdomen'], duration:25, level:'Base', exercises:['Plancha abdomen', 'Crunch abdomen', 'Elevacion piernas abdomen', 'Oblicuos abdomen'] },
+  { id:'preset-gluteos-base', name:'Gluteos Enfoque', muscles:['gluteos','piernas'], duration:35, level:'Base', exercises:['Hip thrust gluteos', 'Patada gluteos', 'Abduccion gluteos', 'Zancadas piernas'] }
+];
+
+function _routineMuscleName(key) {
+  return ROUTINE_MUSCLE_LABELS[key] || key || 'Musculo';
+}
+
+function _routineMuscles(r) {
+  const set = new Set(Array.isArray(r?.muscles) ? r.muscles : []);
+  (r?.exercises || []).forEach(ex => detectarMusculos(ex.name || ex).forEach(m => set.add(m.key)));
+  return [...set].filter(k => ROUTINE_MUSCLE_LABELS[k]);
+}
+
+function _routineDuration(r) {
+  return Number(r?.duration || r?.durationMin || Math.max(25, Math.min(60, ((r?.exercises || []).length || 4) * 8)));
+}
+
+function _routineLevel(r) {
+  return r?.level || (((r?.exercises || []).length || 0) > 5 ? 'Intermedio' : 'Base');
+}
+
+function _formatRoutineLast(dateLike) {
+  if (!dateLike) return 'Sin registro';
+  const ts = typeof dateLike === 'number' ? dateLike : new Date(dateLike).getTime();
+  if (!Number.isFinite(ts)) return 'Sin registro';
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days <= 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  return `Hace ${days} dias`;
+}
+
+function _recentWorkoutRows(days) {
+  const limit = Date.now() - days * 86400000;
+  return (S.workoutHistory || []).filter(w => Number(w.ts || 0) >= limit && Array.isArray(w.muscles) && w.muscles.length);
+}
+
+function _routineRecommendation() {
+  const base = Object.keys(ROUTINE_MUSCLE_LABELS);
+  const windows = [7, 14, 30];
+  for (const days of windows) {
+    const rows = _recentWorkoutRows(days);
+    if (rows.length >= 2) {
+      const counts = Object.fromEntries(base.map(k => [k, 0]));
+      rows.forEach(row => row.muscles.forEach(m => { if (counts[m] !== undefined) counts[m] += 1; }));
+      const weakest = base.slice().sort((a, b) => counts[a] - counts[b]).slice(0, 2);
+      const preset = _presetForMuscles(weakest);
+      return {
+        type: 'history',
+        preset,
+        muscles: weakest,
+        reason: `En tus ultimos ${days} dias trabajaste menos ${weakest.map(_routineMuscleName).join(' y ')}. Esta rutina equilibra el mapa muscular.`,
+        rows: rows.length
+      };
+    }
+  }
+  const map = S.muscleMap || {};
+  const values = base.filter(k => Number.isFinite(Number(map[k])));
+  if (values.length) {
+    const weakest = values.sort((a, b) => Number(map[a]) - Number(map[b])).slice(0, 2);
+    const preset = _presetForMuscles(weakest);
+    return {
+      type: 'map',
+      preset,
+      muscles: weakest,
+      reason: `Aun no hay suficiente historial reciente. Uso tu mapa muscular actual: ${weakest.map(_routineMuscleName).join(' y ')} estan mas bajos.`,
+      rows: 0
+    };
+  }
+  return null;
+}
+
+function _presetForMuscles(muscles) {
+  return ROUTINE_PRESETS.find(p => muscles.every(m => p.muscles.includes(m))) ||
+         ROUTINE_PRESETS.find(p => p.muscles.includes(muscles[0])) ||
+         ROUTINE_PRESETS[0];
+}
+
+function _routineChips(muscles) {
+  return (muscles || []).map(m => `<span class="routine-muscle-chip">${escHtml(_routineMuscleName(m))}</span>`).join('');
+}
+
+function _routineCardHTML(r, mode='saved') {
+  const muscles = _routineMuscles(r);
+  const canStart = (r.exercises || []).length > 0;
+  const lastDone = r.lastDoneAt || r.lastDone;
+  const startAction = mode === 'preset' ? `startPresetRoutine('${r.id}')` : `enterGymMode('${r.id}')`;
+  const meta = `${_routineDuration(r)} min · ${escHtml(_routineLevel(r))}`;
+  return `
+    <div class="routine-item ${mode === 'preset' ? 'routine-item-preset' : ''}">
+      <div class="routine-item-main">
+        <div class="routine-item-name">${escHtml(r.name)}</div>
+        <div class="routine-item-meta">${meta}</div>
+        <div class="routine-chip-row">${_routineChips(muscles)}</div>
+        <div class="routine-last">Ultima vez: ${_formatRoutineLast(lastDone)}</div>
+      </div>
+      <div class="routine-item-actions">
+        <button class="routine-start-btn" onclick="${startAction}" ${canStart ? '' : 'disabled'}>Iniciar</button>
+        ${mode === 'saved' ? `
+          <div class="routine-secondary-actions">
+            <button onclick="openEditRoutine('${r.id}')" title="Editar">Editar</button>
+            <button onclick="toggleRoutineActive('${r.id}')" title="Pausar o activar">${r.active ? 'Pausar' : 'Activar'}</button>
+            <button onclick="deleteRoutine('${r.id}')" title="Eliminar">Eliminar</button>
+          </div>
+        ` : ''}
+      </div>
+      ${mode === 'saved' ? `
+        <div class="routine-exercise-row">
+          <input class="inp f1" id="ex-inp-${r.id}" placeholder="Agregar ejercicio a esta rutina" onkeydown="if(event.key==='Enter')addExercise('${r.id}')"/>
+          <button class="btn btn-g btn-sm" onclick="addExercise('${r.id}')">+</button>
+        </div>
+        <div class="routine-exercise-list">${(r.exercises || []).map(ex => `<span>${escHtml(ex.name)}</span>`).join('') || '<em>Agrega ejercicios para poder iniciar.</em>'}</div>
+      ` : ''}
+    </div>`;
+}
+
+function renderRoutines() {
+  const savedEl = document.getElementById('routines-container');
+  const recoEl = document.getElementById('routine-recommendation');
+  const lastEl = document.getElementById('last-routine-card');
+  const signalEl = document.getElementById('routine-signal');
+  if (!savedEl) return;
+
+  const rec = _routineRecommendation();
+  if (recoEl) {
+    recoEl.innerHTML = rec ? `
+      <div class="routine-reco-card">
+        <div>
+          <div class="routine-section-label">Rutina recomendada</div>
+          <div class="routine-reco-name">${escHtml(rec.preset.name)}</div>
+          <div class="routine-chip-row">${_routineChips(rec.preset.muscles)}</div>
+          <div class="routine-reco-reason">${escHtml(rec.reason)}</div>
+        </div>
+        <button class="routine-primary-cta" onclick="startPresetRoutine('${rec.preset.id}')">Iniciar</button>
+      </div>` :
+      `<div class="routine-empty strong">Registra al menos 2 entrenamientos para recomendar con datos reales.</div>`;
+  }
+  if (signalEl) signalEl.textContent = rec?.type === 'history' ? `${rec.rows} registros recientes analizados` : 'Recomendacion inicial por mapa muscular';
+
+  const saved = (S.routines || []).filter(r => !r.deleted);
+  savedEl.innerHTML = saved.length
+    ? saved.map(r => _routineCardHTML(r, 'saved')).join('')
+    : '<div class="routine-empty">Todavia no tienes rutinas guardadas. Puedes crear una o iniciar un preset.</div>';
+
+  if (lastEl) {
+    const last = (S.workoutHistory || []).slice().sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))[0];
+    lastEl.innerHTML = last ? `
+      <div class="routine-last-card">
+        <div>
+          <div class="routine-section-label">Ultima rutina realizada</div>
+          <div class="routine-last-name">${escHtml(last.routine || 'Entrenamiento')}</div>
+          <div class="routine-chip-row">${_routineChips(last.muscles || [])}</div>
+        </div>
+        <div class="routine-last-date">${_formatRoutineLast(last.ts || last.date)}</div>
+      </div>` :
+      '<div class="routine-last-card muted">Ultima rutina realizada: sin sesiones registradas todavia.</div>';
+  }
+
+  renderRutinasFrecuentes();
+}
+
+function renderRutinasFrecuentes() {
+  const el = document.getElementById('rutinas-frecuentes-list'); if (!el) return;
+  el.innerHTML = ROUTINE_PRESETS.map(p => _routineCardHTML(p, 'preset')).join('');
+}
+
+function startPresetRoutine(presetId) {
+  const preset = ROUTINE_PRESETS.find(p => p.id === presetId);
+  if (!preset) return;
+  if (!Array.isArray(S.routines)) S.routines = [];
+  let routine = S.routines.find(r => r.presetSource === preset.id && !r.deleted);
+  if (!routine) {
+    routine = {
+      id: uid(),
+      name: preset.name,
+      active: true,
+      presetSource: preset.id,
+      muscles: preset.muscles.slice(),
+      duration: preset.duration,
+      level: preset.level,
+      exercises: preset.exercises.map(name => ({ id: uid(), name, sets: [] }))
+    };
+    S.routines.push(routine);
+    guardarDatos();
+    renderRoutines();
+  }
+  enterGymMode(routine.id);
+}
+
 /* ═══════════════════════════════════════════
    FINANCIERO — MÚLTIPLES SALDOS (dinámico)
 ═══════════════════════════════════════════ */
@@ -6825,6 +7325,10 @@ function addNuevoSaldo() {
 
 function renderExtraSaldos() {
   const saldosGrid = document.getElementById('saldos-grid'); if (!saldosGrid) return;
+  saldosGrid.style.display = 'grid';
+  saldosGrid.style.gridTemplateColumns = 'repeat(auto-fit,minmax(220px,1fr))';
+  saldosGrid.style.gap = '16px';
+  saldosGrid.style.alignItems = 'stretch';
   // Quitar tarjetas extras previas (dejar solo saldo-personal-card)
   saldosGrid.querySelectorAll('.extra-saldo-card').forEach(el => el.remove());
   if (!S.saldos) S.saldos = [];
@@ -7765,29 +8269,35 @@ function renderDashboardHeader() {
   const name  = rawName ? rawName.split(' ')[0] : 'usuario';
 
   // Saludo según hora del día
+  const _en = window.APP_LANG === 'en';
   let emoji, saludo, sub;
   if (h >= 5 && h < 12) {
     emoji  = '🌅';
-    saludo = `Buenos días, ${name}`;
-    sub    = 'Hora de conquistar el día. Tu sistema está listo.';
+    saludo = _en ? `Morning, ${name}`      : `Buenos días, ${name}`;
+    sub    = _en ? "Let's make today count."     : 'Hora de conquistar el día. Tu sistema está listo.';
   } else if (h >= 12 && h < 18) {
     emoji  = '☀️';
-    saludo = `Buenas tardes, ${name}`;
-    sub    = 'A mitad del día — ¿cómo vas con tus metas?';
+    saludo = _en ? `Hey, ${name}`          : `Buenas tardes, ${name}`;
+    sub    = _en ? "Halfway through — keep the momentum." : 'A mitad del día — ¿cómo vas con tus metas?';
   } else if (h >= 18 && h < 22) {
     emoji  = '🌆';
-    saludo = `Buenas noches, ${name}`;
-    sub    = 'La noche es tuya para cerrar con todo.';
+    saludo = _en ? `Evening, ${name}`      : `Buenas noches, ${name}`;
+    sub    = _en ? "The night's yours. Finish strong."    : 'La noche es tuya para cerrar con todo.';
   } else {
     emoji  = '🌙';
-    saludo = `Hola, ${name}`;
-    sub    = 'Las mentes elite no duermen. ¿Qué registramos?';
+    saludo = _en ? `Still up, ${name}?`   : `Hola, ${name}`;
+    sub    = _en ? "Elite minds don't quit. What are we logging?" : 'Las mentes elite no duermen. ¿Qué registramos?';
   }
 
-  // Fecha formateada en español
-  const dias   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const meses  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const fecha  = `${dias[now.getDay()]} ${now.getDate()} de ${meses[now.getMonth()]}, ${now.getFullYear()}`;
+  const dias  = _en
+    ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    : ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = _en
+    ? ['January','February','March','April','May','June','July','August','September','October','November','December']
+    : ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const fecha = _en
+    ? `${dias[now.getDay()]}, ${meses[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`
+    : `${dias[now.getDay()]} ${now.getDate()} de ${meses[now.getMonth()]}, ${now.getFullYear()}`;
 
   if (greetEmoji) greetEmoji.textContent = emoji;
   if (greetText)  greetText.textContent  = saludo;
@@ -8107,6 +8617,88 @@ function renderBlackoutInlineWidget(active) {
   host.insertAdjacentHTML('afterbegin', html);
 }
 
+window._globalCoreData = window._globalCoreData || null;
+
+async function loadGlobalCoreData(force = false) {
+  if (!force && window._globalCoreDataLoaded) return;
+  window._globalCoreDataLoaded = true;
+  const db = window._db || _db;
+  if (!window.firebase?.firestore || !db) {
+    window._globalCoreData = { activos:0, totalHabitos:0, totalTareas:0, totalXP:0, rachaMax:0 };
+    renderGlobalCoreCommunity();
+    return;
+  }
+  try {
+    const todayStr = today();
+    const since = Date.now() - 86400000;
+    const snap = await db.collection('userDirectory').limit(50).get();
+    let activos = 0, totalHabitos = 0, totalTareas = 0, totalXP = 0, rachaMax = 0;
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const rawActive = d.lastActive || d.lastCheckIn || d.lastUpdate || d.updatedAt || d.online;
+      const activeValue = rawActive?.toDate ? rawActive.toDate().getTime() : rawActive;
+      const activeText = typeof activeValue === 'string' ? activeValue : '';
+      const activeMs = typeof activeValue === 'number' ? activeValue : Date.parse(activeText);
+      const isActiveToday = activeText.startsWith(todayStr) || (!Number.isNaN(activeMs) && activeMs >= since);
+      if (!isActiveToday) return;
+      activos++;
+      totalHabitos += Number(d.habitsToday || d.doneHabitsToday || d.habitosHoy || 0);
+      totalTareas  += Number(d.tasksToday || d.doneTasksToday || d.tareasHoy || 0);
+      totalXP      += Number(d.xpToday || d.xpWeekly || 0);
+      rachaMax = Math.max(rachaMax, Number(d.checkInStreak || d.racha || 0));
+    });
+    window._globalCoreData = { activos, totalHabitos, totalTareas, totalXP, rachaMax };
+  } catch(e) {
+    console.warn('[GlobalCore] Error cargando datos comunidad:', e);
+    window._globalCoreData = { activos:0, totalHabitos:0, totalTareas:0, totalXP:0, rachaMax:0 };
+  }
+  renderGlobalCoreCommunity();
+}
+
+function renderGlobalCoreCommunity() {
+  const data = window._globalCoreData;
+  const pctMain = document.getElementById('nucleo-pct-main');
+  const lblMain = document.getElementById('nucleo-label-main');
+  const badgeMain = document.getElementById('nucleo-badge-main');
+  if (!pctMain && !lblMain && !badgeMain) return;
+  if (!data) {
+    if (pctMain) pctMain.textContent = '--';
+    if (lblMain) lblMain.textContent = 'CARGANDO';
+    if (badgeMain) { badgeMain.className = 'nucleo-badge state-idle'; badgeMain.textContent = 'DATOS GLOBALES'; }
+    loadGlobalCoreData();
+    return;
+  }
+  const goal = 1000;
+  const totalActions = data.totalHabitos + data.totalTareas;
+  const pct = Math.min(100, Math.round((totalActions / goal) * 100));
+  if (pctMain) pctMain.textContent = data.activos + (data.activos === 1 ? ' usuario' : ' usuarios');
+  if (lblMain) lblMain.textContent = 'COMUNIDAD ACTIVA HOY';
+  if (badgeMain) {
+    badgeMain.className = 'nucleo-badge ' + (pct >= 100 ? 'state-complete' : pct >= 60 ? 'state-flow' : 'state-active');
+    badgeMain.textContent = pct >= 100 ? 'BONO GLOBAL ACTIVO' : 'NUCLEO GLOBAL';
+  }
+  const ringFull = document.getElementById('nucleo-progress-ring');
+  if (ringFull) ringFull.style.strokeDashoffset = 552.9 * (1 - pct / 100);
+  let hint = document.getElementById('nucleo-progress-hint');
+  if (!hint && pctMain?.parentElement) {
+    hint = document.createElement('div');
+    hint.id = 'nucleo-progress-hint';
+    hint.style.cssText = 'font-size:11px;color:var(--text2);text-align:center;line-height:1.35;margin-top:6px;max-width:190px';
+    pctMain.parentElement.appendChild(hint);
+  }
+  if (hint) hint.textContent = `${totalActions} acciones comunitarias hoy. Meta global: ${goal}.`;
+  const setMetricText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const setMetricBar = (id, value) => { const el = document.getElementById(id); if (el) el.style.width = Math.min(100, value) + '%'; };
+  setMetricText('nm-habitos', `${data.totalHabitos} globales`);
+  setMetricText('nm-tareas', `${data.totalTareas} globales`);
+  setMetricText('nm-xp-hoy', `${data.totalXP} XP`);
+  setMetricText('nm-racha', `${data.rachaMax}d`);
+  setMetricBar('nmb-habitos', pct);
+  setMetricBar('nmb-tareas', pct);
+  setMetricBar('nmb-xp', Math.min(100, data.totalXP / 50));
+  setMetricBar('nmb-racha', Math.min(100, data.rachaMax / 30 * 100));
+}
+
 function updateGlobalCore() {
   const activeHabits = getTodayHabits(S.habits || []);
   const totalH   = activeHabits.length;
@@ -8153,6 +8745,7 @@ function updateGlobalCore() {
   }
 
   // ── Update FULL widget (SaaS) ─────────────────────
+  /*
   const circumFull = 552.9;
   const ringFull = document.getElementById('nucleo-progress-ring');
   if (ringFull) {
@@ -8249,6 +8842,9 @@ function updateGlobalCore() {
   setMetric('nm-tareas',   'nmb-tareas',  `${doneT}/${totalT}`,  taskPct);
   setMetric('nm-xp-hoy',  'nmb-xp',     `${xpHoy}`,             Math.min(100, (xpHoy/xpMaxDay)*100));
   setMetric('nm-racha',    'nmb-racha',  `${racha}d`,            Math.min(100, (racha/30)*100));
+  */
+  // Nexus owns the full Global Core; this function only drives the Personal Core.
+  renderGlobalCoreCommunity();
 
   // ── Empty-state guidance card (Análisis) ─────────
   const emptyGuide = document.getElementById('nucleo-empty-guide');
@@ -10231,7 +10827,7 @@ function _fireTabInit(pageId, tabId) {
     const _uid = _auth?.currentUser?.uid;
     if (_uid) renderXPChart(_uid);
   }
-  if (tabId === 'saas')     { renderLeaderboard(); loadLeaderboardFromFirestore(); renderWrapped(); updateGlobalCore(); _updateSaasSubscriptionUI(); }
+  if (tabId === 'saas')     { renderLeaderboard(); loadLeaderboardFromFirestore(); loadGlobalCoreData(true); renderWrapped(); updateGlobalCore(); _updateSaasSubscriptionUI(); }
   if (pageId === 'settings') { _updateSaasSubscriptionUI(); }
   // Onboarding sub-card for inner tabs
   setTimeout(() => showSubCard(tabId), 300);
@@ -11795,11 +12391,173 @@ function addTask() {
   if (_cor !== _raw) { _inp.value = _cor; showToast('✏️ Corregido: "' + _cor + '"'); }
   const _cat = _categorizarTarea(_cor);
   const _emo = _tareaEmoji(_cor);
-  S.tasks.unshift({ id:uid(), name:_emo+' '+_cor, desc:document.getElementById('t-desc')&&document.getElementById('t-desc').value||'', date:document.getElementById('t-date')&&document.getElementById('t-date').value||'', time:document.getElementById('t-time')&&document.getElementById('t-time').value||'', done:false, categoria:_cat, originalInput:_raw });
+  const description = document.getElementById('t-desc')&&document.getElementById('t-desc').value||'';
+  const dueDate = document.getElementById('t-date')&&document.getElementById('t-date').value||'';
+  const title = _emo+' '+_cor;
+  S.tasks.unshift({
+    id:uid(),
+    title,
+    name:title,
+    description,
+    desc:description,
+    dueDate,
+    date:dueDate,
+    time:document.getElementById('t-time')&&document.getElementById('t-time').value||'',
+    status:'pending',
+    priority:getTaskPriority({ name:_cor, desc:description, date:dueDate }) >= 3 ? 'critical' : 'normal',
+    done:false,
+    categoria:_cat,
+    originalInput:_raw
+  });
   track('task_created', { source: 'manual' });
   ['t-name','t-desc'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   showToast(_emo + ' Tarea creada · ' + _cat);
   renderTasks(); updateDashboardTaskCount && updateDashboardTaskCount(); updateGlobalCore && updateGlobalCore(); guardarDatos();
+}
+
+function compareTaskCards(a, b) {
+  const ad = `${a.date || '9999-12-31'} ${a.time || '99:99'}`;
+  const bd = `${b.date || '9999-12-31'} ${b.time || '99:99'}`;
+  if (ad !== bd) return ad.localeCompare(bd);
+  return getTaskPriority(b) - getTaskPriority(a);
+}
+
+function isTaskOverdue(task) {
+  if (!task || task.done || !task.date) return false;
+  const nowKey = `${today()} ${new Date().toTimeString().slice(0, 5)}`;
+  const taskKey = `${String(task.date).slice(0, 10)} ${task.time || '23:59'}`;
+  return taskKey < nowKey;
+}
+
+function getTaskStatus(task) {
+  if (task.status === 'completed' || task.done) return { key:'completed', label:'Completada' };
+  if (isTaskOverdue(task)) return { key:'overdue', label:'Vencida' };
+  return { key:'pending', label:'Pendiente' };
+}
+
+function normalizeTask(task) {
+  const title = task.title || task.name || '';
+  const description = task.description || task.desc || '';
+  const dueDate = task.dueDate || task.date || '';
+  const priority = task.priority === 'critical' || getTaskPriority(task) >= 3 ? 'critical' : 'normal';
+  const status = getTaskStatus({ ...task, title, name:title, dueDate, date:dueDate }).key;
+  return { ...task, title, description, dueDate, priority, status };
+}
+
+function taskCardHTML(t) {
+  const task = normalizeTask(t);
+  const status = { key:task.status, label:task.status === 'completed' ? 'Completada' : task.status === 'overdue' ? 'Vencida' : 'Pendiente' };
+  const meta = [
+    t.categoria ? `<span>${escHtml(t.categoria)}</span>` : '',
+    task.dueDate ? `<span>${escHtml(String(task.dueDate).slice(0, 10))}</span>` : '<span>Hoy</span>',
+    t.time ? `<span>${escHtml(t.time)}</span>` : '',
+    `<span>${task.priority === 'critical' ? 'Critica' : 'Normal'}</span>`,
+  ].filter(Boolean).join('');
+  return `
+    <article class="task-item task-row task-${status.key} task-priority-${task.priority} ${task.status === 'completed' ? 'done' : ''}">
+      <div class="task-status-dot" aria-hidden="true"></div>
+      <div class="task-main">
+        <div class="task-row-top">
+          <strong>${escHtml(task.title)}</strong>
+          <span class="task-status-pill">${status.label}</span>
+        </div>
+        ${task.description ? `<p>${escHtml(task.description)}</p>` : ''}
+        <div class="task-meta">${meta}</div>
+      </div>
+      <div class="task-actions">
+        ${task.status !== 'completed' ? `<button class="task-complete-btn" onclick="toggleTask('${t.id}')">Completar</button>` : `<span class="task-complete-done">+50 XP</span>`}
+        <div class="task-more-actions" aria-label="Acciones secundarias">
+          ${task.status !== 'completed' ? `<button onclick="openEditTask('${t.id}')" title="Editar">Editar</button>` : ''}
+          ${task.status !== 'completed' ? `<button onclick="postponeTask('${t.id}')" title="Posponer">Posponer</button>` : ''}
+          ${task.status !== 'completed' ? `<button onclick="startTaskPomodoro('${t.id}')" title="Enfocar">Enfocar</button>` : ''}
+          <button class="task-delete-action" onclick="deleteTask('${t.id}')" title="Eliminar">Eliminar</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  if (!el) return;
+  const summary = document.getElementById('task-summary');
+  const all = (S.tasks || []).filter(t => !t.deleted);
+  const active = all.filter(t => normalizeTask(t).status !== 'completed');
+  const todayScope = all.filter(t => {
+    const task = normalizeTask(t);
+    return !t.deleted && (!task.dueDate || isToday(task.dueDate));
+  });
+  const todayTotal = todayScope.length;
+  const todayDone = todayScope.filter(t => normalizeTask(t).status === 'completed').length;
+  const todayPending = todayScope
+    .filter(t => normalizeTask(t).status === 'pending')
+    .sort((a, b) => getTaskPriority(b) - getTaskPriority(a));
+  const overdue = active.filter(t => isTaskOverdue(t)).sort((a, b) => compareTaskCards(a, b));
+  const upcoming = active
+    .filter(t => {
+      const task = normalizeTask(t);
+      return task.status !== 'overdue' && !(!task.dueDate || isToday(task.dueDate));
+    })
+    .sort((a, b) => compareTaskCards(a, b))
+    .slice(0, 6);
+  const completed = all.filter(t => normalizeTask(t).status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)).slice(0, 5);
+  const title = el.closest('.card')?.querySelector('.card-title');
+  if (title) title.textContent = todayTotal ? `${todayTotal} tareas criticas hoy` : 'ACCIONES CRITICAS DE HOY';
+  if (summary) {
+    const pct = todayTotal ? Math.round((todayDone / todayTotal) * 100) : 0;
+    summary.innerHTML = `
+      <div class="task-summary-kpi"><strong>${todayTotal}</strong><span>criticas hoy</span></div>
+      <div class="task-summary-kpi"><strong>${todayDone}/${todayTotal}</strong><span>completadas</span></div>
+      <div class="task-summary-ring" style="--p:${pct}%">${pct}%</div>`;
+  }
+  if (!all.length) {
+    el.innerHTML = '<div class="task-empty">No hay tareas. Agrega una accion critica para hoy.</div>';
+    return;
+  }
+  const sections = [
+    ['Vencidas', overdue, 'overdue'],
+    ['Hoy / criticas', todayPending, 'pending'],
+    ['Proximas', upcoming, 'upcoming'],
+    ['Completadas', completed, 'completed'],
+  ].filter(([,items]) => items.length);
+  el.innerHTML = sections.map(([label, items, kind]) => `
+    <section class="task-section task-section-${kind}">
+      <div class="task-section-head"><span>${label}</span><b>${items.length}</b></div>
+      <div class="task-section-list">${items.map(t => taskCardHTML(t)).join('')}</div>
+    </section>`).join('');
+}
+
+function toggleTask(id) {
+  const t = S.tasks.find(x=>x.id===id);
+  if (!t || normalizeTask(t).status === 'completed') return;
+  t.done = true;
+  t.status = 'completed';
+  t.completedAt = Date.now();
+  gainXP(50);
+  S.lastXP = 50;
+  track('task_completed', { xp_earned: S.lastXP || 10, source: 'manual' });
+  _logActivity('task', 50, t.name || 'Tarea completada');
+  spawnConfetti();
+  showToast('Tarea completada +50 XP');
+  renderTasks();
+  updateDashboardTaskCount();
+  updateGlobalCore();
+}
+
+function postponeTask(id) {
+  const t = S.tasks.find(x=>x.id===id);
+  if (!t || normalizeTask(t).status === 'completed') return;
+  const dueDate = normalizeTask(t).dueDate;
+  const base = dueDate ? new Date(`${String(dueDate).slice(0, 10)}T12:00:00`) : new Date();
+  base.setDate(base.getDate() + 1);
+  t.date = base.toISOString().slice(0, 10);
+  t.dueDate = t.date;
+  t.status = 'pending';
+  guardarDatos();
+  renderTasks();
+  updateDashboardTaskCount();
+  updateGlobalCore();
+  renderUpcomingList && renderUpcomingList();
+  showToast('Tarea pospuesta a manana');
 }
 
 /* ═══════════════════════════════════════════════════════════════

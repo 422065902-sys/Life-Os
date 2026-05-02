@@ -227,8 +227,14 @@ userDirectory/{uid}:
 - ✅ Baseline QA post-Batch 10: 165 ✅ / 1 ❌ / 213 tests · 62 propuestas Gemini 2.5 Pro
 - ✅ Batch P0 completado — activación + medición · commit `0d821188` · QA: 178 ✅ / 0 ❌ / 92%
 - ✅ Batch 12 completado — A1–A5 bugs críticos, B1–B2 features, C1–C3 visual, D1 financiero · commit `013b756a`
-- ⚠️ Pendiente: demo@mylifeos.lat en Firebase prod para iPhone mockup
-- ⚠️ CRÍTICO: VPS sin sincronizar — staging NO refleja Batch 12 — sync + deploy requerido al inicio de próxima sesión
+- ✅ Batch 13A parcial — landing, registro, onboarding, mobile, radar, hábitos, financiero, nexus, análisis — validado local, sin deploy
+- ✅ i18n ES/EN — toggle con TRANSLATIONS_EN (~60 frases naturales), applyLang() TreeWalker, MutationObserver, renderDashboardHeader() lang-aware, fechas lang-aware
+- ✅ Inglés como idioma por default (APP_LANG = localStorage || 'en') — para Tetr LaunchLab
+- ✅ Mockup iPhone landing: imágenes reales en images/mockup-es.jpg + images/mockup-en.png — cambia con toggle
+- ✅ Botones lang en dos lugares: #lang-btn (topbar app) + #lp-lang-btn (nav landing)
+- ⚠️ VPS NO sincronizado — staging NO refleja Batch 12, 13 ni i18n — sync + deploy CRÍTICO
+- ⚠️ Deploy a PRODUCCIÓN pendiente de confirmación del usuario (Tetr LaunchLab)
+- ⚠️ Pendiente: QA visual completo con datos reales en staging
 
 ## FLUJO RECOMENDADO
 ```bash
@@ -316,11 +322,39 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-05-01 (sesión 18)
-- **Batch 12 en GitHub** — commit `013b756a` — código correcto en origin/main
-- **VPS NO sincronizado** — staging sigue con código anterior al Batch 12
-- **El deploy que hizo el usuario** fue con código viejo (VPS sin git pull) → staging no muestra Batch 12
-- **Usuario entregó revisión funcional completa (19 puntos)** — mapeo hecho: 9 puntos ya cubiertos en Batch 12, resto es Batch 13
+- Fecha: 2026-05-01 (sesión 20)
+- **i18n ES/EN + mockup real en landing — sin deploy aún**
+- `node --check main.js`: OK
+- **NO se hizo deploy** — pendiente revisión local + confirmación de prod
+- Archivos tocados: `main.js`, `index.html`, `images/` (nueva carpeta)
+
+### Qué se hizo en sesión 20 (i18n + mockup)
+- Toggle ES/EN: botón en landing nav (#lp-lang-btn) y topbar (#lang-btn)
+- `window.APP_LANG` default = 'en' (Tetr LaunchLab)
+- `TRANSLATIONS_EN` — ~60 frases en inglés natural (no literal)
+- `applyLang()` — TreeWalker sobre nodos de texto, sorted by length
+- `_startLangObserver()` — MutationObserver debounced 120ms
+- `toggleLang()` — EN: aplica al vuelo | ES: reload
+- `renderDashboardHeader()` — saludos y fechas lang-aware
+- Landing mockup: `lp-preview-body` reemplazado con `<img id="landing-mockup-img">`
+- mockup-es.jpg → default | mockup-en.png → al cambiar a EN
+- images/mockup-es.jpg + images/mockup-en.png en el repo
+
+### Qué se hizo en Batch 13 (sesión anterior)
+- Landing: color de CTA sincronizado con acento del usuario
+- Registro: wizard pasos 2 y 3 ya no quedan en blanco
+- Registro: quitadas barras horizontales/verticales raras en auth
+- Onboarding: después de elegir XP/Aura ahora pide color de Life OS
+- Mobile topbar: badges/botones reducidos en mobile
+- Dashboard radar: ajustado para no verse extendido en mobile
+- Landing mobile: botones superiores no se salen de pantalla
+- Hábitos: widgets de resumen en grid 2x2
+- Financiero: equilibradas tarjetas Saldo Personal / Gastos Personales
+- Nexus: quitadas tarjetas Pro/planes — Pro queda solo en Configuración
+- Análisis: Núcleo Personal + métricas en grid 2x2
+- Fix crítico: `#panel-analisis` ya no fuerza `display:flex!important` → Nexus muestra su contenido
+- Leaderboard: sin datos hardcodeados (AlphaX/DriveOS/NovaMind eliminados)
+- Núcleo Personal → Análisis | Núcleo Global → Nexus (lógica correcta)
 
 ### PENDIENTE AL ARRANCAR PRÓXIMA SESIÓN
 1. **Sync VPS + deploy staging** — CRÍTICO — comando completo:
@@ -333,42 +367,29 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
      GOOGLE_APPLICATION_CREDENTIALS="/opt/openclaw/repo/lifeos/Documents/Life Os/scripts/firebase-adc.json" \
      firebase deploy --only hosting:staging --project staging
    ```
-2. **Verificar Batch 12 en staging** — confirmar visualmente los 9 ítems
-3. **Correr QA** — `cd /opt/openclaw && node runner.js --deep`
-4. **Planear Batch 13** con revisión del usuario — ver sección abajo
-5. **demo@mylifeos.lat** — crear en Firebase prod con is_pro:true
+2. **Correr QA visual** — `cd /opt/openclaw && node runner.js --deep` — screenshots comparativos
+3. **Verificar con datos reales** (requiere staging):
+   - Pro/Trial: usuario `qa-test@mylifeos-staging.com` con `is_pro:true` via `set-qa-pro.js`
+   - Nexus/Leaderboard/Núcleo Global: datos reales desde Firestore `userDirectory`
+   - FAB: probar en varias pantallas con scroll y modales
+   - Financiero: dona, grid desktop, copy sin "Finanzas con XP"
+   - Agenda: probar vencidas/futuras con datos reales
+   - Hábitos: días activos/inactivos creando y editando
+   - Bitácora: Reflexión vs Libro vs Película
+   - Biblioteca: grid con items reales
+4. **Aliados** — requiere segunda cuenta staging para buscar/enviar/aceptar/rechazar
+5. **demo@mylifeos.lat** — crear en Firebase prod con `is_pro:true` (mockup iPhone)
 
-### Batch 13 — Revisión funcional usuario (19 puntos)
-**Items ya hechos en Batch 12 (solo verificar en staging):**
-- Agenda vencidas → "Pendientes atrasadas" (A1)
-- Financiero: overlay debajo dona + sin XP (A2, D1)
-- Estado Pro: oculta banner si ya es Pro (A3)
-- World Apartamento: misma lógica que burbuja (A4)
-- Hábitos: selector días L/M/X/J/V/S/D (B1)
-- Enfoque mental: donut + barras lado a lado (C1)
-- Racha semanal: círculos más juntos (C2)
-- Leaderboard: datos reales Firestore (A5)
-
-**Items nuevos para Batch 13 (prioridad alta):**
-- Colores Modo Aura más diferenciados — paleta pastel/emocional, color seleccionado visible
-- Radar rendimiento — altura equilibrada (igual que racha+enfoque combinadas)
-- Núcleo Personal vs Núcleo Global — lógica correcta (Personal=solo usuario, Global=todos los usuarios → Nexus)
-- Sistema de Aliados — auditar flujo completo: buscar/enviar/aceptar/rechazar/ver perfil
-
-**Items nuevos para Batch 13 (prioridad media):**
-- Tarjeta tareas gamificada — propuesta de mejora visual
-- Biblioteca vs Diario Bitácora — separar responsabilidades (Biblioteca=colección, Diario=experiencia)
-- Aprende e Infórmate — contenido personalizado según estado del usuario
-
-**Items futuros (documentar, no implementar aún):**
-- Mapa muscular realista (SVG mejorado, zonas musculares claras)
+### Batch 13 — Pendientes técnicos (no implementados aún)
+- Mapa muscular realista (SVG mejorado)
 - Rutinas recomendadas por zona menos trabajada
 - Calorías opcionales (activar/desactivar)
-- Libro: modo lectura tipo pomodoro, checkpoints, sesiones
+- Libro: modo lectura tipo pomodoro
 - Series: tab separado o dentro de Películas
 - Notificaciones recreativas inteligentes
 - Dashboard inteligente por comportamiento
 - Spotify OAuth real
+- Aprende e Infórmate — contenido personalizado según estado del usuario
 
 ### Resumen CODEX_BATCH_12.md
 **Batch 12A (bugs críticos):**

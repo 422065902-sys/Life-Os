@@ -91,8 +91,9 @@
   <nav class="lp-nav">
     <div class="lp-nav-logo">LIFE OS</div>
     <div class="lp-nav-actions">
-      <button class="lp-nav-login" onclick="showAuthFromLanding('login')">Iniciar Sesión</button>
-      <button class="lp-nav-cta" onclick="showAuthFromLanding('register')">Empieza gratis →</button>
+      <button id="lp-lang-btn" onclick="toggleLang()" style="background:transparent;border:1px solid rgba(255,255,255,.25);border-radius:6px;color:var(--text2,#aaa);font-size:11px;font-weight:700;letter-spacing:.08em;padding:5px 10px;cursor:pointer">ES</button>
+      <button class="lp-nav-login" onclick="showAuthFromLanding('login')">Log In</button>
+      <button class="lp-nav-cta" onclick="showAuthFromLanding('register')">Start free →</button>
     </div>
   </nav>
 
@@ -102,174 +103,106 @@
     <section class="lp-hero">
       <div class="lp-hero-layout">
 
-        <!-- Columna texto -->
+        <!-- Text column -->
         <div class="lp-hero-text">
           <div class="lp-hero-tag lp-anim lp-anim-1">
-            <span class="lp-tag-dot"></span>⚡ Versión 2.0 — Inteligencia Artificial incluida
+            <span class="lp-tag-dot"></span>⚡ Version 2.0 — AI Built In
           </div>
           <h1 class="lp-hero-title lp-anim lp-anim-2">
-            Juega en serio.<br><span class="lp-gradient-text">Domina tu vida.</span>
+            Play to win.<br><span class="lp-gradient-text">Own your life.</span>
           </h1>
           <p class="lp-hero-sub lp-anim lp-anim-3">
-            Life OS convierte tus hábitos, finanzas y metas en un RPG épico. Gana XP, sube de nivel con tu Gemelo IA y compite con amigos en un mundo que evoluciona contigo.
+            Life OS turns your habits, finances, and goals into an epic RPG. Earn XP, level up with your AI Twin, and compete with friends in a world that grows with you.
           </p>
           <div class="lp-hero-cta lp-anim lp-anim-4">
-            <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">🚀 Empezar gratis</button>
-            <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">Ya tengo cuenta →</button>
+            <button class="lp-btn-primary" onclick="showAuthFromLanding('register')">🚀 Start for free</button>
+            <button class="lp-btn-secondary" onclick="showAuthFromLanding('login')">I already have an account →</button>
           </div>
-          <p class="lp-cta-legal lp-anim lp-anim-5">Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras</p>
-          <!-- Chips de features -->
+          <p class="lp-cta-legal lp-anim lp-anim-5">No credit card · 30 days free · Cancel anytime</p>
+          <!-- Feature chips -->
           <div class="lp-feature-chips lp-anim lp-anim-6">
-            <span class="lp-chip">⚡ Hábitos gamificados</span>
-            <span class="lp-chip">🤖 IA incluida</span>
-            <span class="lp-chip">💰 Control financiero</span>
+            <span class="lp-chip">⚡ Gamified Habits</span>
+            <span class="lp-chip">🤖 AI Built In</span>
+            <span class="lp-chip">💰 Financial Control</span>
             <span class="lp-chip">🏆 Leaderboard</span>
           </div>
         </div>
 
-        <!-- Columna preview — iPhone + Safari mockup -->
+        <!-- Preview column — iPhone mockup -->
         <div class="lp-hero-preview lp-anim lp-anim-3">
           <div class="lp-iphone">
-            <div class="lp-iphone-island"></div>
-            <div class="lp-iphone-status">
-              <span>2:43</span>
-              <div class="lp-iphone-status-icons"><span>▲</span><span>WiFi</span><span>🔋</span></div>
-            </div>
-            <div class="lp-preview-body">
-              <!-- Header usuario -->
-              <div class="lp-preview-header">
-                <div class="lp-preview-avatar-wrap">
-                  <div class="lp-preview-avatar">W</div>
-                  <div>
-                    <div class="lp-preview-name">Wences M.</div>
-                    <div class="lp-preview-lvl">⚡ Nivel 12 · Flow State</div>
-                  </div>
-                </div>
-                <div class="lp-preview-xp-badge">2,840 XP</div>
-              </div>
-              <!-- Barra XP -->
-              <div class="lp-preview-xp-wrap">
-                <div class="lp-preview-xp-bar"><div class="lp-preview-xp-fill"></div></div>
-                <span class="lp-preview-xp-txt">68% → Nivel 13</span>
-              </div>
-              <!-- Stats fila -->
-              <div class="lp-preview-stats">
-                <div class="lp-preview-stat lp-stat-orange">
-                  <div class="lp-preview-stat-val">🔥 8</div>
-                  <div class="lp-preview-stat-lbl">días racha</div>
-                </div>
-                <div class="lp-preview-stat lp-stat-green">
-                  <div class="lp-preview-stat-val">4/5</div>
-                  <div class="lp-preview-stat-lbl">hábitos hoy</div>
-                </div>
-                <div class="lp-preview-stat lp-stat-gold">
-                  <div class="lp-preview-stat-val">$3.2k</div>
-                  <div class="lp-preview-stat-lbl">ahorrado</div>
-                </div>
-              </div>
-              <!-- Hábitos -->
-              <div class="lp-preview-habits">
-                <div class="lp-preview-habit lp-habit-done">
-                  <div class="lp-preview-check">✓</div>
-                  <span>Gym matutino</span>
-                  <span class="lp-preview-xp-pill">+15 XP</span>
-                </div>
-                <div class="lp-preview-habit lp-habit-done">
-                  <div class="lp-preview-check">✓</div>
-                  <span>Leer 30 min</span>
-                  <span class="lp-preview-xp-pill">+10 XP</span>
-                </div>
-                <div class="lp-preview-habit">
-                  <div class="lp-preview-check lp-check-empty">○</div>
-                  <span style="opacity:.5">Meditación</span>
-                  <span class="lp-preview-xp-pill lp-xp-dim">+8 XP</span>
-                </div>
-              </div>
-              <!-- Gemelo IA hint -->
-              <div class="lp-preview-gemelo">
-                <span>🤖</span>
-                <span>Tu Gemelo IA: "A 2 días de tu racha máxima. ¡No pares!"</span>
-              </div>
-            </div>
-            <!-- Safari bottom bar -->
-            <div class="lp-safari-bar">
-              <span class="lp-safari-icon dim">‹</span>
-              <span class="lp-safari-icon dim">›</span>
-              <div class="lp-safari-url-pill">🔒 mylifeos.lat</div>
-              <span class="lp-safari-icon">⬆</span>
-              <span class="lp-safari-icon">⧉</span>
-            </div>
+            <img id="landing-mockup-img"
+              src="images/mockup-en.png"
+              alt="Life OS preview"
+              style="width:100%;display:block">
           </div>
-          <!-- Floating badges -->
-          <div class="lp-float-badge lp-float-1">🏆 Leaderboard #3</div>
-          <div class="lp-float-badge lp-float-2">💳 -$850 deuda pagada</div>
         </div>
 
       </div><!-- /hero-layout -->
 
       <!-- Urgency CTA -->
       <div class="lp-hero-urgency lp-anim lp-anim-6" style="margin-top:32px">
-        <button class="lp-btn-urgency" onclick="showAuthFromLanding('register')">¿Sigues sin el control? — Empieza a tenerlo ahora →</button>
+        <button class="lp-btn-urgency" onclick="showAuthFromLanding('register')">Still feeling behind? — Take control now →</button>
       </div>
     </section>
 
-    <!-- ══ MÓDULOS VISUALES ══ -->
+    <!-- ══ SOCIAL PROOF STRIP ══ -->
     <section class="lp-social-proof">
-      <div class="lp-proof-counter"><strong>1,200+</strong><span>usuarios organizando su sistema personal</span></div>
+      <div class="lp-proof-counter"><strong>1,200+</strong><span>people building their personal system</span></div>
       <div class="lp-proof-grid">
-        <div class="lp-proof-card">"Me ayudó a ordenar hábitos y dinero en una sola vista."<span>Ana K.</span></div>
-        <div class="lp-proof-card">"El mapa y el XP hacen que volver cada día se sienta natural."<span>Rodolfo</span></div>
-        <div class="lp-proof-card">"Por fin una app que no se siente como hoja de cálculo."<span>Isam_99</span></div>
+        <div class="lp-proof-card">"It helped me track habits and money in one single view."<span>Ana K.</span></div>
+        <div class="lp-proof-card">"The map and XP make coming back every day feel natural."<span>Rodolfo</span></div>
+        <div class="lp-proof-card">"Finally an app that doesn't feel like a spreadsheet."<span>Isam_99</span></div>
       </div>
     </section>
 
     <section class="lp-demo-strip">
-      <div class="lp-demo-card"><strong>Gemelo Potenciado</strong><span>Anillo de 30 días que aprende tus patrones y anticipa bloqueos.</span></div>
-      <div class="lp-demo-card"><strong>World Map</strong><span>Tu avance convertido en mapa, apartamento y tienda de recompensas.</span></div>
-      <div class="lp-demo-card"><strong>Plan Aliados</strong><span>Objetivos compartidos, ruletas de XP y presión social sana.</span></div>
+      <div class="lp-demo-card"><strong>AI Twin</strong><span>A 30-day ring that learns your patterns and spots your blockers before you do.</span></div>
+      <div class="lp-demo-card"><strong>World Map</strong><span>Your progress turned into a map, apartment, and a reward shop that actually motivates.</span></div>
+      <div class="lp-demo-card"><strong>Allies Plan</strong><span>Shared goals, XP spins, and the kind of social pressure that actually helps.</span></div>
     </section>
 
     <section class="lp-section">
-      <div class="lp-section-label lp-reveal">9 MÓDULOS</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Todo tu mundo.<br>Un solo sistema.</h2>
+      <div class="lp-section-label lp-reveal">9 MODULES</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Your whole world.<br>One system.</h2>
       <div class="lp-modules-grid">
         <div class="lp-module-card lp-module-cyan lp-reveal" data-reveal-delay="0">
           <div class="lp-module-header lp-mh-cyan"><span class="lp-module-icon">⚡</span></div>
           <div class="lp-module-body">
-            <div class="lp-module-name">Productividad</div>
-            <div class="lp-module-desc">Tareas, hábitos y calendario gamificados. Cada acción = XP.</div>
-            <div class="lp-module-tag">+ 3 submodulos</div>
+            <div class="lp-module-name">Productivity</div>
+            <div class="lp-module-desc">Tasks, habits, and calendar — all gamified. Every action = XP.</div>
+            <div class="lp-module-tag">+ 3 submodules</div>
           </div>
         </div>
         <div class="lp-module-card lp-module-green lp-reveal" data-reveal-delay="60">
           <div class="lp-module-header lp-mh-green"><span class="lp-module-icon">💪</span></div>
           <div class="lp-module-body">
-            <div class="lp-module-name">Cuerpo</div>
-            <div class="lp-module-desc">Gym tracker, nutrición, salud y métricas corporales.</div>
-            <div class="lp-module-tag">Conectado al XP</div>
+            <div class="lp-module-name">Body</div>
+            <div class="lp-module-desc">Gym tracker, nutrition, health metrics, and body stats in one place.</div>
+            <div class="lp-module-tag">Connected to XP</div>
           </div>
         </div>
         <div class="lp-module-card lp-module-purple lp-reveal" data-reveal-delay="120">
           <div class="lp-module-header lp-mh-purple"><span class="lp-module-icon">🧠</span></div>
           <div class="lp-module-body">
-            <div class="lp-module-name">Mente & Poder</div>
-            <div class="lp-module-desc">Pomodoro, bitácora emocional y modo Blackout Focus.</div>
-            <div class="lp-module-tag">Gemelo IA aquí</div>
+            <div class="lp-module-name">Mind & Power</div>
+            <div class="lp-module-desc">Pomodoro, mood journal, and Blackout Focus mode.</div>
+            <div class="lp-module-tag">AI Twin lives here</div>
           </div>
         </div>
         <div class="lp-module-card lp-module-gold lp-reveal" data-reveal-delay="180">
           <div class="lp-module-header lp-mh-gold"><span class="lp-module-icon">💰</span></div>
           <div class="lp-module-body">
-            <div class="lp-module-name">Finanzas</div>
-            <div class="lp-module-desc">Gastos, deudas, tarjetas y balance personal en tiempo real.</div>
-            <div class="lp-module-tag">NLP inteligente</div>
+            <div class="lp-module-name">Finance</div>
+            <div class="lp-module-desc">Expenses, debts, cards, and your personal balance — live.</div>
+            <div class="lp-module-tag">Smart NLP</div>
           </div>
         </div>
         <div class="lp-module-card lp-module-cyan lp-reveal" data-reveal-delay="240">
           <div class="lp-module-header lp-mh-cyan"><span class="lp-module-icon">🤖</span></div>
           <div class="lp-module-body">
-            <div class="lp-module-name">Gemelo IA</div>
-            <div class="lp-module-desc">Tu versión digital. Aprende tus patrones y da insights reales.</div>
+            <div class="lp-module-name">AI Twin</div>
+            <div class="lp-module-desc">Your digital self. Learns your patterns and gives you real insights.</div>
             <div class="lp-module-tag">Powered by Gemini</div>
           </div>
         </div>
@@ -277,81 +210,81 @@
           <div class="lp-module-header lp-mh-purple"><span class="lp-module-icon">🗺️</span></div>
           <div class="lp-module-body">
             <div class="lp-module-name">Life OS World</div>
-            <div class="lp-module-desc">Leaderboard, apartamento virtual y aliados de progreso.</div>
+            <div class="lp-module-desc">Leaderboard, virtual apartment, and progress allies.</div>
             <div class="lp-module-tag">Multiplayer life</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ══ CÓMO FUNCIONA ══ -->
+    <!-- ══ HOW IT WORKS ══ -->
     <section class="lp-section lp-section-alt">
-      <div class="lp-section-label lp-reveal">CÓMO FUNCIONA</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">De 0 a sistema élite en 3 pasos</h2>
+      <div class="lp-section-label lp-reveal">HOW IT WORKS</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">From zero to elite system in 3 steps</h2>
       <div class="lp-steps">
         <div class="lp-step lp-reveal" data-reveal-delay="0">
           <div class="lp-step-circle"><span>01</span></div>
           <div class="lp-step-content">
-            <div class="lp-step-title">Crea tu perfil</div>
-            <div class="lp-step-desc">Elige tus colores, activa tus módulos y el Gemelo IA comienza a observarte desde el día 1.</div>
+            <div class="lp-step-title">Build your profile</div>
+            <div class="lp-step-desc">Pick your colors, activate your modules, and your AI Twin starts tracking you from day one.</div>
           </div>
         </div>
         <div class="lp-step-connector lp-reveal" data-reveal-delay="120"></div>
         <div class="lp-step lp-reveal" data-reveal-delay="140">
           <div class="lp-step-circle"><span>02</span></div>
           <div class="lp-step-content">
-            <div class="lp-step-title">Gana XP cada día</div>
-            <div class="lp-step-desc">Completa hábitos, registra gastos, entrena y haz check-in. Cada acción suma XP y sube tu nivel.</div>
+            <div class="lp-step-title">Earn XP every day</div>
+            <div class="lp-step-desc">Complete habits, log expenses, work out, check in. Every action adds XP and levels you up.</div>
           </div>
         </div>
         <div class="lp-step-connector lp-reveal" data-reveal-delay="260"></div>
         <div class="lp-step lp-reveal" data-reveal-delay="280">
           <div class="lp-step-circle"><span>03</span></div>
           <div class="lp-step-content">
-            <div class="lp-step-title">Domina tu vida</div>
-            <div class="lp-step-desc">Análisis semanales del Gemelo IA. Dashboard que se adapta. Tu mejor versión emerge sola.</div>
+            <div class="lp-step-title">Own your life</div>
+            <div class="lp-step-desc">Weekly AI Twin analysis. A dashboard that adapts. Your best self surfaces on its own.</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ══ SOCIAL PROOF ══ -->
+    <!-- ══ REAL RESULTS ══ -->
     <section class="lp-section">
-      <div class="lp-section-label lp-reveal">RESULTADOS REALES</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Los que empezaron ya van adelante</h2>
+      <div class="lp-section-label lp-reveal">REAL RESULTS</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Those who started are already ahead</h2>
       <div class="lp-testimonials">
         <div class="lp-testimonial lp-reveal" data-reveal-delay="0">
           <div class="lp-testimonial-stars">★★★★★</div>
-          <div class="lp-testimonial-text">"En 30 días de trial subí al nivel 12, pagué $4,200 de deuda y fui al gym 18 veces. Nunca una app me había movido tanto."</div>
+          <div class="lp-testimonial-text">"In 30 days I hit level 12, paid off $4,200 in debt, and made it to the gym 18 times. No app has ever pushed me like this."</div>
           <div class="lp-testimonial-author">
             <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#00e5ff,#0050cc)">A</div>
             <div>
               <div class="lp-testimonial-name">Andrés M.</div>
-              <div class="lp-testimonial-role">Nv. 34 · CDMX</div>
+              <div class="lp-testimonial-role">Lv. 34 · CDMX</div>
             </div>
-            <div class="lp-testimonial-metric">+$4,200 pagados</div>
+            <div class="lp-testimonial-metric">+$4,200 paid off</div>
           </div>
         </div>
         <div class="lp-testimonial lp-reveal" data-reveal-delay="60">
           <div class="lp-testimonial-stars">★★★★★</div>
-          <div class="lp-testimonial-text">"El Gemelo IA me dijo algo sobre mis patrones de gasto que yo no había visto. Me ahorró más de lo que cuesta la suscripción."</div>
+          <div class="lp-testimonial-text">"My AI Twin noticed a spending pattern I'd completely missed. It saved me more than the subscription costs."</div>
           <div class="lp-testimonial-author">
             <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#a855f7,#7c3aed)">S</div>
             <div>
               <div class="lp-testimonial-name">Sara L.</div>
-              <div class="lp-testimonial-role">Nv. 28 · Monterrey</div>
+              <div class="lp-testimonial-role">Lv. 28 · Monterrey</div>
             </div>
-            <div class="lp-testimonial-metric">Nv.28 en 45 días</div>
+            <div class="lp-testimonial-metric">Lv.28 in 45 days</div>
           </div>
         </div>
         <div class="lp-testimonial lp-reveal" data-reveal-delay="120">
           <div class="lp-testimonial-stars">★★★★★</div>
-          <div class="lp-testimonial-text">"La gamificación es real. Compito en el leaderboard con mi hermano y los dos hemos mejorado brutalmente en 2 meses."</div>
+          <div class="lp-testimonial-text">"The gamification is real. I compete on the leaderboard with my brother and we've both leveled up massively in 2 months."</div>
           <div class="lp-testimonial-author">
             <div class="lp-testimonial-avatar" style="background:linear-gradient(135deg,#4ade80,#16a34a)">C</div>
             <div>
               <div class="lp-testimonial-name">Carlos R.</div>
-              <div class="lp-testimonial-role">Nv. 41 · Guadalajara</div>
+              <div class="lp-testimonial-role">Lv. 41 · Guadalajara</div>
             </div>
             <div class="lp-testimonial-metric">Leaderboard #1</div>
           </div>
@@ -361,50 +294,50 @@
 
     <!-- ══ PRICING ══ -->
     <section class="lp-section lp-section-alt">
-      <div class="lp-section-label lp-reveal">PRECIOS</div>
-      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Empieza gratis.<br>Actualiza cuando quieras.</h2>
+      <div class="lp-section-label lp-reveal">PRICING</div>
+      <h2 class="lp-section-title lp-reveal" data-reveal-delay="80">Start free.<br>Upgrade whenever.</h2>
       <div class="lp-pricing">
         <div class="lp-price-card lp-price-trial lp-reveal" data-reveal-delay="0">
-          <div class="lp-price-badge">GRATIS</div>
-          <div class="lp-price-name">Modo Prueba</div>
+          <div class="lp-price-badge">FREE</div>
+          <div class="lp-price-name">Trial Mode</div>
           <div class="lp-price-amount">$0</div>
-          <div class="lp-price-period">30 días completos</div>
+          <div class="lp-price-period">30 full days</div>
           <ul class="lp-price-features">
-            <li><span class="lp-check">✓</span> Acceso a todos los módulos</li>
-            <li><span class="lp-check">✓</span> Gemelo IA incluido</li>
-            <li><span class="lp-check">✓</span> Datos en la nube</li>
-            <li><span class="lp-check">✓</span> Sin tarjeta de crédito</li>
+            <li><span class="lp-check">✓</span> Full access to all modules</li>
+            <li><span class="lp-check">✓</span> AI Twin included</li>
+            <li><span class="lp-check">✓</span> Cloud storage</li>
+            <li><span class="lp-check">✓</span> No credit card needed</li>
           </ul>
-          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Empezar gratis →</button>
+          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Start free →</button>
         </div>
         <div class="lp-price-card lp-price-student lp-reveal" data-reveal-delay="80">
-          <div class="lp-price-badge lp-badge-student">🎓 ESTUDIANTE</div>
+          <div class="lp-price-badge lp-badge-student">🎓 STUDENT</div>
           <div class="lp-price-name">Life OS Edu</div>
-          <div class="lp-price-amount">$49</div>
-          <div class="lp-price-period">MXN por mes · requiere email .edu o credencial vigente</div>
+          <div class="lp-price-amount">$2.49</div>
+          <div class="lp-price-period">USD/month · requires .edu email or valid student ID</div>
           <ul class="lp-price-features">
-            <li><span class="lp-check lp-check-student">✓</span> Todo lo de Pro</li>
-            <li><span class="lp-check lp-check-student">✓</span> 50% de descuento permanente</li>
-            <li><span class="lp-check lp-check-student">✓</span> Gemelo IA incluido</li>
-            <li><span class="lp-check lp-check-student">✓</span> Datos protegidos en la nube</li>
-            <li><span class="lp-check lp-check-student">✓</span> Cancela cuando quieras</li>
+            <li><span class="lp-check lp-check-student">✓</span> Everything in Pro</li>
+            <li><span class="lp-check lp-check-student">✓</span> 50% off permanently</li>
+            <li><span class="lp-check lp-check-student">✓</span> AI Twin included</li>
+            <li><span class="lp-check lp-check-student">✓</span> Cloud-protected data</li>
+            <li><span class="lp-check lp-check-student">✓</span> Cancel anytime</li>
           </ul>
-          <button class="lp-btn-primary" style="width:100%;filter:hue-rotate(45deg)" onclick="showAuthFromLanding('register')">Activar Edu →</button>
+          <button class="lp-btn-primary" style="width:100%;filter:hue-rotate(45deg)" onclick="showAuthFromLanding('register')">Activate Edu →</button>
         </div>
         <div class="lp-price-card lp-price-pro lp-reveal" data-reveal-delay="160">
-          <div class="lp-price-popular">MÁS POPULAR</div>
+          <div class="lp-price-popular">MOST POPULAR</div>
           <div class="lp-price-badge lp-badge-pro">PRO</div>
           <div class="lp-price-name">Life OS Pro</div>
-          <div class="lp-price-amount">$99</div>
-          <div class="lp-price-period">MXN por mes · cancela cuando quieras</div>
+          <div class="lp-price-amount">$4.99</div>
+          <div class="lp-price-period">USD/month · cancel anytime</div>
           <ul class="lp-price-features">
-            <li><span class="lp-check lp-check-pro">✓</span> Todo el Modo Prueba</li>
-            <li><span class="lp-check lp-check-pro">✓</span> Datos protegidos permanentemente</li>
-            <li><span class="lp-check lp-check-pro">✓</span> Análisis profundo del Gemelo</li>
-            <li><span class="lp-check lp-check-pro">✓</span> Soporte prioritario</li>
-            <li><span class="lp-check lp-check-pro">✓</span> Acceso a todas las actualizaciones</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Everything in Trial</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Permanently protected data</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Deep AI Twin analysis</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Priority support</li>
+            <li><span class="lp-check lp-check-pro">✓</span> Access to all updates</li>
           </ul>
-          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Activar Pro →</button>
+          <button class="lp-btn-primary" style="width:100%" onclick="showAuthFromLanding('register')">Activate Pro →</button>
         </div>
       </div>
     </section>
@@ -412,15 +345,15 @@
     <!-- ══ FOOTER CTA ══ -->
     <section class="lp-footer-cta lp-reveal">
       <div class="lp-footer-glow"></div>
-      <div class="lp-footer-tag">¿SIGUES LEYENDO? YA DEBERÍAS ESTAR ADENTRO.</div>
-      <h2 class="lp-footer-title">Tu mejor versión<br><span class="lp-gradient-text">empieza hoy.</span></h2>
-      <p class="lp-footer-sub">Empieza gratis. Sin tarjeta. Sin excusas.</p>
-      <button class="lp-btn-primary lp-btn-xl" onclick="showAuthFromLanding('register')">🚀 Empezar gratis ahora</button>
-      <p class="lp-cta-legal" style="margin-top:16px">30 días gratis · Cancela cuando quieras · LFPDPPP compliant</p>
+      <div class="lp-footer-tag">STILL READING? YOU SHOULD ALREADY BE IN.</div>
+      <h2 class="lp-footer-title">Your best self<br><span class="lp-gradient-text">starts today.</span></h2>
+      <p class="lp-footer-sub">Start free. No card. No excuses.</p>
+      <button class="lp-btn-primary lp-btn-xl" onclick="showAuthFromLanding('register')">🚀 Start for free now</button>
+      <p class="lp-cta-legal" style="margin-top:16px">30 days free · Cancel anytime · LFPDPPP compliant</p>
       <div class="lp-footer-links">
-        <button onclick="openLegalModal('terms')" class="lp-footer-link">Términos</button>
+        <button onclick="openLegalModal('terms')" class="lp-footer-link">Terms</button>
         <span style="color:rgba(128,148,180,.3)">·</span>
-        <button onclick="openLegalModal('privacy')" class="lp-footer-link">Privacidad</button>
+        <button onclick="openLegalModal('privacy')" class="lp-footer-link">Privacy</button>
         <span style="color:rgba(128,148,180,.3)">·</span>
         <span class="lp-footer-link">© 2025 Life OS · Montecristo SaaS</span>
       </div>
@@ -641,6 +574,19 @@
   </div>
 
   <!-- Loading overlay (se muestra al crear cuenta) -->
+  <div class="ob-color-screen" id="ob-color-screen" style="display:none">
+    <div class="ob-color-card">
+      <div class="ob-color-kicker">Paso final</div>
+      <div class="ob-color-title">Elige el color de tu Life OS</div>
+      <div class="ob-color-sub">Este acento se usara en botones, bordes, estados activos y detalles de tu tablero.</div>
+      <div class="ob-color-dots" id="reg-accent-dots"></div>
+      <div class="ob-color-actions">
+        <button class="ob-color-back" type="button" onclick="obBackToMode()">← Cambiar modo</button>
+        <button class="ob-color-submit" type="button" onclick="obFinishRegistration()">Crear mi Life OS →</button>
+      </div>
+    </div>
+  </div>
+
   <div class="ob-id-loading" id="ob-id-loading" style="display:none">
     <div class="ob-id-loading-spinner"></div>
     <div class="ob-id-loading-text">Iniciando tu Life OS…</div>
@@ -719,6 +665,7 @@
       <span class="badge badge-coin" id="tb-coins">🪙 0</span>
       <span id="tb-streak" class="badge badge-streak" style="display:none"></span>
       <button id="upgrade-pro-btn" onclick="openModal('modal-pago')" style="display:none;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(168,85,247,.08));border:1px solid rgba(168,85,247,.35);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:13px;transition:all .2s" title="Activar Life OS Pro">💎</button>
+      <button id="lang-btn" onclick="toggleLang()" class="tb-icon-btn" title="Language / Idioma" style="font-size:11px;font-weight:700;letter-spacing:.05em">ES</button>
       <button onclick="toggleTheme()" id="theme-btn" class="tb-icon-btn" title="Cambiar tema">☀️</button>
       <button id="help-btn" onclick="openHelpPanel()" class="tb-icon-btn" title="Ayuda del módulo">?</button>
     </div>
@@ -808,7 +755,7 @@
       </div>
 
       <!-- PILAR 3: .card-large — Radar (2 col × 2 filas) -->
-      <div class="card card-large">
+      <div class="card card-large radar-card">
         <div class="card-title row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
           <span>RADAR DE RENDIMIENTO</span>
           <div style="display:flex;gap:6px">
@@ -816,8 +763,10 @@
             <button class="tab-btn off" id="radar-m" onclick="switchRadar('monthly')" style="padding:4px 12px;font-size:11px">Mensual</button>
           </div>
         </div>
-        <div id="aura-chart-container" style="flex:1;min-height:220px;width:100%;position:relative"></div>
-        <canvas id="radarChart" style="flex:1;min-height:0;width:100%!important"></canvas>
+        <div class="radar-chart-box">
+          <div id="aura-chart-container" style="width:100%;height:100%;position:relative"></div>
+          <canvas id="radarChart" style="width:100%!important;height:100%!important"></canvas>
+        </div>
       </div>
 
       <!-- PILAR 3: .card-large — Enfoque Mental (2 col × 2 filas) -->
@@ -839,9 +788,15 @@
       </div>
 
       <!-- PILAR 3: .card-full — Módulo de Tareas (ancho completo) -->
-      <div class="card card-full">
-        <div class="card-title">MÓDULO DE TAREAS GAMIFICADO</div>
-        <div id="task-form-grid" class="grid2 mb14" style="gap:14px">
+      <div class="card card-full task-command-card">
+        <div class="task-command-head">
+          <div>
+            <div class="card-title">ACCIONES CRITICAS DE HOY</div>
+            <div class="task-command-sub">Prioriza, cierra y despeja tu dia.</div>
+          </div>
+          <div id="task-summary" class="task-summary"></div>
+        </div>
+        <div id="task-form-grid" class="grid2 mb14 task-form-grid">
           <input class="inp" id="t-name" placeholder="Nombre de la tarea *" style="height:44px;border-radius:10px"/>
           <input class="inp" id="t-desc" placeholder="Descripción" style="height:44px;border-radius:10px"/>
           <div class="dt-row">
@@ -849,8 +804,8 @@
             <input class="inp dt-inp" id="t-time" type="time"/>
           </div>
         </div>
-        <button class="btn btn-a" onclick="addTask()" style="width:100%;margin-bottom:16px;padding:12px;font-size:14px">+ Agregar Tarea (+50 XP al completar)</button>
-        <div id="task-list" style="display:flex;flex-direction:column;gap:10px;max-height:300px;overflow-y:auto"></div>
+        <button class="btn btn-a task-add-btn" onclick="addTask()">+ Agregar tarea critica</button>
+        <div id="task-list" class="task-board"></div>
       </div>
 
     </div><!-- /ui-grid -->
@@ -964,22 +919,28 @@
     <div class="module-bento-grid" id="habit-stats">
 
       <!-- Fila 1: 3 stats × 4 cols = 12 -->
-      <div class="card bento-medium stat-card" style="text-align:center">
+      <div class="card bento-medium stat-card flow-habit-widget" style="text-align:center">
         <div class="stat-label" data-term="streak-label">🔥 Racha Activa</div>
         <div class="stat-val" style="color:#ff6b35" id="h-streak">0 días</div>
       </div>
-      <div class="card bento-medium stat-card" style="text-align:center">
+      <div class="card bento-medium stat-card flow-habit-widget" style="text-align:center">
         <div class="stat-label">✅ Hábitos</div>
         <div class="stat-val c-green" id="h-count">0</div>
         <div class="stat-sub">Activos</div>
       </div>
-      <div class="card bento-medium stat-card" style="text-align:center">
+      <div class="card bento-medium stat-card flow-habit-widget" style="text-align:center">
         <div class="stat-label">⚡ Hoy</div>
         <div class="stat-val c-accent" id="h-done-today">0/0</div>
         <div class="stat-sub">Completados</div>
       </div>
 
       <!-- Fila 2: Input 8 cols + Energía tall 4 cols (spans filas 2–3) -->
+      <div class="card bento-medium stat-card flow-habit-widget" style="text-align:center">
+        <div class="stat-label">Pendientes</div>
+        <div class="stat-val c-purple" id="h-pending-today">0</div>
+        <div class="stat-sub">Por completar</div>
+      </div>
+
       <div class="card bento-large">
         <div class="card-title">NUEVO HÁBITO</div>
         <div class="row" style="gap:10px">
@@ -1501,19 +1462,30 @@
       </div>
 
       <!-- RUTINAS — full -->
-      <div class="card bento-full" style="border-color:rgba(168,85,247,.2)">
+      <div class="card bento-full routine-command-card">
         <div class="card-title" style="color:#a855f7!important">🏋️ RUTINAS DE ENTRENAMIENTO</div>
-        <div id="bio-routines-panel" style="margin-top:14px">
-          <!-- Accesos directos -->
-          <div id="rutinas-frecuentes-list" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-            <div style="font-size:12px;color:var(--text3);font-style:italic">Crea rutinas para accesos directos.</div>
+        <div class="routine-command-head">
+          <div>
+            <div class="routine-kicker">PLAN DE ENTRENAMIENTO</div>
+            <div class="routine-title">Rutinas inteligentes</div>
           </div>
+          <div class="routine-signal" id="routine-signal">Analizando equilibrio muscular</div>
+        </div>
+        <div id="bio-routines-panel">
+          <div id="routine-recommendation"></div>
           <!-- Crear rutina -->
-          <div class="row" style="gap:10px;margin-bottom:16px">
+          <div class="routine-create-row">
             <input class="inp f1" id="new-routine-name" placeholder="Ej: Entrenamiento de Piernas"/>
-            <button class="btn btn-a" onclick="addRoutine()" style="font-size:20px;padding:10px 20px;display:flex;align-items:center;gap:6px"><span style="font-size:24px;font-weight:900;line-height:1">+</span> Crear Rutina</button>
+            <button class="btn btn-a routine-create-btn" onclick="addRoutine()">+ Crear Rutina</button>
           </div>
-          <div id="routines-container" style="display:flex;flex-direction:column;gap:14px"></div>
+          <div class="routine-section-title">Rutinas guardadas</div>
+          <div id="routines-container" class="routine-board"></div>
+          <div id="last-routine-card"></div>
+          <!-- Accesos directos -->
+          <div class="routine-section-title">Rutinas preestablecidas por musculo</div>
+          <div id="rutinas-frecuentes-list" class="routine-preset-grid">
+            <div style="font-size:12px;color:var(--text3);font-style:italic">Cargando rutinas base...</div>
+          </div>
           <!-- Gym mode view embedded -->
           <div id="gym-mode-view" style="display:none;margin-top:14px">
             <div class="row" style="justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -1701,7 +1673,7 @@
       <div class="inner-panel active" id="panel-analisis">
 
     <!-- ══ NÚCLEO PERSONAL — COMPACT (Análisis) ══ -->
-    <div class="card nucleo-card nucleo-global-card" id="nucleo-card-compact" style="padding:0">
+    <div class="card nucleo-card nucleo-personal-card" id="nucleo-card-compact" style="padding:0">
       <!-- Header personal -->
       <div class="nucleo-global-header">
         <div style="display:flex;align-items:center;gap:10px">
@@ -1785,8 +1757,8 @@
     </div>
 
     <!-- Focus dinámico — 3 stats bento-medium -->
-    <div class="module-bento-grid" style="margin-bottom:clamp(14px,2vw,20px)">
-      <div class="card bento-medium stat-card">
+    <div class="module-bento-grid stats-focus-grid" id="stats-focus-grid" style="margin-bottom:clamp(14px,2vw,20px)">
+      <div class="card bento-medium stat-card stats-focus-metric">
         <div class="stat-label">🧠 Claridad Mental</div>
         <div class="stat-val c-accent" id="an-claridad" style="margin-bottom:10px">78</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(0,229,255,.1);overflow:hidden">
@@ -1794,7 +1766,7 @@
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace">Calculado automáticamente</div>
       </div>
-      <div class="card bento-medium stat-card">
+      <div class="card bento-medium stat-card stats-focus-metric">
         <div class="stat-label">⚡ Gestión Energía</div>
         <div class="stat-val c-purple" id="an-energia" style="margin-bottom:10px">65</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(168,85,247,.1);overflow:hidden">
@@ -1802,7 +1774,7 @@
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace">Calculado automáticamente</div>
       </div>
-      <div class="card bento-medium stat-card">
+      <div class="card bento-medium stat-card stats-focus-metric">
         <div class="stat-label">🎯 Productividad</div>
         <div class="stat-val c-gold" id="an-productividad" style="margin-bottom:10px">58</div>
         <div style="position:relative;height:8px;border-radius:4px;background:rgba(255,215,0,.1);overflow:hidden">
@@ -1812,21 +1784,21 @@
       </div>
 
       <!-- Focus index: compact+medium = 7 cols — centrado -->
-      <div class="card bento-medium" style="text-align:center;padding:20px;grid-column:5/9">
+      <div class="card bento-medium stats-focus-index" style="text-align:center;padding:20px;grid-column:5/9">
         <div style="font-size:11px;color:var(--text3);font-family:'Orbitron',monospace;letter-spacing:.1em;margin-bottom:8px">ÍNDICE DE FOCUS</div>
         <div class="f-display c-accent" style="font-size:48px;font-weight:900" id="an-focus-val">67</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">Claridad + Energía + Productividad ÷ 3</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Claridad + Energía + Productividad / 3</div>
       </div>
 
       <!-- Mapa muscular: wide 6 cols -->
-      <div class="card bento-wide">
+      <div class="card bento-wide stats-secondary-card">
         <div class="card-title">💪 MAPA MUSCULAR — DEGRADACIÓN ACTIVA</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Se reduce 10% cada 24h sin entrenar. Entrena para recuperar desde la vista <strong style="color:var(--accent)">Físico</strong>.</div>
         <div id="muscle-map-analisis"></div>
       </div>
 
       <!-- XP chart: wide 6 cols -->
-      <div class="card bento-wide">
+      <div class="card bento-wide stats-secondary-card">
         <div class="card-title">⚡ XP GANADO — ÚLTIMOS 7 DÍAS <span style="font-size:10px;color:var(--text3);font-weight:400">(actividad real)</span></div>
         <canvas id="xpRealChart" height="180"></canvas>
         <div id="xp-chart-empty" style="display:none;text-align:center;padding:24px;font-size:12px;color:var(--text3)">
@@ -1834,12 +1806,12 @@
         </div>
       </div>
 
-      <div class="card bento-wide">
+      <div class="card bento-wide stats-secondary-card">
         <div class="card-title">Racha heatmap</div>
         <div id="stats-streak-heatmap" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
       </div>
 
-      <div class="card bento-wide">
+      <div class="card bento-wide stats-secondary-card">
         <div class="card-title">XP por módulo (pie)</div>
         <div id="stats-xp-modules" style="display:grid;gap:8px"></div>
       </div>
@@ -1859,7 +1831,7 @@
       <div class="inner-panel" id="panel-saas">
     <div class="page-header">
       <div class="page-title">LIFE OS — NEXUS</div>
-      <div class="page-sub">Planes · Leaderboard · Wrapped Mensual</div>
+      <div class="page-sub">Comunidad · Leaderboard · Wrapped Mensual</div>
     </div>
 
     <!-- ══ NÚCLEO GLOBAL — REACTOR CORE (FULL) ══ -->
