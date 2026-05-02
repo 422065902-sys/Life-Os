@@ -322,23 +322,38 @@ OpenClaw ahora gestiona dos proyectos independientes. **`/opt/openclaw/` es excl
 - ⚠️ El agente Telegram usa rutas `/data/` — nunca `/opt/openclaw/`
 
 ## ÚLTIMA SESIÓN
-- Fecha: 2026-05-01 (sesión 20)
-- **i18n ES/EN + mockup real en landing — sin deploy aún**
-- `node --check main.js`: OK
-- **NO se hizo deploy** — pendiente revisión local + confirmación de prod
-- Archivos tocados: `main.js`, `index.html`, `images/` (nueva carpeta)
+- Fecha: 2026-05-02 (sesión 21)
+- **Deploy a PRODUCCIÓN completado** — commit `db29ddf2` — FAB bottom nav fix
+- **i18n + mockup + landing EN deployados en prod** — commits `e8eaa027` + `7df0c4a7` + `db29ddf2`
+- **VPS NO sincronizado** — staging NO refleja i18n ni los cambios recientes
+
+### Qué se hizo en sesión 21 (FAB fix + deploy prod)
+- FAB `bottom: calc(env(safe-area-inset-bottom,0px) + 78px)` en todos los breakpoints
+- `@supports` overrides actualizados a 78px (antes: 10px/18px)
+- `#content` padding-bottom: 140px (antes 100px) en @supports
+- `#retention-alert` bottom: 140px en @supports
+- Deploy producción: `life-os-prod-3a590` — hosting actualizado
+- **BUG VISIBLE** en iPhone: FAB aún se solapa con nav — ver screenshots
+  - Pendiente investigar si hay `transform` o `position:relative` que cree stacking context
+  - Si sigue: incrementar a 90px o rediseñar el posicionamiento
 
 ### Qué se hizo en sesión 20 (i18n + mockup)
 - Toggle ES/EN: botón en landing nav (#lp-lang-btn) y topbar (#lang-btn)
 - `window.APP_LANG` default = 'en' (Tetr LaunchLab)
 - `TRANSLATIONS_EN` — ~60 frases en inglés natural (no literal)
+- `TRANSLATIONS_ES` — ~80 frases EN→ES incluyendo precios ($2.49→$49, $4.99→$99)
 - `applyLang()` — TreeWalker sobre nodos de texto, sorted by length
 - `_startLangObserver()` — MutationObserver debounced 120ms
-- `toggleLang()` — EN: aplica al vuelo | ES: reload
+- `toggleLang()` — EN: reload para restaurar base HTML | ES: apply al vuelo
 - `renderDashboardHeader()` — saludos y fechas lang-aware
 - Landing mockup: `lp-preview-body` reemplazado con `<img id="landing-mockup-img">`
 - mockup-es.jpg → default | mockup-en.png → al cambiar a EN
 - images/mockup-es.jpg + images/mockup-en.png en el repo
+- Landing completa en inglés natural (copy no literal)
+- **BUG PENDIENTE**: strings del dashboard dinámico no traducidos en EN mode:
+  - "AI Twin activo", "Finance estable", "Habitos", "Bateria", "Tareas libre"
+  - Headers mini-cards: "ESTADO FÍSICO", "SALDO PERSONAL", "TAREAS DE TODAY"
+  - Agregar estas frases a TRANSLATIONS_EN o hacer las funciones de render lang-aware
 
 ### Qué se hizo en Batch 13 (sesión anterior)
 - Landing: color de CTA sincronizado con acento del usuario
