@@ -1860,7 +1860,7 @@ input[type=range].calib-range.emocional::-webkit-slider-thumb{background:var(--p
 #bottom-nav{
   display:none;
   position:fixed;
-  bottom:env(safe-area-inset-bottom,8px);
+  bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
   left:50%;
   transform:translateX(-50%);
   z-index:112;
@@ -1970,7 +1970,9 @@ body.booting #bottom-nav{
    FUNCIONALIDAD 2 — FAB CONSOLA
 ══════════════════════════════════════════ */
 #fab-btn{
-  position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 78px);
+  left:50%;transform:translateX(-50%);
   z-index:900;
   width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;
   background:var(--accent);color:#000;
@@ -1985,8 +1987,6 @@ body.booting #bottom-nav{
   box-shadow:0 0 0 6px rgba(0,229,255,.25),0 0 40px rgba(0,229,255,.7),0 0 80px rgba(0,229,255,.35);
 }
 #fab-btn:active{transform:translateX(-50%) scale(.95)}
-@media(min-width:1024px){#fab-btn{bottom:10px}}
-@media(max-width:900px){#fab-btn{bottom:18px}}
 #fab-btn.fab-hidden{opacity:0;pointer-events:none;transform:translateX(-50%) scale(.6)}
 
 /* ── FAB CONSOLE MODAL ── */
@@ -3939,23 +3939,22 @@ body .npc-muscle.active-high{fill:var(--accent)!important;stroke:var(--accent)!i
    Aplica a todos los elementos fijos en la parte inferior.
 ─────────────────────────────────────────────────────────────── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  #content{padding-bottom:calc(100px + env(safe-area-inset-bottom))!important}
-  /* Auth screen: centra el box dentro del área visual segura (excluye home indicator) */
+  #content{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   #auth-screen{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
-  #fab-btn{bottom:calc(10px + env(safe-area-inset-bottom))!important}
-  @media(min-width:1024px){#fab-btn{bottom:calc(10px + env(safe-area-inset-bottom))!important}}
-  #retention-alert{bottom:calc(104px + env(safe-area-inset-bottom))!important}
+  #fab-btn{bottom:calc(78px + env(safe-area-inset-bottom))!important}
+  @media(min-width:1024px){#fab-btn{bottom:calc(78px + env(safe-area-inset-bottom))!important}}
+  #retention-alert{bottom:calc(140px + env(safe-area-inset-bottom))!important}
   #recovery-banner{bottom:calc(20px + env(safe-area-inset-bottom))!important}
   #fab-confirm-chip{bottom:calc(-80px + env(safe-area-inset-bottom))}
 }
 @media(max-width:900px){
   @supports (padding-bottom: env(safe-area-inset-bottom)){
-    #fab-btn{bottom:calc(18px + env(safe-area-inset-bottom))!important}
+    #fab-btn{bottom:calc(78px + env(safe-area-inset-bottom))!important}
   }
 }
-/* FAB siempre encima del liquid glass pill en mobile — pill: 50px+12px pad+0px offset = ~74px */
+/* FAB encima del liquid glass pill en mobile */
 @media(max-width:767px){
-  #fab-btn{bottom:calc(74px + env(safe-area-inset-bottom,8px))!important}
+  #fab-btn{bottom:calc(78px + env(safe-area-inset-bottom,0px))!important}
 }
 
 
