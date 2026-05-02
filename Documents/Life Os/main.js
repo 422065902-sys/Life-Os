@@ -1054,8 +1054,115 @@ const TRANSLATIONS_EN = {
 
 const _EN_ENTRIES = Object.entries(TRANSLATIONS_EN).sort((a,b) => b[0].length - a[0].length);
 
+/* ── Traducción EN→ES (para cuando el HTML base está en inglés) ── */
+const TRANSLATIONS_ES = {
+  // Nav
+  'Log In':'Iniciar Sesión','Start free →':'Empieza gratis →',
+  // Hero
+  'Version 2.0 — AI Built In':'Versión 2.0 — Inteligencia Artificial incluida',
+  'Play to win.':'Juega en serio.','Own your life.':'Domina tu vida.',
+  'Life OS turns your habits, finances, and goals into an epic RPG. Earn XP, level up with your AI Twin, and compete with friends in a world that grows with you.':'Life OS convierte tus hábitos, finanzas y metas en un RPG épico. Gana XP, sube de nivel con tu Gemelo IA y compite con amigos en un mundo que evoluciona contigo.',
+  '🚀 Start for free now':'🚀 Empezar gratis ahora',
+  '🚀 Start for free':'🚀 Empezar gratis',
+  'I already have an account →':'Ya tengo cuenta →',
+  'No credit card · 30 days free · Cancel anytime':'Sin tarjeta de crédito · 30 días gratis · Cancela cuando quieras',
+  '⚡ Gamified Habits':'⚡ Hábitos gamificados',
+  '🤖 AI Built In':'🤖 IA incluida',
+  '💰 Financial Control':'💰 Control financiero',
+  'Still feeling behind? — Take control now →':'¿Sigues sin el control? — Empieza a tenerlo ahora →',
+  // Social proof strip
+  'people building their personal system':'usuarios organizando su sistema personal',
+  "It helped me track habits and money in one single view.":'Me ayudó a ordenar hábitos y dinero en una sola vista.',
+  'The map and XP make coming back every day feel natural.':'El mapa y el XP hacen que volver cada día se sienta natural.',
+  "Finally an app that doesn't feel like a spreadsheet.":'Por fin una app que no se siente como hoja de cálculo.',
+  // Demo strip
+  'A 30-day ring that learns your patterns and spots your blockers before you do.':'Anillo de 30 días que aprende tus patrones y anticipa bloqueos.',
+  'Your progress turned into a map, apartment, and a reward shop that actually motivates.':'Tu avance convertido en mapa, apartamento y tienda de recompensas.',
+  'Shared goals, XP spins, and the kind of social pressure that actually helps.':'Objetivos compartidos, ruletas de XP y presión social sana.',
+  'Allies Plan':'Plan Aliados',
+  // Modules
+  '9 MODULES':'9 MÓDULOS','Your whole world.':'Todo tu mundo.','One system.':'Un solo sistema.',
+  'Productivity':'Productividad','Mind & Power':'Mente & Poder','Finance':'Finanzas',
+  'Gym tracker, nutrition, health metrics, and body stats in one place.':'Gym tracker, nutrición, salud y métricas corporales.',
+  'Pomodoro, mood journal, and Blackout Focus mode.':'Pomodoro, bitácora emocional y modo Blackout Focus.',
+  'Expenses, debts, cards, and your personal balance — live.':'Gastos, deudas, tarjetas y balance personal en tiempo real.',
+  'Your digital self. Learns your patterns and gives you real insights.':'Tu versión digital. Aprende tus patrones y da insights reales.',
+  'Leaderboard, virtual apartment, and progress allies.':'Leaderboard, apartamento virtual y aliados de progreso.',
+  'Tasks, habits, and calendar — all gamified. Every action = XP.':'Tareas, hábitos y calendario gamificados. Cada acción = XP.',
+  'AI Twin lives here':'Gemelo IA aquí','Connected to XP':'Conectado al XP',
+  '+ 3 submodules':'+ 3 submódulos','Smart NLP':'NLP inteligente',
+  // How it works
+  'HOW IT WORKS':'CÓMO FUNCIONA',
+  'From zero to elite system in 3 steps':'De 0 a sistema élite en 3 pasos',
+  'Build your profile':'Crea tu perfil',
+  'Pick your colors, activate your modules, and your AI Twin starts tracking you from day one.':'Elige tus colores, activa tus módulos y el Gemelo IA comienza a observarte desde el día 1.',
+  'Earn XP every day':'Gana XP cada día',
+  'Complete habits, log expenses, work out, check in. Every action adds XP and levels you up.':'Completa hábitos, registra gastos, entrena y haz check-in. Cada acción suma XP y sube tu nivel.',
+  'Weekly AI Twin analysis. A dashboard that adapts. Your best self surfaces on its own.':'Análisis semanales del Gemelo IA. Dashboard que se adapta. Tu mejor versión emerge sola.',
+  // Testimonials
+  'REAL RESULTS':'RESULTADOS REALES',
+  'Those who started are already ahead':'Los que empezaron ya van adelante',
+  "In 30 days I hit level 12, paid off $4,200 in debt, and made it to the gym 18 times. No app has ever pushed me like this.":'En 30 días subí al nivel 12, pagué $4,200 de deuda y fui al gym 18 veces. Nunca una app me había movido tanto.',
+  "My AI Twin noticed a spending pattern I'd completely missed. It saved me more than the subscription costs.":'El Gemelo IA me dijo algo sobre mis patrones de gasto que yo no había visto. Me ahorró más de lo que cuesta la suscripción.',
+  "The gamification is real. I compete on the leaderboard with my brother and we've both leveled up massively in 2 months.":'La gamificación es real. Compito en el leaderboard con mi hermano y los dos hemos mejorado brutalmente en 2 meses.',
+  'Lv. 34 · CDMX':'Nv. 34 · CDMX','Lv. 28 · Monterrey':'Nv. 28 · Monterrey',
+  'Lv. 41 · Guadalajara':'Nv. 41 · Guadalajara',
+  'Lv.28 in 45 days':'Nv.28 en 45 días','+$4,200 paid off':'+$4,200 pagados',
+  // Pricing — USD→MXN en español
+  'PRICING':'PRECIOS','Start free.':'Empieza gratis.','Upgrade whenever.':'Actualiza cuando quieras.',
+  'FREE':'GRATIS','Trial Mode':'Modo Prueba','30 full days':'30 días completos',
+  'Full access to all modules':'Acceso a todos los módulos',
+  'AI Twin included':'Gemelo IA incluido','Cloud storage':'Datos en la nube',
+  'No credit card needed':'Sin tarjeta de crédito','Start free →':'Empezar gratis →',
+  '🎓 STUDENT':'🎓 ESTUDIANTE',
+  'USD/month · requires .edu email or valid student ID':'MXN/mes · requiere email .edu o credencial vigente',
+  '$2.49':'$49',
+  'Everything in Pro':'Todo lo de Pro','50% off permanently':'50% de descuento permanente',
+  'Cloud-protected data':'Datos protegidos en la nube','Cancel anytime':'Cancela cuando quieras',
+  'Activate Edu →':'Activar Edu →','MOST POPULAR':'MÁS POPULAR',
+  'USD/month · cancel anytime':'MXN/mes · cancela cuando quieras',
+  '$4.99':'$99',
+  'Everything in Trial':'Todo el Modo Prueba',
+  'Permanently protected data':'Datos protegidos permanentemente',
+  'Deep AI Twin analysis':'Análisis profundo del Gemelo IA',
+  'Priority support':'Soporte prioritario','Access to all updates':'Acceso a todas las actualizaciones',
+  'Activate Pro →':'Activar Pro →',
+  // Footer
+  'STILL READING? YOU SHOULD ALREADY BE IN.':'¿SIGUES LEYENDO? YA DEBERÍAS ESTAR ADENTRO.',
+  'Your best self':'Tu mejor versión','starts today.':'empieza hoy.',
+  'Start free. No card. No excuses.':'Empieza gratis. Sin tarjeta. Sin excusas.',
+  '30 days free · Cancel anytime · LFPDPPP compliant':'30 días gratis · Cancela cuando quieras · LFPDPPP compliant',
+  'Terms':'Términos','Privacy':'Privacidad',
+  // App dynamic strings (EN→ES for observer re-renders)
+  'SYSTEM ONLINE':'SISTEMA ACTIVO',
+  'Cash flow steady. Balance:':'Flujo financiero estable. Saldo:',
+  'Habit battery at':'Batería de hábitos al','done today':'completados hoy',
+  'No pending tasks. Clear and focused!':'Sin tareas pendientes. ¡Enfocado y libre!',
+  'PHYSICAL STATUS':'ESTADO FÍSICO','PERSONAL BALANCE':'SALDO PERSONAL',
+  'CURRENT LEVEL':'NIVEL ACTUAL',"TODAY'S TASKS":'TAREAS DE HOY',
+  'WEEKLY STREAK':'RACHA SEMANAL','Time to train':'Comienza a entrenar',
+  'MXN available':'MXN disponible','Completed today':'Completadas hoy',
+  '⭐ Current Level':'⭐ Nivel Actual','XP this level':'XP en nivel actual',
+  'Current Level':'Nivel Actual','Total XP':'XP Total','🔥 Active Streak':'🔥 Racha Activa',
+  '✦ Current Essence':'✦ Esencia Actual','Energy flow':'Flujo de energía',
+  'Current Essence':'Esencia Actual','Total Aura':'Aura Total','🌊 Steady Flow':'🌊 Flujo Continuo',
+  'PERFORMANCE RADAR':'RADAR DE RENDIMIENTO','Performance Radar':'Radar de Rendimiento',
+  'Daily':'Diario','Monthly':'Mensual','Weekly':'Semanal','Done':'Hecho',
+  'View →':'Ver →','Save':'Guardar','Cancel':'Cancelar','Edit':'Editar',
+  'Delete':'Eliminar','Add':'Agregar','Close':'Cerrar','Back':'Volver','See more':'Ver más',
+  'No tasks yet. Add one!':'No hay tareas. ¡Agrega una!',
+  'No transactions yet':'Sin transacciones','No active habits yet':'No hay hábitos activos',
+  'No entries yet':'No hay registros','No data yet':'Sin datos',
+  '🌙 Dark Mode':'🌙 Modo Oscuro','☀️ Light Mode':'☀️ Modo Claro',
+  'Income':'Ingresos','Expenses':'Gastos','Savings':'Ahorro','Budget':'Presupuesto',
+  'Workout':'Entrenamiento','Exercise':'Ejercicio','Health':'Salud',
+  'Your most-used modules':'Tus módulos más usados','days':'días','day':'día',
+};
+
+const _ES_ENTRIES = Object.entries(TRANSLATIONS_ES).sort((a,b) => b[0].length - a[0].length);
+
 function applyLang(lang) {
-  if (lang === 'es') return;
+  const entries = lang === 'en' ? _EN_ENTRIES : _ES_ENTRIES;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
       const tag = n.parentNode?.tagName;
@@ -1068,8 +1175,8 @@ function applyLang(lang) {
   for (const node of nodes) {
     let txt = node.textContent;
     if (!txt.trim()) continue;
-    for (const [es, en] of _EN_ENTRIES) {
-      if (txt.includes(es)) txt = txt.split(es).join(en);
+    for (const [from, to] of entries) {
+      if (txt.includes(from)) txt = txt.split(from).join(to);
     }
     if (txt !== node.textContent) node.textContent = txt;
   }
@@ -1093,19 +1200,23 @@ function toggleLang() {
   ['lang-btn','lp-lang-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
   const mockup = document.getElementById('landing-mockup-img');
   if (window.APP_LANG === 'en') {
-    if (mockup) mockup.src = 'images/mockup-en.png';
-    renderDashboardHeader();
-    applyLang('en');
-  } else {
+    // Reload restaura el HTML base en inglés
     location.reload();
+  } else {
+    // Traduce el HTML inglés a español sin reload
+    if (mockup) mockup.src = 'images/mockup-es.jpg';
+    applyLang('es');
+    renderDashboardHeader();
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   _startLangObserver();
-  if (window.APP_LANG === 'en') {
-    ['lang-btn','lp-lang-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = 'ES'; });
-    setTimeout(() => applyLang('en'), 100);
+  if (window.APP_LANG === 'es') {
+    ['lang-btn','lp-lang-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = 'EN'; });
+    const mockup = document.getElementById('landing-mockup-img');
+    if (mockup) mockup.src = 'images/mockup-es.jpg';
+    setTimeout(() => applyLang('es'), 100);
   }
 });
 
